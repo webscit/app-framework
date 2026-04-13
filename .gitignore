@@ -13,8 +13,10 @@ __pycache__/
 node_modules/
 packages/*/node_modules/
 packages/*/dist/
+pypackages/*/dist/
 *.tsbuildinfo
+playwright-report/
+test-results/
 
 # Tooling caches
 .cache/
-

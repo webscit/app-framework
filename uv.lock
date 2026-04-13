@@ -94,7 +94,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "framework-core", editable = "packages/framework-core" }]
+requires-dist = [{ name = "framework-core", editable = "pypackages/framework-core" }]
 
 [[package]]
 name = "fastapi"
@@ -124,7 +124,7 @@ wheels = [
 [[package]]
 name = "framework-core"
 version = "0.1.0"
-source = { editable = "packages/framework-core" }
+source = { editable = "pypackages/framework-core" }
 dependencies = [
     { name = "fastapi" },
     { name = "uvicorn", extra = ["standard"] },
