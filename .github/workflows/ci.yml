@@ -90,8 +90,8 @@ jobs:
 
       - name: Install wheel in isolated environment
         run: |
-          uv venv .e2e-venv
-          .e2e-venv/bin/python -m pip install pypackages/framework-core/dist/*.whl
+          uv venv .e2e-venv --seed
+          .e2e-venv/bin/pip install pypackages/framework-core/dist/*.whl
 
       - name: Get Playwright version
         run: echo "PLAYWRIGHT_VERSION=$(npx playwright --version | awk '{print $2}')" >> $GITHUB_ENV
