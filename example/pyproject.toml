@@ -1,0 +1,8 @@
+[project]
+name = "example"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["framework-core"]
+
+[tool.uv.sources]
+framework-core = { workspace = true }

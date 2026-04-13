@@ -1,0 +1,20 @@
+{
+  "name": "app-framework",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w packages/ui-shell",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint packages",
+    "typecheck": "tsc -b packages/ui-shell/tsconfig.json"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9",
+    "prettier": "^3",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.1"
+  }
+}

@@ -1,0 +1,30 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [fastapi]
+        args: [--ignore-missing-imports]
+
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        language: node
+        entry: npx prettier --write
+        types_or: [ts, tsx, css, json]
+        pass_filenames: true
+
+      - id: eslint
+        name: eslint
+        language: node
+        entry: npx eslint --fix
+        types_or: [ts, tsx]
+        pass_filenames: true

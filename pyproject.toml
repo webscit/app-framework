@@ -1,0 +1,20 @@
+[tool.uv.workspace]
+members = ["packages/framework-core", "example"]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.10",
+  "pre-commit>=3.7",
+  "ruff>=0.4.4",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
