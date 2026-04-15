@@ -94,7 +94,7 @@ jobs:
       - name: Install wheel in isolated environment
         run: |
           uv venv .e2e-venv --seed
-          .e2e-venv/bin/pip install pypackages/framework-core/dist/framework_core-*.whl
+          .e2e-venv/bin/pip install pypackages/framework-core/dist/framework_core-*.whl uvicorn
 
       - name: Get Playwright version
         run: echo "PLAYWRIGHT_VERSION=$(npx playwright --version | awk '{print $2}')" >> $GITHUB_ENV

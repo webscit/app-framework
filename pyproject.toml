@@ -32,7 +32,16 @@ strict = true
 python_version = "3.11"
 exclude = ["tests/", "examples/"]
 ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = ["tests.*", "examples.*"]
 ignore_errors = true
+
+# FastAPI route/websocket decorators are not fully typed in all FastAPI/mypy
+# version combinations. Suppressing [misc] here avoids false-positive
+# "Untyped decorator makes function untyped" errors without silencing the
+# rest of strict checking in these modules.
+[[tool.mypy.overrides]]
+module = ["framework_core.ws_bridge", "framework_core"]
+disable_error_code = ["misc"]
