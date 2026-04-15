@@ -2,15 +2,16 @@
   "name": "app-framework",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/framework-core-ui",
+    "examples/frontend"
   ],
   "scripts": {
-    "dev": "npm run dev -w packages/ui-shell",
+    "dev": "npm run dev -w @app-framework/examples-frontend",
     "build": "npm run build --workspaces --if-present",
     "format:check": "prettier --check .",
-    "lint": "eslint packages",
-    "typecheck": "tsc -b packages/ui-shell/tsconfig.json",
-    "test:ui": "npm run test -w packages/ui-shell -- --run",
+    "lint": "eslint packages examples/frontend",
+    "typecheck": "tsc -b packages/framework-core-ui/tsconfig.json examples/frontend/tsconfig.json",
+    "test:ui": "npm run test -w @app-framework/core-ui -- --run && npm run test -w @app-framework/examples-frontend -- --run",
     "test:e2e": "playwright test"
   },
   "devDependencies": {

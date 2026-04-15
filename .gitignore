@@ -5,6 +5,8 @@
 .venv/
 __pycache__/
 *.py[cod]
+*.pyc
+*.egg-info/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
@@ -12,11 +14,20 @@ __pycache__/
 # Node / frontend
 node_modules/
 packages/*/node_modules/
+examples/*/node_modules/
+
+# Compiled output — never commit these
+dist/
 packages/*/dist/
-pypackages/*/dist/
+examples/frontend/dist/
+pypackages/framework-core/dist/
 *.tsbuildinfo
+
+# Test & report artefacts
 playwright-report/
 test-results/
 
 # Tooling caches
 .cache/
+.e2e-venv/
+uv.lock

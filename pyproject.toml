@@ -1,14 +1,26 @@
 [tool.uv.workspace]
-members = ["pypackages/framework-core", "example"]
+members = ["pypackages/framework-core", "examples/backend"]
+
+[project]
+name = "app-framework"
+version = "0.0.0"
+requires-python = ">=3.11"
 
 [dependency-groups]
 dev = [
+  "anyio[trio]>=4.0",
+  "fastapi>=0.111",
   "httpx>=0.27",
   "mypy>=1.10",
+  "pydantic>=2.0",
   "pre-commit>=3.7",
   "pytest>=8.0",
+  "pytest-anyio>=0.0.0",
   "ruff>=0.4.4",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 88
@@ -20,3 +32,17 @@ select = ["E", "F", "I", "UP"]
 [tool.mypy]
 strict = true
 python_version = "3.11"
+exclude = ["tests/", "examples/"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "examples.*"]
+ignore_errors = true
+
+# FastAPI route/websocket decorators are not fully typed in all FastAPI/mypy
+# version combinations. Suppressing [misc] here avoids false-positive
+# "Untyped decorator makes function untyped" errors without silencing the
+# rest of strict checking in these modules.
+[[tool.mypy.overrides]]
+module = ["framework_core.ws_bridge", "framework_core"]
+disable_error_code = ["untyped-decorator"]

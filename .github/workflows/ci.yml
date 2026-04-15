@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups
 
+      - name: Install framework-core package
+        run: uv pip install -e pypackages/framework-core
+
       - name: Ruff format
         run: uv run ruff format --check .
       - name: Ruff lint
@@ -34,7 +37,7 @@ jobs:
       - name: Mypy
         run: uv run mypy pypackages/framework-core/src
       - name: Run Python tests
-        run: uv run pytest tests
+        run: uv run pytest pypackages/framework-core/tests
 
   typescript-quality:
     runs-on: ubuntu-latest
@@ -86,12 +89,15 @@ jobs:
       - name: Build Python package
         run: |
           cd pypackages/framework-core
-          uv build
+          uv build --out-dir dist
+
+      - name: Debug dist contents
+        run: ls pypackages/framework-core/dist/
 
       - name: Install wheel in isolated environment
         run: |
-          uv venv .e2e-venv
-          .e2e-venv/bin/python -m pip install pypackages/framework-core/dist/*.whl
+          uv venv .e2e-venv --seed
+          .e2e-venv/bin/pip install pypackages/framework-core/dist/framework_core-*.whl uvicorn
 
       - name: Get Playwright version
         run: echo "PLAYWRIGHT_VERSION=$(npx playwright --version | awk '{print $2}')" >> $GITHUB_ENV
@@ -109,7 +115,7 @@ jobs:
         env:
           BACKEND_URL: http://127.0.0.1:8000
         run: |
-          .e2e-venv/bin/python -m uvicorn example.app:app --host 127.0.0.1 --port 8000 &
+          .e2e-venv/bin/python -m uvicorn examples.backend.main:app --host 127.0.0.1 --port 8000 &
           BACKEND_PID=$!
 
           cleanup() {
