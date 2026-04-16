@@ -7,6 +7,10 @@ export {
 export { useChannel, toPayloadWithHeaders } from "./useChannel";
 export { usePublish } from "./usePublish";
 export { useEventBusStatus } from "./useEventBusStatus";
+export { useWidgetRegistry } from "./useWidgetRegistry";
+export { useWidgetsByStream } from "./useWidgetsByStream";
+export { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
+export { type WidgetDefinition, WidgetRegistry } from "./widgetRegistry";
 export type {
   ConnectionStatus,
   EventHeaders,
