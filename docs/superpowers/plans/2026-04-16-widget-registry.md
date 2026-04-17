@@ -107,15 +107,15 @@ interface WidgetDefinition {
 
 ### TypeScript — `WidgetRegistry`
 
-| Method           | Signature                                                                  | Behaviour                                                             |
-| ---------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `register`       | `(definition: WidgetDefinition): IDisposable`                              | Throws `Error` if already registered. Dispose to unregister.         |
-| `get`            | `(name: string): WidgetDefinition \| undefined`                            | Returns `undefined` if not found                                      |
-| `list`           | `(): WidgetDefinition[]`                                                   | Returns all widgets, `[]` when empty                                  |
-| `findByMime`     | `(mimeType: string): WidgetDefinition[]`                                   | Match on `consumes` list, sorted by `priority` descending             |
-| `findByChannel`  | `(channel: string): WidgetDefinition[]`                                    | Match `channelPattern` glob against concrete channel, sorted          |
-| `resolveWidgets` | `(channel: string, mimeType?: string): WidgetDefinition[]`                 | MIME first → channel fallback → priority tie-break                    |
-| `onChange`       | `(listener: (change: WidgetChangeEvent) => void): IDisposable`             | Subscribe to catalog changes, dispose to unsubscribe                  |
+| Method           | Signature                                                      | Behaviour                                                    |
+| ---------------- | -------------------------------------------------------------- | ------------------------------------------------------------ |
+| `register`       | `(definition: WidgetDefinition): IDisposable`                  | Throws `Error` if already registered. Dispose to unregister. |
+| `get`            | `(name: string): WidgetDefinition \| undefined`                | Returns `undefined` if not found                             |
+| `list`           | `(): WidgetDefinition[]`                                       | Returns all widgets, `[]` when empty                         |
+| `findByMime`     | `(mimeType: string): WidgetDefinition[]`                       | Match on `consumes` list, sorted by `priority` descending    |
+| `findByChannel`  | `(channel: string): WidgetDefinition[]`                        | Match `channelPattern` glob against concrete channel, sorted |
+| `resolveWidgets` | `(channel: string, mimeType?: string): WidgetDefinition[]`     | MIME first → channel fallback → priority tie-break           |
+| `onChange`       | `(listener: (change: WidgetChangeEvent) => void): IDisposable` | Subscribe to catalog changes, dispose to unsubscribe         |
 
 #### IDisposable
 
@@ -125,7 +125,7 @@ interface IDisposable {
 }
 ```
 
-Mirrors the JupyterLab `DocumentRegistry.addWidgetFactory` pattern: `register()` returns a handle the caller disposes to unregister the widget.  There is **no separate `unregister(name)` method**.
+Mirrors the JupyterLab `DocumentRegistry.addWidgetFactory` pattern: `register()` returns a handle the caller disposes to unregister the widget. There is **no separate `unregister(name)` method**.
 
 #### WidgetChangeEvent
 
@@ -142,13 +142,13 @@ interface WidgetChangeEvent {
 
 Both are registered automatically in `EventBusProvider`.
 
-| Field            | LogViewer                                                             | StatusIndicator                                                   |
-| ---------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `name`           | `"LogViewer"`                                                         | `"StatusIndicator"`                                               |
-| `channelPattern` | `"log/*"`                                                             | `"control/*"`                                                     |
-| `consumes`       | `["text/plain"]`                                                      | `["application/x-control+json"]`                                  |
-| `priority`       | `10`                                                                  | `10`                                                              |
-| `description`    | Displays live log stream from simulation stdout/stderr                | Displays heartbeat and run status from the control channel        |
+| Field            | LogViewer                                              | StatusIndicator                                            |
+| ---------------- | ------------------------------------------------------ | ---------------------------------------------------------- |
+| `name`           | `"LogViewer"`                                          | `"StatusIndicator"`                                        |
+| `channelPattern` | `"log/*"`                                              | `"control/*"`                                              |
+| `consumes`       | `["text/plain"]`                                       | `["application/x-control+json"]`                           |
+| `priority`       | `10`                                                   | `10`                                                       |
+| `description`    | Displays live log stream from simulation stdout/stderr | Displays heartbeat and run status from the control channel |
 
 ---
 
@@ -159,8 +159,8 @@ Both are registered automatically in `EventBusProvider`.
 ```typescript
 interface EventHeaders {
   message_id: string;
-  timestamp: number;         // milliseconds since Unix epoch
-  mimeType?: string;         // e.g. "text/plain", "application/x-timeseries+json"
+  timestamp: number; // milliseconds since Unix epoch
+  mimeType?: string; // e.g. "text/plain", "application/x-timeseries+json"
 }
 ```
 
@@ -216,8 +216,8 @@ To prove the registry needs zero changes for new channel types, here is a future
 const geometryViewer: WidgetDefinition = {
   name: "GeometryViewer",
   description: "Renders 3D geometry from simulation output",
-  channelPattern: "geometry/*",    // new channel family — no registry changes needed
-  consumes: ["model/gltf+json"],   // standard MIME for 3D
+  channelPattern: "geometry/*", // new channel family — no registry changes needed
+  consumes: ["model/gltf+json"], // standard MIME for 3D
   priority: 10,
   parameters: {
     backgroundColor: { type: "string", default: "#1a1a2e" },
@@ -236,10 +236,10 @@ The `channelPattern: "geometry/*"` value is a new channel family unknown to the 
 
 ## 10. Hooks
 
-| Hook                               | Returns                   | Description                                                     |
-| ---------------------------------- | ------------------------- | --------------------------------------------------------------- |
-| `useWidgetRegistry()`              | `WidgetDefinition[]`      | All widgets in the registry; re-renders on any catalog change   |
-| `useWidgetsByChannel(channel)`     | `WidgetDefinition[]`      | Widgets whose `channelPattern` matches the concrete channel     |
-| `useWidgetsByMime(mimeType)`       | `WidgetDefinition[]`      | Widgets whose `consumes` list includes the MIME type            |
+| Hook                           | Returns              | Description                                                   |
+| ------------------------------ | -------------------- | ------------------------------------------------------------- |
+| `useWidgetRegistry()`          | `WidgetDefinition[]` | All widgets in the registry; re-renders on any catalog change |
+| `useWidgetsByChannel(channel)` | `WidgetDefinition[]` | Widgets whose `channelPattern` matches the concrete channel   |
+| `useWidgetsByMime(mimeType)`   | `WidgetDefinition[]` | Widgets whose `consumes` list includes the MIME type          |
 
 All three hooks subscribe to `registry.onChange(...)` and return an `IDisposable` that is cleaned up on unmount.
