@@ -6,7 +6,7 @@ import type { WidgetDefinition } from "./widgetRegistry";
 /**
  * Returns a live list of all widgets currently in the registry.
  *
- * Re-renders whenever the registry changes (widget registered or unregistered).
+ * Re-renders whenever the registry changes (widget added or disposed).
  *
  * @returns Array of all registered {@link WidgetDefinition} objects.
  * @example
@@ -20,9 +20,10 @@ export function useWidgetRegistry(): WidgetDefinition[] {
   const [widgets, setWidgets] = useState<WidgetDefinition[]>(() => registry.list());
 
   useEffect(() => {
-    return registry.onChange(() => {
+    const handle = registry.onChange(() => {
       setWidgets(registry.list());
     });
+    return () => handle.dispose();
   }, [registry]);
 
   return widgets;

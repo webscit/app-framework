@@ -3,7 +3,7 @@ import type { PropsWithChildren } from "react";
 
 import { RealtimeEventBusClient, type WebSocketFactory } from "./client";
 import { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
-import { type WidgetDefinition, WidgetRegistry } from "./widgetRegistry";
+import { WidgetRegistry } from "./widgetRegistry";
 
 const EventBusContext = createContext<RealtimeEventBusClient | null>(null);
 const WidgetRegistryContext = createContext<WidgetRegistry | null>(null);
@@ -18,8 +18,6 @@ export interface EventBusProviderProps extends PropsWithChildren {
   reconnectDelayMs?: number;
   /** Optional custom factory, useful for tests. */
   webSocketFactory?: WebSocketFactory;
-  /** Optional custom fetch function, useful for tests. */
-  fetchFn?: typeof fetch;
 }
 
 interface LocationLike {
@@ -49,15 +47,16 @@ export function buildWebSocketUrl(path: string, locationLike: LocationLike): str
  * Provides a shared realtime event bus client and widget registry to
  * descendant hooks/components.
  *
- * On WebSocket connect the provider fetches ``GET /api/widgets`` and
- * hydrates the local registry with any widgets not already registered,
- * keeping the frontend catalog in sync with the server.
+ * The widget registry is frontend-only — it is pre-populated with the
+ * built-in {@link LOG_VIEWER} and {@link STATUS_INDICATOR} defaults.
+ * Applications register additional widgets by calling
+ * `registry.register(definition)` on the instance returned by
+ * {@link useWidgetRegistryInstance}.
  *
  * @param props Provider configuration and children.
  * @param props.path WebSocket endpoint path.
  * @param props.reconnectDelayMs Reconnect delay in milliseconds.
  * @param props.webSocketFactory Optional websocket factory for tests.
- * @param props.fetchFn Optional fetch function override for tests.
  * @param props.children Child React nodes.
  * @returns A context provider wrapping the children.
  * @example
@@ -71,7 +70,6 @@ export function EventBusProvider({
   path,
   reconnectDelayMs,
   webSocketFactory,
-  fetchFn,
   children,
 }: EventBusProviderProps): JSX.Element {
   const client = useMemo(() => {
@@ -96,28 +94,6 @@ export function EventBusProvider({
       client.stop();
     };
   }, [client]);
-
-  useEffect(() => {
-    const doFetch = fetchFn ?? fetch;
-    return client.onStatusChange((status) => {
-      if (status !== "connected") {
-        return;
-      }
-      const base = `${window.location.protocol}//${window.location.host}`;
-      doFetch(`${base}/api/widgets`)
-        .then((r) => r.json() as Promise<WidgetDefinition[]>)
-        .then((widgets) => {
-          for (const widget of widgets) {
-            if (!registry.get(widget.name)) {
-              registry.register(widget);
-            }
-          }
-        })
-        .catch(() => {
-          // Silently ignore hydration errors — defaults are already registered.
-        });
-    });
-  }, [client, registry, fetchFn]);
 
   return (
     <EventBusContext.Provider value={client}>

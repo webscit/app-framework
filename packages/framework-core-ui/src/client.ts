@@ -4,6 +4,14 @@ export interface EventHeaders {
   message_id: string;
   /** Milliseconds since Unix epoch. */
   timestamp: number;
+  /**
+   * Optional MIME type describing the exact shape of the payload.
+   *
+   * When present, the frontend widget registry uses this for primary
+   * widget resolution before falling back to channel-pattern matching.
+   * e.g. `"text/plain"`, `"application/x-timeseries+json"`.
+   */
+  mimeType?: string;
 }
 
 export interface WireEvent {
@@ -102,6 +110,7 @@ export function coerceWireEvent(value: unknown): WireEvent | null {
     headers: {
       message_id: headers.message_id,
       timestamp: headers.timestamp,
+      ...(typeof headers.mimeType === "string" ? { mimeType: headers.mimeType } : {}),
     },
     payload: maybeEvent.payload,
   };

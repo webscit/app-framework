@@ -5,20 +5,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBusProvider } from "./EventBusContext";
 import type { WebSocketLike } from "./client";
 import { useWidgetRegistry } from "./useWidgetRegistry";
-import { useWidgetsByStream } from "./useWidgetsByStream";
+import { useWidgetsByChannel } from "./useWidgetsByChannel";
 import { type WidgetDefinition, WidgetRegistry } from "./widgetRegistry";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function makeWidget(name: string, stream = "data"): WidgetDefinition {
+function makeWidget(name: string, channelPattern = "data/*"): WidgetDefinition {
   return {
     name,
     description: `Test widget ${name}`,
-    stream,
-    consumes: "text/plain",
-    capabilities: ["test", "scrollable"],
+    channelPattern,
+    consumes: ["text/plain"],
+    priority: 10,
     parameters: { maxItems: { type: "integer", default: 50 } },
-    component: `./src/widgets/${name}.tsx`,
+    component: () => null,
   };
 }
 
@@ -62,18 +62,19 @@ describe("WidgetRegistry", () => {
     );
   });
 
-  it("unregister existing widget removes it", () => {
+  it("dispose handle removes the widget", () => {
     const registry = new WidgetRegistry();
-    registry.register(makeWidget("Alpha"));
-    registry.unregister("Alpha");
+    const handle = registry.register(makeWidget("Alpha"));
+    handle.dispose();
     expect(registry.get("Alpha")).toBeUndefined();
   });
 
-  it("unregister missing name throws Error", () => {
+  it("disposing twice is idempotent", () => {
     const registry = new WidgetRegistry();
-    expect(() => registry.unregister("NonExistent")).toThrow(
-      "Widget 'NonExistent' is not registered",
-    );
+    const handle = registry.register(makeWidget("Alpha"));
+    handle.dispose();
+    expect(() => handle.dispose()).not.toThrow();
+    expect(registry.list()).toEqual([]);
   });
 
   it("list returns all registered widgets", () => {
@@ -92,46 +93,32 @@ describe("WidgetRegistry", () => {
     expect(new WidgetRegistry().list()).toEqual([]);
   });
 
-  it("findByCapability returns matching widgets and [] when no match", () => {
-    const registry = new WidgetRegistry();
-    const w1: WidgetDefinition = {
-      ...makeWidget("W1"),
-      capabilities: ["log-viewer", "scrollable"],
-    };
-    const w2: WidgetDefinition = {
-      ...makeWidget("W2"),
-      capabilities: ["chart"],
-    };
-    registry.register(w1);
-    registry.register(w2);
-    expect(registry.findByCapability("log-viewer")).toContainEqual(w1);
-    expect(registry.findByCapability("log-viewer")).not.toContainEqual(w2);
-    expect(registry.findByCapability("missing-tag")).toEqual([]);
-  });
-
-  it("findByStream returns matching widgets and [] when no match", () => {
-    const registry = new WidgetRegistry();
-    const logW = makeWidget("LogW", "log");
-    const dataW = makeWidget("DataW", "data");
-    registry.register(logW);
-    registry.register(dataW);
-    expect(registry.findByStream("log")).toContainEqual(logW);
-    expect(registry.findByStream("log")).not.toContainEqual(dataW);
-    expect(registry.findByStream("control")).toEqual([]);
-  });
-
   it("findByMime returns matching widgets and [] when no match", () => {
     const registry = new WidgetRegistry();
-    const w1: WidgetDefinition = { ...makeWidget("W1"), consumes: "text/plain" };
+    const w1: WidgetDefinition = { ...makeWidget("W1"), consumes: ["text/plain"] };
     const w2: WidgetDefinition = {
       ...makeWidget("W2"),
-      consumes: "application/x-control+json",
+      consumes: ["application/x-control+json"],
     };
     registry.register(w1);
     registry.register(w2);
     expect(registry.findByMime("text/plain")).toContainEqual(w1);
     expect(registry.findByMime("text/plain")).not.toContainEqual(w2);
     expect(registry.findByMime("model/gltf+json")).toEqual([]);
+  });
+
+  it("findByChannel returns matching widgets and [] when no match", () => {
+    const registry = new WidgetRegistry();
+    const logW: WidgetDefinition = { ...makeWidget("LogW"), channelPattern: "log/*" };
+    const dataW: WidgetDefinition = {
+      ...makeWidget("DataW"),
+      channelPattern: "data/*",
+    };
+    registry.register(logW);
+    registry.register(dataW);
+    expect(registry.findByChannel("log/app")).toContainEqual(logW);
+    expect(registry.findByChannel("log/app")).not.toContainEqual(dataW);
+    expect(registry.findByChannel("control/status")).toEqual([]);
   });
 });
 
@@ -150,7 +137,6 @@ describe("widget hooks", () => {
 
   it("useWidgetRegistry returns all registered widgets", () => {
     const socket = new FakeWebSocket();
-    const noFetch = vi.fn().mockResolvedValue({ json: () => Promise.resolve([]) });
     const seen: WidgetDefinition[][] = [];
 
     function Probe(): JSX.Element | null {
@@ -163,7 +149,7 @@ describe("widget hooks", () => {
 
     act(() => {
       create(
-        <EventBusProvider path="/ws" webSocketFactory={() => socket} fetchFn={noFetch}>
+        <EventBusProvider path="/ws" webSocketFactory={() => socket}>
           <Probe />
         </EventBusProvider>,
       );
@@ -175,13 +161,12 @@ describe("widget hooks", () => {
     expect(latest.map((w) => w.name)).toContain("StatusIndicator");
   });
 
-  it("useWidgetsByStream returns widgets filtered by stream", () => {
+  it("useWidgetsByChannel returns widgets filtered by channelPattern", () => {
     const socket = new FakeWebSocket();
-    const noFetch = vi.fn().mockResolvedValue({ json: () => Promise.resolve([]) });
     const seen: WidgetDefinition[][] = [];
 
     function Probe(): JSX.Element | null {
-      const widgets = useWidgetsByStream("log");
+      const widgets = useWidgetsByChannel("log/app");
       useEffect(() => {
         seen.push(widgets);
       }, [widgets]);
@@ -190,58 +175,16 @@ describe("widget hooks", () => {
 
     act(() => {
       create(
-        <EventBusProvider path="/ws" webSocketFactory={() => socket} fetchFn={noFetch}>
+        <EventBusProvider path="/ws" webSocketFactory={() => socket}>
           <Probe />
         </EventBusProvider>,
       );
     });
 
     const latest = seen.at(-1)!;
-    // LogViewer has stream="log"; StatusIndicator has stream="control".
+    // LogViewer has channelPattern="log/*" which matches "log/app".
+    // StatusIndicator has channelPattern="control/*" which does not.
     expect(latest.map((w) => w.name)).toContain("LogViewer");
     expect(latest.map((w) => w.name)).not.toContain("StatusIndicator");
-  });
-
-  it("EventBusProvider hydrates registry from GET /api/widgets on connect", async () => {
-    const socket = new FakeWebSocket();
-    const extra = makeWidget("ExtraWidget", "data");
-    const mockFetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve([extra]),
-    });
-
-    const seen: WidgetDefinition[][] = [];
-
-    function Probe(): JSX.Element | null {
-      const widgets = useWidgetRegistry();
-      useEffect(() => {
-        seen.push(widgets);
-      }, [widgets]);
-      return null;
-    }
-
-    act(() => {
-      create(
-        <EventBusProvider
-          path="/ws"
-          webSocketFactory={() => socket}
-          fetchFn={mockFetch}
-        >
-          <Probe />
-        </EventBusProvider>,
-      );
-    });
-
-    // Trigger connect → should fire fetch
-    await act(async () => {
-      socket.open();
-      // Flush promise microtasks for the fetch chain
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:5173/api/widgets");
-    const latest = seen.at(-1)!;
-    expect(latest.map((w) => w.name)).toContain("ExtraWidget");
   });
 });

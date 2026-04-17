@@ -1,88 +1,146 @@
-/** Schema for a single widget type registered in the {@link WidgetRegistry}. */
+import type { ComponentType } from "react";
+
+import { channelMatches } from "./client";
+
+// ─── IDisposable ──────────────────────────────────────────────────────────────
+
+/**
+ * Handle returned by registry mutations.  Call {@link IDisposable.dispose}
+ * to undo the mutation (e.g. remove a registered widget).
+ *
+ * Mirrors the JupyterLab `IDisposable` pattern.
+ */
+export interface IDisposable {
+  /** Undo the operation that produced this handle. Idempotent. */
+  dispose(): void;
+}
+
+// ─── WidgetDefinition ─────────────────────────────────────────────────────────
+
+/**
+ * Schema for a single widget type in the frontend-only {@link WidgetRegistry}.
+ *
+ * The registry is instantiated per {@link EventBusProvider} — it is not a
+ * global singleton.
+ */
 export interface WidgetDefinition {
   /** Unique identifier, e.g. `"LogViewer"`. */
   name: string;
-  /** Human-readable purpose of the widget. */
+
+  /**
+   * Verbose human-readable purpose.
+   *
+   * Used for AI reasoning and layout-editor tooltips.
+   * No structured capability tags — the description is the reasoning surface.
+   */
   description: string;
+
   /**
-   * Open string — which WebSocket stream this widget consumes.
-   * Not a closed enum so future stream types need zero registry changes.
-   * e.g. `"log"`, `"control"`, `"data"`, `"geometry"`.
+   * Glob pattern matching the EventBus channels this widget handles.
+   * e.g. `"log/*"`, `"data/temperature"`, `"control/*"`.
+   *
+   * Used as a fallback when no `mimeType` match is found in the message
+   * headers. See {@link WidgetRegistry.resolveWidgets}.
    */
-  stream: string;
+  channelPattern: string;
+
   /**
-   * MIME type describing the exact data shape expected.
-   * e.g. `"text/plain"`, `"application/x-timeseries+json"`.
+   * MIME types this widget can render, in preference order.
+   * e.g. `["text/plain"]`, `["application/x-timeseries+json"]`.
+   *
+   * Widget resolution checks `mimeType` from message headers against this
+   * list first, then falls back to `channelPattern` matching.
    */
-  consumes: string;
+  consumes: string[];
+
   /**
-   * Open tags for AI reasoning and human search.
-   * No validation — any string is valid.
-   * e.g. `["log-viewer", "scrollable", "searchable"]`.
+   * Sort weight when multiple widgets match the same MIME type or channel.
+   * Higher wins.  Widgets with equal priority are returned in registration
+   * order.
    */
-  capabilities: string[];
+  priority: number;
+
   /**
-   * JSON schema of user-configurable parameters.
+   * JSON schema of user-configurable parameters displayed in the layout editor.
    * e.g. `{ maxLines: { type: "integer", default: 1000 } }`.
    */
   parameters: Record<string, unknown>;
+
   /**
-   * Relative path to the React component.
-   * e.g. `"./src/widgets/LogViewer.tsx"`.
+   * React component responsible for rendering this widget.
+   *
+   * Passed by reference (not by path string) so the layout editor can
+   * render a live preview without a dynamic import step.
    */
-  component: string;
+  component: ComponentType;
 }
 
-type RegistryListener = () => void;
+// ─── WidgetRegistry ───────────────────────────────────────────────────────────
+
+/** Payload delivered to {@link WidgetRegistry.onChange} listeners. */
+export interface WidgetChangeEvent {
+  type: "added" | "removed";
+  widget: WidgetDefinition;
+}
+
+type ChangeListener = (change: WidgetChangeEvent) => void;
 
 /**
- * Catalog of available widget types.
+ * Frontend-only catalog of available widget types.
  *
- * Not a singleton — instantiated per `EventBusProvider` so multiple app
- * instances remain independent and tests can construct their own registries.
+ * Instantiated once per {@link EventBusProvider} — not a global singleton —
+ * so multiple provider instances remain independent and tests construct their
+ * own registries.
  *
- * Notifies all registered listeners via {@link onChange} whenever the catalog
- * changes, enabling React hooks to re-render on updates.
+ * Widget resolution uses a two-layer strategy:
+ * 1. Check `mimeType` from message headers against each widget's `consumes`
+ *    list (primary — most specific).
+ * 2. Fall back to `channelPattern` glob matching (secondary — broader).
+ * Matched widgets are sorted by `priority` descending.
+ *
+ * Follows the JupyterLab {@link https://jupyterlab.readthedocs.io DocumentRegistry}
+ * pattern: `register()` returns an {@link IDisposable} the caller disposes to
+ * remove the widget.
  *
  * @example
  * ```ts
  * const registry = new WidgetRegistry();
- * registry.register({ name: "LogViewer", stream: "log", ... });
- * const widgets = registry.findByStream("log");
+ * const handle = registry.register({ name: "LogViewer", ... });
+ * handle.dispose(); // remove it
  * ```
  */
 export class WidgetRegistry {
   private readonly widgets = new Map<string, WidgetDefinition>();
-  private readonly listeners = new Set<RegistryListener>();
+  private readonly changeListeners = new Set<ChangeListener>();
 
   /**
-   * Add *widget* to the catalog.
+   * Add *definition* to the catalog.
    *
-   * @param widget Widget definition to register.
-   * @returns Nothing.
+   * @param definition Widget to register.
+   * @returns Disposable — call `dispose()` to remove the widget.
    * @throws Error if a widget with the same name is already registered.
+   * @example
+   * ```ts
+   * const handle = registry.register(LOG_VIEWER);
+   * handle.dispose(); // unregisters LOG_VIEWER
+   * ```
    */
-  register(widget: WidgetDefinition): void {
-    if (this.widgets.has(widget.name)) {
-      throw new Error(`Widget '${widget.name}' is already registered`);
+  register(definition: WidgetDefinition): IDisposable {
+    if (this.widgets.has(definition.name)) {
+      throw new Error(`Widget '${definition.name}' is already registered`);
     }
-    this.widgets.set(widget.name, widget);
-    this.notify();
-  }
+    this.widgets.set(definition.name, definition);
+    this.notify({ type: "added", widget: definition });
 
-  /**
-   * Remove the widget identified by *name* from the catalog.
-   *
-   * @param name Widget name to remove.
-   * @returns Nothing.
-   * @throws Error if no widget with that name is registered.
-   */
-  unregister(name: string): void {
-    if (!this.widgets.has(name)) {
-      throw new Error(`Widget '${name}' is not registered`);
-    }
-    this.widgets.delete(name);
-    this.notify();
+    let disposed = false;
+    return {
+      dispose: () => {
+        if (disposed) return;
+        disposed = true;
+        this.widgets.delete(definition.name);
+        this.notify({ type: "removed", widget: definition });
+      },
+    };
   }
 
   /**
@@ -105,56 +163,78 @@ export class WidgetRegistry {
   }
 
   /**
-   * Return widgets whose `capabilities` array includes *tag*.
+   * Return widgets whose `consumes` list includes *mimeType*, sorted by
+   * `priority` descending.
    *
-   * @param tag Capability tag to search for.
-   * @returns Matching widgets, or `[]` when none match.
-   */
-  findByCapability(tag: string): WidgetDefinition[] {
-    return [...this.widgets.values()].filter((w) => w.capabilities.includes(tag));
-  }
-
-  /**
-   * Return widgets whose `stream` field equals *stream* exactly.
-   *
-   * @param stream Stream type string to match.
-   * @returns Matching widgets, or `[]` when none match.
-   */
-  findByStream(stream: string): WidgetDefinition[] {
-    return [...this.widgets.values()].filter((w) => w.stream === stream);
-  }
-
-  /**
-   * Return widgets whose `consumes` field equals *mimeType* exactly.
-   *
-   * @param mimeType MIME type string to match.
-   * @returns Matching widgets, or `[]` when none match.
+   * @param mimeType MIME type to match against each widget's `consumes` array.
+   * @returns Matching widgets sorted by priority, or `[]` when none match.
    */
   findByMime(mimeType: string): WidgetDefinition[] {
-    return [...this.widgets.values()].filter((w) => w.consumes === mimeType);
+    return [...this.widgets.values()]
+      .filter((w) => w.consumes.includes(mimeType))
+      .sort((a, b) => b.priority - a.priority);
   }
 
   /**
-   * Register *listener* to be called whenever the catalog changes.
+   * Return widgets whose `channelPattern` glob matches *channel*, sorted by
+   * `priority` descending.
    *
-   * @param listener Callback invoked on any register/unregister.
-   * @returns Function that unregisters the listener.
+   * @param channel Concrete channel name, e.g. `"log/app"`.
+   * @returns Matching widgets sorted by priority, or `[]` when none match.
+   */
+  findByChannel(channel: string): WidgetDefinition[] {
+    return [...this.widgets.values()]
+      .filter((w) => channelMatches(channel, w.channelPattern))
+      .sort((a, b) => b.priority - a.priority);
+  }
+
+  /**
+   * Resolve the best-matching widgets for an incoming message.
+   *
+   * Resolution strategy:
+   * 1. If *mimeType* is provided, return `findByMime(mimeType)` (most specific).
+   * 2. Otherwise fall back to `findByChannel(channel)`.
+   *
+   * @param channel Concrete channel the message arrived on.
+   * @param mimeType Optional MIME type from the message headers.
+   * @returns Sorted list of matching widgets, or `[]` when none match.
+   */
+  resolveWidgets(channel: string, mimeType?: string): WidgetDefinition[] {
+    if (mimeType) {
+      const byMime = this.findByMime(mimeType);
+      if (byMime.length > 0) return byMime;
+    }
+    return this.findByChannel(channel);
+  }
+
+  /**
+   * Subscribe to catalog changes (widgets added or removed).
+   *
+   * The listener is called with a {@link WidgetChangeEvent} describing each
+   * change.  Returns an {@link IDisposable} — call `dispose()` to unsubscribe.
+   *
+   * @param listener Callback invoked with each change event.
+   * @returns Disposable that unsubscribes the listener.
    * @example
    * ```ts
-   * const off = registry.onChange(() => setWidgets(registry.list()));
-   * off(); // stop listening
+   * const handle = registry.onChange(({ type, widget }) => {
+   *   console.log(type, widget.name);
+   * });
+   * handle.dispose();
    * ```
    */
-  onChange(listener: RegistryListener): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
+  onChange(listener: ChangeListener): IDisposable {
+    this.changeListeners.add(listener);
+    return {
+      dispose: () => {
+        this.changeListeners.delete(listener);
+      },
     };
   }
 
-  private notify(): void {
-    for (const listener of this.listeners) {
-      listener();
+  private notify(change: WidgetChangeEvent): void {
+    for (const listener of this.changeListeners) {
+      listener(change);
     }
   }
 }
