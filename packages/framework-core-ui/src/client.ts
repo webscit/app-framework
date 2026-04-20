@@ -7,8 +7,8 @@ export interface EventHeaders {
   /**
    * Optional MIME type describing the exact shape of the payload.
    *
-   * When present, the frontend widget registry uses this for primary
-   * widget resolution before falling back to channel-pattern matching.
+   * When present, the frontend widget registry uses this for secondary
+   * widget resolution after the channel-pattern matching.
    * e.g. `"text/plain"`, `"application/x-timeseries+json"`.
    */
   mimeType?: string;

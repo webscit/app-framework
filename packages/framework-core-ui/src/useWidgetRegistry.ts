@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { useWidgetRegistryInstance } from "./EventBusContext";
+import { useWidgetRegistryInstance } from "./WidgetRegistryContext";
 import type { WidgetDefinition } from "./widgetRegistry";
 
 /**

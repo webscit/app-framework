@@ -4,17 +4,22 @@ export {
   useEventBusClient,
   type EventBusProviderProps,
 } from "./EventBusContext";
+export {
+  WidgetRegistryContext,
+  useWidgetRegistryInstance,
+} from "./WidgetRegistryContext";
 export { useChannel, toPayloadWithHeaders } from "./useChannel";
 export { usePublish } from "./usePublish";
 export { useEventBusStatus } from "./useEventBusStatus";
 export { useWidgetRegistry } from "./useWidgetRegistry";
 export { useWidgets } from "./useWidgets";
 export { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
+export type { IDisposable } from "./disposable";
 export {
   type WidgetDefinition,
   type ComponentOptions,
-  type IDisposable,
   type WidgetChangeEvent,
+  type ChangeListener,
   WidgetRegistry,
 } from "./widgetRegistry";
 export type {

@@ -3,6 +3,7 @@ import { act, create } from "react-test-renderer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EventBusProvider } from "./EventBusContext";
+import { WidgetRegistryContext } from "./WidgetRegistryContext";
 import { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
 import type { WebSocketLike } from "./client";
 import { useWidgetRegistry } from "./useWidgetRegistry";
@@ -201,13 +202,11 @@ describe("widget hooks", () => {
 
     act(() => {
       create(
-        <EventBusProvider
-          path="/ws"
-          webSocketFactory={() => socket}
-          registry={registry}
-        >
-          <Probe />
-        </EventBusProvider>,
+        <WidgetRegistryContext.Provider value={registry}>
+          <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+            <Probe />
+          </EventBusProvider>
+        </WidgetRegistryContext.Provider>,
       );
     });
 
@@ -233,13 +232,11 @@ describe("widget hooks", () => {
 
     act(() => {
       create(
-        <EventBusProvider
-          path="/ws"
-          webSocketFactory={() => socket}
-          registry={registry}
-        >
-          <Probe />
-        </EventBusProvider>,
+        <WidgetRegistryContext.Provider value={registry}>
+          <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+            <Probe />
+          </EventBusProvider>
+        </WidgetRegistryContext.Provider>,
       );
     });
 
@@ -263,13 +260,11 @@ describe("widget hooks", () => {
 
     act(() => {
       create(
-        <EventBusProvider
-          path="/ws"
-          webSocketFactory={() => socket}
-          registry={registry}
-        >
-          <Probe />
-        </EventBusProvider>,
+        <WidgetRegistryContext.Provider value={registry}>
+          <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+            <Probe />
+          </EventBusProvider>
+        </WidgetRegistryContext.Provider>,
       );
     });
 
@@ -301,13 +296,11 @@ describe("widget hooks", () => {
 
     act(() => {
       create(
-        <EventBusProvider
-          path="/ws"
-          webSocketFactory={() => socket}
-          registry={registry}
-        >
-          <Probe />
-        </EventBusProvider>,
+        <WidgetRegistryContext.Provider value={registry}>
+          <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+            <Probe />
+          </EventBusProvider>
+        </WidgetRegistryContext.Provider>,
       );
     });
 

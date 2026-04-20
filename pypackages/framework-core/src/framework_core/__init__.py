@@ -16,8 +16,6 @@ def create_app(lifespan: Any = None) -> FastAPI:
     Mounts the ``/ws`` WebSocket endpoint backed by a shared ``EventBus``.
     The application's ``EventBus`` is accessible via ``app.state.bus``.
 
-    The widget registry is frontend-only and is not managed by the backend.
-
     Args:
         lifespan: Optional async context manager for startup/shutdown hooks.
                   It receives the ``FastAPI`` app instance and must be an

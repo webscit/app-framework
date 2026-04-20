@@ -4,7 +4,7 @@
 
 **Goal:** Implement a frontend-only catalog of available widget types that three consumers can read from: the AI layer, the layout editor, and the application shell.
 
-**Architecture:** `WidgetRegistry` is instantiated by the **application** and passed into `EventBusProvider` as a prop. Two built-in widgets are pre-registered by the application. The backend has no awareness of widgets — it only publishes data on channels. Phase 2 will add manifest-based discovery and lazy component loading (out of scope here).
+**Architecture:** `WidgetRegistry` is instantiated by the **application** and provided to descendant components via `WidgetRegistryContext.Provider`. Two built-in widgets are pre-registered by the application. The backend has no awareness of widgets — it only publishes data on channels. Phase 2 will add manifest-based discovery and lazy component loading (out of scope here).
 
 **Tech Stack:** TypeScript — React, Vitest, react-test-renderer.
 
@@ -151,7 +151,7 @@ interface WidgetChangeEvent {
 
 ## 6. Built-in Widgets
 
-Both are registered by the application when it creates the `WidgetRegistry` and passes it to `EventBusProvider`.
+Both are registered by the application when it creates the `WidgetRegistry` and provides it via `WidgetRegistryContext.Provider`.
 
 | Field            | LogViewer                                              | StatusIndicator                                            |
 | ---------------- | ------------------------------------------------------ | ---------------------------------------------------------- |
@@ -215,11 +215,11 @@ The backend publishes structured data on channels; it has no knowledge of how th
 
 ### e. Why the application owns the registry (not `EventBusProvider`)
 
-`WidgetRegistry` is instantiated by the **application**, not inside `EventBusProvider`. The application creates its registry, registers widgets, then passes the instance to `EventBusProvider` as a prop (dependency injection). `EventBusProvider` and `WidgetRegistry` are separate, independently composable concerns.
+`WidgetRegistry` is instantiated by the **application**, not inside `EventBusProvider`. The application creates its registry, registers widgets, and provides it to descendant components via `WidgetRegistryContext.Provider`. `EventBusProvider` and `WidgetRegistry` are separate, independently composable concerns — neither owns the other.
 
 This design means:
 
-- Tests instantiate their own registry, register only the widgets they need, and pass it in — no shared global state, no order-dependent test pollution.
+- Tests instantiate their own registry, register only the widgets they need, and wrap with `WidgetRegistryContext.Provider` — no shared global state, no order-dependent test pollution.
 - Two app instances in the same process own separate catalogs with no interference.
 - Teardown is trivial: discard the registry instance and all listeners are gone.
 - A global singleton registry would invert this: the framework would own state that belongs to the application, making isolation impossible.

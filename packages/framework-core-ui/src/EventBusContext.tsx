@@ -2,10 +2,8 @@ import { createContext, useContext, useEffect, useMemo } from "react";
 import type { PropsWithChildren } from "react";
 
 import { RealtimeEventBusClient, type WebSocketFactory } from "./client";
-import { WidgetRegistry } from "./widgetRegistry";
 
 const EventBusContext = createContext<RealtimeEventBusClient | null>(null);
-const WidgetRegistryContext = createContext<WidgetRegistry | null>(null);
 
 /**
  * Props for {@link EventBusProvider}.
@@ -17,14 +15,6 @@ export interface EventBusProviderProps extends PropsWithChildren {
   reconnectDelayMs?: number;
   /** Optional custom factory, useful for tests. */
   webSocketFactory?: WebSocketFactory;
-  /**
-   * Widget registry to provide to descendant hooks/components.
-   *
-   * Passed via dependency injection — callers construct and pre-populate the
-   * registry before mounting the provider. If omitted, the registry context
-   * value is `null` and any widget hook will throw a clear error.
-   */
-  registry?: WidgetRegistry;
 }
 
 interface LocationLike {
@@ -51,25 +41,17 @@ export function buildWebSocketUrl(path: string, locationLike: LocationLike): str
 }
 
 /**
- * Provides a shared realtime event bus client and widget registry to
- * descendant hooks/components.
- *
- * The widget registry is injected via the `registry` prop (dependency
- * injection). Callers construct the registry, register widgets, and pass it
- * in. If no registry is provided, widget hooks will throw a clear error.
+ * Provides a shared realtime event bus client to descendant hooks/components.
  *
  * @param props Provider configuration and children.
  * @param props.path WebSocket endpoint path.
  * @param props.reconnectDelayMs Reconnect delay in milliseconds.
  * @param props.webSocketFactory Optional websocket factory for tests.
- * @param props.registry Optional widget registry instance.
  * @param props.children Child React nodes.
  * @returns A context provider wrapping the children.
  * @example
  * ```tsx
- * const registry = new WidgetRegistry();
- * registry.register(LOG_VIEWER);
- * <EventBusProvider path="/ws" registry={registry}>
+ * <EventBusProvider path="/ws">
  *   <Dashboard />
  * </EventBusProvider>
  * ```
@@ -78,7 +60,6 @@ export function EventBusProvider({
   path,
   reconnectDelayMs,
   webSocketFactory,
-  registry,
   children,
 }: EventBusProviderProps): JSX.Element {
   const client = useMemo(() => {
@@ -97,13 +78,7 @@ export function EventBusProvider({
     };
   }, [client]);
 
-  return (
-    <EventBusContext.Provider value={client}>
-      <WidgetRegistryContext.Provider value={registry ?? null}>
-        {children}
-      </WidgetRegistryContext.Provider>
-    </EventBusContext.Provider>
-  );
+  return <EventBusContext.Provider value={client}>{children}</EventBusContext.Provider>;
 }
 
 /**
@@ -123,18 +98,4 @@ export function useEventBusClient(): RealtimeEventBusClient {
     throw new Error("EventBus hooks must be used inside EventBusProvider.");
   }
   return client;
-}
-
-/**
- * Returns the shared {@link WidgetRegistry} instance from context.
- *
- * @returns Shared registry instance.
- * @throws Error If used outside {@link EventBusProvider}.
- */
-export function useWidgetRegistryInstance(): WidgetRegistry {
-  const registry = useContext(WidgetRegistryContext);
-  if (!registry) {
-    throw new Error("Widget hooks must be used inside EventBusProvider.");
-  }
-  return registry;
 }

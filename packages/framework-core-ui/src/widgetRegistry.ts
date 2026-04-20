@@ -1,19 +1,9 @@
 import type { ComponentType } from "react";
 
 import { channelMatches } from "./client";
+import type { IDisposable } from "./disposable";
 
-// ─── IDisposable ──────────────────────────────────────────────────────────────
-
-/**
- * Handle returned by registry mutations.  Call {@link IDisposable.dispose}
- * to undo the mutation (e.g. remove a registered widget).
- *
- * Mirrors the JupyterLab `IDisposable` pattern.
- */
-export interface IDisposable {
-  /** Undo the operation that produced this handle. Idempotent. */
-  dispose(): void;
-}
+export type { IDisposable } from "./disposable";
 
 // ─── ComponentOptions ─────────────────────────────────────────────────────────
 
@@ -29,9 +19,6 @@ export interface ComponentOptions {
 
 /**
  * Schema for a single widget type in the frontend-only {@link WidgetRegistry}.
- *
- * The registry is instantiated per {@link EventBusProvider} — it is not a
- * global singleton.
  */
 export interface WidgetDefinition {
   /** Unique identifier, e.g. `"LogViewer"`. */
@@ -94,24 +81,16 @@ export interface WidgetChangeEvent {
   widget: Omit<WidgetDefinition, "factory">;
 }
 
-type ChangeListener = (change: WidgetChangeEvent) => void;
+export type ChangeListener = (change: WidgetChangeEvent) => void;
 
 /**
  * Frontend-only catalog of available widget types.
- *
- * Instantiated once per {@link EventBusProvider} — not a global singleton —
- * so multiple provider instances remain independent and tests construct their
- * own registries.
  *
  * Widget resolution uses a channel-first strategy:
  * 1. Find widgets whose `channelPattern` glob matches the channel (primary).
  * 2. If `mimeType` is provided, filter those results to widgets whose
  *    `consumes` list includes the mimeType (refinement).
  * 3. Sort by `priority` descending.
- *
- * Follows the JupyterLab {@link https://jupyterlab.readthedocs.io DocumentRegistry}
- * pattern: `register()` returns an {@link IDisposable} the caller disposes to
- * remove the widget.
  *
  * @example
  * ```ts
@@ -121,8 +100,8 @@ type ChangeListener = (change: WidgetChangeEvent) => void;
  * ```
  */
 export class WidgetRegistry {
-  private readonly widgets = new Map<string, WidgetDefinition>();
-  private readonly changeListeners = new Set<ChangeListener>();
+  private readonly _widgets = new Map<string, WidgetDefinition>();
+  private readonly _changeListeners = new Set<ChangeListener>();
 
   /**
    * Add *definition* to the catalog.
@@ -137,21 +116,23 @@ export class WidgetRegistry {
    * ```
    */
   register(definition: WidgetDefinition): IDisposable {
-    if (this.widgets.has(definition.name)) {
+    if (this._widgets.has(definition.name)) {
       throw new Error(`Widget '${definition.name}' is already registered`);
     }
-    this.widgets.set(definition.name, definition);
-    this.notify({ type: "added", widget: definition });
+    this._widgets.set(definition.name, Object.freeze(definition));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { factory: _factory, ...snapshot } = definition;
+    this._notify({ type: "added", widget: snapshot });
 
     let disposed = false;
-    return {
+    return Object.freeze({
       dispose: () => {
         if (disposed) return;
         disposed = true;
-        this.widgets.delete(definition.name);
-        this.notify({ type: "removed", widget: definition });
+        this._widgets.delete(definition.name);
+        this._notify({ type: "removed", widget: snapshot });
       },
-    };
+    });
   }
 
   /**
@@ -161,7 +142,7 @@ export class WidgetRegistry {
    * @returns Matching {@link WidgetDefinition}, or `undefined`.
    */
   get(name: string): WidgetDefinition | undefined {
-    return this.widgets.get(name);
+    return this._widgets.get(name);
   }
 
   /**
@@ -170,7 +151,7 @@ export class WidgetRegistry {
    * @returns Array of every registered {@link WidgetDefinition}, or `[]`.
    */
   list(): WidgetDefinition[] {
-    return [...this.widgets.values()];
+    return [...this._widgets.values()];
   }
 
   /**
@@ -181,7 +162,7 @@ export class WidgetRegistry {
    * @returns Matching widgets sorted by priority, or `[]` when none match.
    */
   findByMime(mimeType: string): WidgetDefinition[] {
-    return [...this.widgets.values()]
+    return [...this._widgets.values()]
       .filter((w) => w.consumes.includes(mimeType))
       .sort((a, b) => b.priority - a.priority);
   }
@@ -194,7 +175,7 @@ export class WidgetRegistry {
    * @returns Matching widgets sorted by priority, or `[]` when none match.
    */
   findByChannel(channel: string): WidgetDefinition[] {
-    return [...this.widgets.values()]
+    return [...this._widgets.values()]
       .filter((w) => channelMatches(channel, w.channelPattern))
       .sort((a, b) => b.priority - a.priority);
   }
@@ -237,17 +218,21 @@ export class WidgetRegistry {
    * ```
    */
   onChange(listener: ChangeListener): IDisposable {
-    this.changeListeners.add(listener);
-    return {
+    this._changeListeners.add(listener);
+    return Object.freeze({
       dispose: () => {
-        this.changeListeners.delete(listener);
+        this._changeListeners.delete(listener);
       },
-    };
+    });
   }
 
-  private notify(change: WidgetChangeEvent): void {
-    for (const listener of this.changeListeners) {
-      listener(change);
+  private _notify(change: WidgetChangeEvent): void {
+    for (const listener of this._changeListeners) {
+      try {
+        listener(change);
+      } catch (error) {
+        console.error("Fail to notify a listener of widget registry changes.", error);
+      }
     }
   }
 }
