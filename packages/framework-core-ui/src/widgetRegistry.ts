@@ -15,6 +15,16 @@ export interface IDisposable {
   dispose(): void;
 }
 
+// ─── ComponentOptions ─────────────────────────────────────────────────────────
+
+/**
+ * Options passed to a widget's {@link WidgetDefinition.factory} function.
+ */
+export interface ComponentOptions {
+  /** User-configurable parameters as declared in the widget's `parameters` schema. */
+  parameters: Record<string, unknown>;
+}
+
 // ─── WidgetDefinition ─────────────────────────────────────────────────────────
 
 /**
@@ -39,8 +49,9 @@ export interface WidgetDefinition {
    * Glob pattern matching the EventBus channels this widget handles.
    * e.g. `"log/*"`, `"data/temperature"`, `"control/*"`.
    *
-   * Used as a fallback when no `mimeType` match is found in the message
-   * headers. See {@link WidgetRegistry.resolveWidgets}.
+   * This is the PRIMARY matching field — the channel conveys intent/purpose.
+   * `consumes` then refines the match to the exact data format.
+   * See {@link WidgetRegistry.resolveWidgets}.
    */
   channelPattern: string;
 
@@ -48,13 +59,13 @@ export interface WidgetDefinition {
    * MIME types this widget can render, in preference order.
    * e.g. `["text/plain"]`, `["application/x-timeseries+json"]`.
    *
-   * Widget resolution checks `mimeType` from message headers against this
-   * list first, then falls back to `channelPattern` matching.
+   * This is the REFINEMENT layer — once a channel match is found, `mimeType`
+   * is checked against this list to narrow selection.
    */
   consumes: string[];
 
   /**
-   * Sort weight when multiple widgets match the same MIME type or channel.
+   * Sort weight when multiple widgets match the same channel or MIME type.
    * Higher wins.  Widgets with equal priority are returned in registration
    * order.
    */
@@ -67,12 +78,12 @@ export interface WidgetDefinition {
   parameters: Record<string, unknown>;
 
   /**
-   * React component responsible for rendering this widget.
+   * Factory that produces the React component for this widget.
    *
-   * Passed by reference (not by path string) so the layout editor can
-   * render a live preview without a dynamic import step.
+   * Receives {@link ComponentOptions} containing user-configured parameters
+   * and returns a React component (or a Promise of one for lazy loading).
    */
-  component: ComponentType;
+  factory: (options: ComponentOptions) => ComponentType | Promise<ComponentType>;
 }
 
 // ─── WidgetRegistry ───────────────────────────────────────────────────────────
@@ -80,7 +91,7 @@ export interface WidgetDefinition {
 /** Payload delivered to {@link WidgetRegistry.onChange} listeners. */
 export interface WidgetChangeEvent {
   type: "added" | "removed";
-  widget: WidgetDefinition;
+  widget: Omit<WidgetDefinition, "factory">;
 }
 
 type ChangeListener = (change: WidgetChangeEvent) => void;
@@ -92,11 +103,11 @@ type ChangeListener = (change: WidgetChangeEvent) => void;
  * so multiple provider instances remain independent and tests construct their
  * own registries.
  *
- * Widget resolution uses a two-layer strategy:
- * 1. Check `mimeType` from message headers against each widget's `consumes`
- *    list (primary — most specific).
- * 2. Fall back to `channelPattern` glob matching (secondary — broader).
- * Matched widgets are sorted by `priority` descending.
+ * Widget resolution uses a channel-first strategy:
+ * 1. Find widgets whose `channelPattern` glob matches the channel (primary).
+ * 2. If `mimeType` is provided, filter those results to widgets whose
+ *    `consumes` list includes the mimeType (refinement).
+ * 3. Sort by `priority` descending.
  *
  * Follows the JupyterLab {@link https://jupyterlab.readthedocs.io DocumentRegistry}
  * pattern: `register()` returns an {@link IDisposable} the caller disposes to
@@ -191,20 +202,22 @@ export class WidgetRegistry {
   /**
    * Resolve the best-matching widgets for an incoming message.
    *
-   * Resolution strategy:
-   * 1. If *mimeType* is provided, return `findByMime(mimeType)` (most specific).
-   * 2. Otherwise fall back to `findByChannel(channel)`.
+   * Resolution strategy (channel-first):
+   * 1. Find all widgets whose `channelPattern` glob matches `channel`.
+   * 2. If `mimeType` is provided, filter those results to widgets whose
+   *    `consumes` list includes the mimeType.
+   * 3. Sort by `priority` descending and return.
    *
    * @param channel Concrete channel the message arrived on.
    * @param mimeType Optional MIME type from the message headers.
    * @returns Sorted list of matching widgets, or `[]` when none match.
    */
   resolveWidgets(channel: string, mimeType?: string): WidgetDefinition[] {
+    const byChannel = this.findByChannel(channel);
     if (mimeType) {
-      const byMime = this.findByMime(mimeType);
-      if (byMime.length > 0) return byMime;
+      return byChannel.filter((w) => w.consumes.includes(mimeType));
     }
-    return this.findByChannel(channel);
+    return byChannel;
   }
 
   /**

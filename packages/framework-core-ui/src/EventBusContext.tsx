@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useMemo } from "react";
 import type { PropsWithChildren } from "react";
 
 import { RealtimeEventBusClient, type WebSocketFactory } from "./client";
-import { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
 import { WidgetRegistry } from "./widgetRegistry";
 
 const EventBusContext = createContext<RealtimeEventBusClient | null>(null);
@@ -18,6 +17,14 @@ export interface EventBusProviderProps extends PropsWithChildren {
   reconnectDelayMs?: number;
   /** Optional custom factory, useful for tests. */
   webSocketFactory?: WebSocketFactory;
+  /**
+   * Widget registry to provide to descendant hooks/components.
+   *
+   * Passed via dependency injection — callers construct and pre-populate the
+   * registry before mounting the provider. If omitted, the registry context
+   * value is `null` and any widget hook will throw a clear error.
+   */
+  registry?: WidgetRegistry;
 }
 
 interface LocationLike {
@@ -47,21 +54,22 @@ export function buildWebSocketUrl(path: string, locationLike: LocationLike): str
  * Provides a shared realtime event bus client and widget registry to
  * descendant hooks/components.
  *
- * The widget registry is frontend-only — it is pre-populated with the
- * built-in {@link LOG_VIEWER} and {@link STATUS_INDICATOR} defaults.
- * Applications register additional widgets by calling
- * `registry.register(definition)` on the instance returned by
- * {@link useWidgetRegistryInstance}.
+ * The widget registry is injected via the `registry` prop (dependency
+ * injection). Callers construct the registry, register widgets, and pass it
+ * in. If no registry is provided, widget hooks will throw a clear error.
  *
  * @param props Provider configuration and children.
  * @param props.path WebSocket endpoint path.
  * @param props.reconnectDelayMs Reconnect delay in milliseconds.
  * @param props.webSocketFactory Optional websocket factory for tests.
+ * @param props.registry Optional widget registry instance.
  * @param props.children Child React nodes.
  * @returns A context provider wrapping the children.
  * @example
  * ```tsx
- * <EventBusProvider path="/ws">
+ * const registry = new WidgetRegistry();
+ * registry.register(LOG_VIEWER);
+ * <EventBusProvider path="/ws" registry={registry}>
  *   <Dashboard />
  * </EventBusProvider>
  * ```
@@ -70,6 +78,7 @@ export function EventBusProvider({
   path,
   reconnectDelayMs,
   webSocketFactory,
+  registry,
   children,
 }: EventBusProviderProps): JSX.Element {
   const client = useMemo(() => {
@@ -81,13 +90,6 @@ export function EventBusProvider({
     return new RealtimeEventBusClient(url, { reconnectDelayMs, webSocketFactory });
   }, [path, reconnectDelayMs, webSocketFactory]);
 
-  const registry = useMemo(() => {
-    const reg = new WidgetRegistry();
-    reg.register(LOG_VIEWER);
-    reg.register(STATUS_INDICATOR);
-    return reg;
-  }, []);
-
   useEffect(() => {
     client.start();
     return () => {
@@ -97,7 +99,7 @@ export function EventBusProvider({
 
   return (
     <EventBusContext.Provider value={client}>
-      <WidgetRegistryContext.Provider value={registry}>
+      <WidgetRegistryContext.Provider value={registry ?? null}>
         {children}
       </WidgetRegistryContext.Provider>
     </EventBusContext.Provider>
