@@ -8,10 +8,15 @@ export { useChannel, toPayloadWithHeaders } from "./useChannel";
 export { usePublish } from "./usePublish";
 export { useEventBusStatus } from "./useEventBusStatus";
 export { useWidgetRegistry } from "./useWidgetRegistry";
-export { useWidgetsByChannel } from "./useWidgetsByChannel";
-export { useWidgetsByMime } from "./useWidgetsByMime";
+export { useWidgets } from "./useWidgets";
 export { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
-export { type WidgetDefinition, WidgetRegistry } from "./widgetRegistry";
+export {
+  type WidgetDefinition,
+  type ComponentOptions,
+  type IDisposable,
+  type WidgetChangeEvent,
+  WidgetRegistry,
+} from "./widgetRegistry";
 export type {
   ConnectionStatus,
   EventHeaders,

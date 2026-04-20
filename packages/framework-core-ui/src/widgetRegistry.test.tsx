@@ -3,9 +3,10 @@ import { act, create } from "react-test-renderer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EventBusProvider } from "./EventBusContext";
+import { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
 import type { WebSocketLike } from "./client";
 import { useWidgetRegistry } from "./useWidgetRegistry";
-import { useWidgetsByChannel } from "./useWidgetsByChannel";
+import { useWidgets } from "./useWidgets";
 import { type WidgetDefinition, WidgetRegistry } from "./widgetRegistry";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ function makeWidget(name: string, channelPattern = "data/*"): WidgetDefinition {
     consumes: ["text/plain"],
     priority: 10,
     parameters: { maxItems: { type: "integer", default: 50 } },
-    component: () => null,
+    factory: () => () => null,
   };
 }
 
@@ -120,6 +121,54 @@ describe("WidgetRegistry", () => {
     expect(registry.findByChannel("log/app")).not.toContainEqual(dataW);
     expect(registry.findByChannel("control/status")).toEqual([]);
   });
+
+  it("resolveWidgets: channel match first, mimeType refines", () => {
+    const registry = new WidgetRegistry();
+    const logText: WidgetDefinition = {
+      ...makeWidget("LogText"),
+      channelPattern: "log/*",
+      consumes: ["text/plain"],
+    };
+    const logJson: WidgetDefinition = {
+      ...makeWidget("LogJson"),
+      channelPattern: "log/*",
+      consumes: ["application/json"],
+    };
+    const dataWidget: WidgetDefinition = {
+      ...makeWidget("Data"),
+      channelPattern: "data/*",
+      consumes: ["text/plain"],
+    };
+    registry.register(logText);
+    registry.register(logJson);
+    registry.register(dataWidget);
+
+    // No mimeType: all channel-matching widgets
+    const allLog = registry.resolveWidgets("log/app");
+    expect(allLog.map((w) => w.name)).toContain("LogText");
+    expect(allLog.map((w) => w.name)).toContain("LogJson");
+    expect(allLog.map((w) => w.name)).not.toContain("Data");
+
+    // With mimeType: channel match first, then refine
+    const refined = registry.resolveWidgets("log/app", "text/plain");
+    expect(refined.map((w) => w.name)).toContain("LogText");
+    expect(refined.map((w) => w.name)).not.toContain("LogJson");
+    expect(refined.map((w) => w.name)).not.toContain("Data");
+  });
+
+  it("resolveWidgets: returns [] when mimeType provided but no channel-match has it", () => {
+    const registry = new WidgetRegistry();
+    const logJson: WidgetDefinition = {
+      ...makeWidget("LogJson"),
+      channelPattern: "log/*",
+      consumes: ["application/json"],
+    };
+    registry.register(logJson);
+
+    // mimeType is provided but no widget in channel set consumes it → must be []
+    const result = registry.resolveWidgets("log/app", "text/plain");
+    expect(result).toEqual([]);
+  });
 });
 
 // ─── React hook tests ─────────────────────────────────────────────────────────
@@ -136,6 +185,9 @@ describe("widget hooks", () => {
   });
 
   it("useWidgetRegistry returns all registered widgets", () => {
+    const registry = new WidgetRegistry();
+    registry.register(LOG_VIEWER);
+    registry.register(STATUS_INDICATOR);
     const socket = new FakeWebSocket();
     const seen: WidgetDefinition[][] = [];
 
@@ -149,24 +201,30 @@ describe("widget hooks", () => {
 
     act(() => {
       create(
-        <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <EventBusProvider
+          path="/ws"
+          webSocketFactory={() => socket}
+          registry={registry}
+        >
           <Probe />
         </EventBusProvider>,
       );
     });
 
-    // Defaults are registered on init — seen should already have them.
     const latest = seen.at(-1)!;
     expect(latest.map((w) => w.name)).toContain("LogViewer");
     expect(latest.map((w) => w.name)).toContain("StatusIndicator");
   });
 
-  it("useWidgetsByChannel returns widgets filtered by channelPattern", () => {
+  it("useWidgets resolves widgets by channel", () => {
+    const registry = new WidgetRegistry();
+    registry.register(LOG_VIEWER);
+    registry.register(STATUS_INDICATOR);
     const socket = new FakeWebSocket();
     const seen: WidgetDefinition[][] = [];
 
     function Probe(): JSX.Element | null {
-      const widgets = useWidgetsByChannel("log/app");
+      const widgets = useWidgets("log/app");
       useEffect(() => {
         seen.push(widgets);
       }, [widgets]);
@@ -175,15 +233,85 @@ describe("widget hooks", () => {
 
     act(() => {
       create(
-        <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <EventBusProvider
+          path="/ws"
+          webSocketFactory={() => socket}
+          registry={registry}
+        >
           <Probe />
         </EventBusProvider>,
       );
     });
 
     const latest = seen.at(-1)!;
-    // LogViewer has channelPattern="log/*" which matches "log/app".
-    // StatusIndicator has channelPattern="control/*" which does not.
+    expect(latest.map((w) => w.name)).toContain("LogViewer");
+    expect(latest.map((w) => w.name)).not.toContain("StatusIndicator");
+  });
+
+  it("useWidgets re-renders when a widget is registered after mount", () => {
+    const registry = new WidgetRegistry();
+    const socket = new FakeWebSocket();
+    const seen: WidgetDefinition[][] = [];
+
+    function Probe(): JSX.Element | null {
+      const widgets = useWidgets("log/app");
+      useEffect(() => {
+        seen.push(widgets);
+      }, [widgets]);
+      return null;
+    }
+
+    act(() => {
+      create(
+        <EventBusProvider
+          path="/ws"
+          webSocketFactory={() => socket}
+          registry={registry}
+        >
+          <Probe />
+        </EventBusProvider>,
+      );
+    });
+
+    // Initially empty
+    expect(seen.at(-1)).toEqual([]);
+
+    // Register a matching widget after mount
+    act(() => {
+      registry.register(LOG_VIEWER);
+    });
+
+    expect(seen.at(-1)!.map((w) => w.name)).toContain("LogViewer");
+  });
+
+  it("useWidgets refines by mimeType when provided", () => {
+    const registry = new WidgetRegistry();
+    registry.register(LOG_VIEWER);
+    registry.register(STATUS_INDICATOR);
+    const socket = new FakeWebSocket();
+    const seen: WidgetDefinition[][] = [];
+
+    function Probe(): JSX.Element | null {
+      const widgets = useWidgets("log/app", "text/plain");
+      useEffect(() => {
+        seen.push(widgets);
+      }, [widgets]);
+      return null;
+    }
+
+    act(() => {
+      create(
+        <EventBusProvider
+          path="/ws"
+          webSocketFactory={() => socket}
+          registry={registry}
+        >
+          <Probe />
+        </EventBusProvider>,
+      );
+    });
+
+    const latest = seen.at(-1)!;
     expect(latest.map((w) => w.name)).toContain("LogViewer");
     expect(latest.map((w) => w.name)).not.toContain("StatusIndicator");
   });

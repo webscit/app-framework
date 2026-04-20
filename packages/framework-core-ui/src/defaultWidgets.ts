@@ -3,7 +3,6 @@ import type { ComponentType } from "react";
 import type { WidgetDefinition } from "./widgetRegistry";
 
 // Placeholder components — real implementations live in the application layer.
-// Typed as ComponentType to satisfy the WidgetDefinition contract.
 const LogViewerPlaceholder: ComponentType = () => null;
 const StatusIndicatorPlaceholder: ComponentType = () => null;
 
@@ -26,7 +25,7 @@ export const LOG_VIEWER: WidgetDefinition = {
     showTimestamps: { type: "boolean", default: true },
     wrapLines: { type: "boolean", default: false },
   },
-  component: LogViewerPlaceholder,
+  factory: () => LogViewerPlaceholder,
 };
 
 /**
@@ -47,5 +46,5 @@ export const STATUS_INDICATOR: WidgetDefinition = {
     label: { type: "string", default: "Simulation Status" },
     showLastSeen: { type: "boolean", default: true },
   },
-  component: StatusIndicatorPlaceholder,
+  factory: () => StatusIndicatorPlaceholder,
 };
