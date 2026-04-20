@@ -4,7 +4,7 @@
 
 **Goal:** Implement the top-level container that defines named slot regions, renders widgets placed in those regions, and provides a layout surface whose state is serializable to JSON from day one.
 
-**Architecture:** The `ApplicationShell` React component owns a set of named regions. An in-code `RegionRegistry` allows items to be contributed to regions programmatically. The shell accepts `RegionRegistry` as a prop — it does not instantiate it. `WidgetRegistry` and `EventBusProvider` are peer dependencies consumed via React context, not props. Phase 2 will wire JSON persistence and a plugin manifest system (out of scope here).
+**Architecture:** `ApplicationShell` is a renderer. It takes a `ShellLayout` spec (plain JSON describing which widgets are placed in which regions) and reads `WidgetRegistry` from the existing `EventBusProvider` context — the same registry the rest of the app uses. This follows the json-render pattern: spec + registry = rendered UI. No second registry is needed. Widget placement is declared on `WidgetDefinition` via a `defaultRegion` field — the shell reads this at startup to auto-populate regions without requiring a hand-authored layout. Phase 2 will wire `ShellLayout` save/load to a storage backend and add AI layout generation on top of this same spec format.
 
 **Tech Stack:** TypeScript — React, Vitest, react-test-renderer.
 
@@ -12,7 +12,7 @@
 
 ## 1. Problem Statement
 
-Without a shell, every application that uses the framework must hand-roll its own layout. Each one invents its own slot names, visibility rules, and region structure. When the layout editor and JSON persistence land in Phase 2, there will be nothing to target — no stable named regions, no serializable state, no consistent API for contributing items.
+Without a shell, every application that uses the framework must hand-roll its own layout. Each one invents its own slot names, visibility rules, and region structure. When the layout editor and JSON persistence land in Phase 2, there will be nothing to target — no stable named regions, no serializable layout state.
 
 The shell solves this now, while there is still only one place to put it. It gives:
 
@@ -26,14 +26,18 @@ Without it, Phase 2 work must first reverse-engineer whatever ad-hoc layout each
 
 ## 2. Phase 1 Scope
 
-Phase 1 delivers the shell core with in-code contribution only:
+Phase 1 delivers the shell core:
 
 - Six named regions: `header`, `sidebar-left`, `main`, `sidebar-right`, `bottom`, `status-bar`
-- `ShellLayout` serializable data model (TypeScript interface, no save/load wiring yet)
-- `RegionRegistry` class with `contribute`, `get`, `list`, and `onChange`
-- `ApplicationShell` React component consuming a `RegionRegistry` via props
-- Sidebar and bottom panel toggle (visibility state per region)
-- `useShellLayout` hook — live snapshot of `ShellLayout` from context, re-renders on change
+- `ShellLayout` serializable spec — JSON-safe, describes widget placements per region
+- `RegionItem` type — `{ id, type, props, order? }` — fully serializable widget placement descriptor
+- `createDefaultShellLayout()` helper — single source of truth for default region visibility
+- `defaultRegion?: RegionId` field on `WidgetDefinition` — widget declares its preferred shell region at registration time
+- Note: `RegionId` is defined in this package (`shellTypes.ts`) and must be imported by the widget registry package to type `WidgetDefinition.defaultRegion` — this is an intentional cross-package dependency
+- `ApplicationShell` React component — renderer that reads `WidgetRegistry` from context, auto-places widgets by `defaultRegion` when no `initialLayout` is provided, accepts `initialLayout?` to override
+- Sidebar and bottom panel visibility toggle (updates `ShellLayout` in memory)
+- `useShellLayout()` hook — live snapshot from context, re-renders on layout change
+- Unknown widget type handling — placeholder render, no crash
 - Full test coverage: TypeScript component and hook behaviour in Vitest
 
 ---
@@ -43,10 +47,11 @@ Phase 1 delivers the shell core with in-code contribution only:
 Phase 2 will add:
 
 - **JSON persistence** — `ShellLayout` is already serializable; Phase 2 wires `save()` / `load(layout: ShellLayout)` to a storage backend (localStorage or server API).
-- **Drag-and-drop layout editor** — the layout editor reads region state from `ShellLayout` and writes changes back through `RegionRegistry`. The shell does not change; only the editor is new.
-- **Plugin manifest system** — a `shell.json` manifest file per package that declares region contributions declaratively. The shell auto-populates at startup without in-code `contribute()` calls. Same pattern as the widget registry Phase 2 manifest work.
+- **Drag-and-drop layout editor** — the layout editor reads region state from `ShellLayout` and writes changes back through `ShellLayout` updates. The shell does not change; only the editor is new.
+- **AI layout generation** — `ShellLayout` is pure JSON, making it a natural target for LLM-driven layout suggestions. The spec format is designed to accommodate this from day one.
+- **Plugin manifest system** — a `shell.json` manifest file per package declares initial widget placements declaratively. The shell merges these into `ShellLayout` at startup without hand-authoring the layout in application code. Same pattern as the widget registry Phase 2 manifest work.
 
-None of these require changes to the Phase 1 `ShellLayout` data model or `RegionRegistry` API — the interfaces are designed to accommodate them.
+None of these require changes to the Phase 1 `ShellLayout` data model — the interfaces are designed to accommodate them.
 
 ---
 
@@ -81,15 +86,36 @@ type RegionId =
   | "bottom"
   | "status-bar";
 
+/** A single widget placement in a shell region — fully serializable, no function references. */
+interface RegionItem {
+  /**
+   * Stable unique identifier for this placement.
+   * Preserves identity across layout saves and reloads.
+   */
+  id: string;
+  /**
+   * Widget type name — must match a name registered in WidgetRegistry.
+   * Resolved to a React component at render time via WidgetRegistry.factory.
+   */
+  type: string;
+  /**
+   * User-configurable props passed to the widget factory as ComponentOptions.parameters.
+   * Must be JSON-serializable — no functions, no class instances.
+   */
+  props: Record<string, unknown>;
+  /**
+   * Render order within the region. Lower numbers render first.
+   * Defaults to 0. Items with equal order render in original array order.
+   */
+  order?: number;
+}
+
 /** Serializable state for a single region. */
 interface RegionState {
   /** Whether the region is currently visible. */
   visible: boolean;
-  /**
-   * Ordered list of item IDs contributed to this region.
-   * IDs are stable strings supplied by the contributor at registration time.
-   */
-  items: string[];
+  /** Ordered list of widget placements in this region. */
+  items: RegionItem[];
 }
 
 /** Serializable snapshot of the full shell layout. */
@@ -98,9 +124,9 @@ interface ShellLayout {
 }
 ```
 
-**Why this shape:** `ShellLayout` contains only primitives and plain objects. `JSON.parse(JSON.stringify(layout))` produces an identical value. The `items` array stores stable string IDs rather than component references — component resolution happens at render time through `RegionRegistry`, not through the persisted state. This means a saved layout can be loaded in a new session and resolved against whatever items the current code has contributed.
+**Why this shape:** `ShellLayout` contains only primitives and plain objects — `JSON.parse(JSON.stringify(layout))` produces an identical value. `RegionItem` stores the widget type as a string name, not a component reference. Component resolution happens at render time through `WidgetRegistry`, not through the persisted state. This is the json-render spec pattern: the spec is pure data, the registry is the component resolver.
 
-**Render-time resolution:** `ShellLayout.regions[id].items` is an ordered list of stable string IDs. At render time, the shell calls `regionRegistry.getRegionItems(regionId)` and cross-references the ID list to determine render order and visibility. The `ShellLayout` never stores component references — those live in `RegionRegistry` and are resolved fresh on every render. This means a saved layout can be restored in a new session and will render correctly against whatever items the current code has contributed, with unknown IDs silently skipped.
+**Render-time resolution:** At render time, `ApplicationShell` iterates `ShellLayout.regions[id].items`, looks up each `item.type` in `WidgetRegistry`, and calls `factory({ parameters: item.props })` to obtain the React component. If `item.type` is not found in the registry, the shell renders a clearly labelled placeholder ("Widget not found: {type}") and continues — it never throws. A saved layout with a stale or mistyped widget name degrades gracefully.
 
 **`createDefaultShellLayout():`** A pure helper function that returns a `ShellLayout` with all six regions at their spec-defined default visibility (see Section 4 table). `ApplicationShell` calls this internally when `initialLayout` is omitted. Callers who want to supply a partial override merge their values on top of the default.
 
@@ -119,81 +145,70 @@ function createDefaultShellLayout(): ShellLayout {
 }
 ```
 
-**Why `visible` is in `ShellLayout`:** Sidebar open/closed state is part of the user's workspace. When a user saves their layout and reloads, they expect the same panels to be open. It belongs in the serializable model, not in ephemeral React state. See Design Decision (f) for the sidebar vs. status-bar distinction.
-
----
-
-## 6. Region API
-
-`RegionRegistry` is the in-code API for contributing items to shell regions. It follows the same JupyterLab `DocumentRegistry` pattern as `WidgetRegistry`: `contribute()` returns an `IDisposable` the caller holds and later disposes to remove the contribution.
+**Auto-placement example:** When no `initialLayout` is provided, `ApplicationShell` builds the initial layout automatically from the registry:
 
 ```typescript
-/** A single item contributed to a shell region. */
-interface RegionItem {
-  /** Stable unique identifier. Used in ShellLayout.items. */
-  id: string;
-  /** Which region this item belongs to. */
-  region: RegionId;
-  /** React component to render for this item. */
-  component: ComponentType;
-  /**
-   * Render order within the region. Lower numbers render first.
-   * Defaults to 0. Items with equal order render in contribution order.
-   */
-  order?: number;
-}
+// Widget declares where it wants to live at registration time
+const LOG_VIEWER: WidgetDefinition = {
+  name: "LogViewer",
+  defaultRegion: "bottom", // ← new field
+  channelPattern: "log/*",
+  consumes: ["text/plain"],
+  // ...rest of definition
+};
 
-/** Payload delivered to RegionRegistry.onChange listeners. */
-interface RegionChangeEvent {
-  type: "added" | "removed";
-  item: Omit<RegionItem, "component">;
-}
-
-class RegionRegistry {
-  /**
-   * Add item to the named region.
-   * Returns an IDisposable — call dispose() to remove the item.
-   * Throws if an item with the same id is already contributed.
-   */
-  contribute(item: RegionItem): IDisposable;
-
-  /** Return all items contributed to a specific region, sorted by order. */
-  getRegionItems(regionId: RegionId): RegionItem[];
-
-  /** Return all contributed items across all regions. */
-  list(): RegionItem[];
-
-  /**
-   * Subscribe to contribution changes (items added or removed).
-   * Returns an IDisposable — call dispose() to unsubscribe.
-   */
-  onChange(listener: (change: RegionChangeEvent) => void): IDisposable;
-}
+// Shell reads defaultRegion from every registered widget and auto-places them
+// No hand-authored ShellLayout needed
+<ApplicationShell />;
 ```
 
-**Why `RegionChangeEvent` excludes `component`:** Same reasoning as `WidgetChangeEvent` in the widget registry — event payloads must be serializable for logging, cross-context messaging, and eventual persistence. `component` is a function reference and cannot be serialized.
+**Manual override:** If `initialLayout` is provided, it takes full precedence — auto-placement is skipped entirely. This is used when loading a saved layout or when the application needs precise control over placement order and props.
 
-**Why `contribute()` returns `IDisposable` instead of a `remove(id)` method:** Follows the JupyterLab `DocumentRegistry.addWidgetFactory` pattern. The caller holds the handle and controls the lifetime of their contribution. There is no way for one module to accidentally remove another module's contribution.
+**Why `visible` is in `ShellLayout`:** Sidebar open/closed state is part of the user's workspace. When a user saves their layout and reloads, they expect the same panels to be open. It belongs in the serializable model, not in ephemeral React state. See Design Decision (e) for the sidebar vs. status-bar distinction.
 
 ---
 
-## 7. Shell Component API
+## 6. Shell Component API
 
 The `ApplicationShell` component is the root of the UI. It is composed as follows:
 
 ```typescript
 interface ApplicationShellProps {
-  /** Region registry supplying items to shell regions. */
-  regionRegistry: RegionRegistry;
-  /** Initial layout state. If omitted, all regions default to their spec-defined visibility. */
-  initialLayout?: Partial<ShellLayout>;
+  /**
+   * Explicit layout spec. If provided, used as-is — auto-placement is skipped.
+   * If omitted, ApplicationShell builds the initial layout from WidgetRegistry
+   * by grouping widgets by their defaultRegion field.
+   * Widgets with no defaultRegion are not auto-placed.
+   */
+  initialLayout?: ShellLayout;
 }
 ```
 
-The component provides two React contexts:
+`WidgetRegistry` is **not** a prop — the shell calls `useWidgetRegistryInstance()` to read it from the `EventBusProvider` context already in the tree. This is the established framework pattern: the application creates one `WidgetRegistry`, passes it to `EventBusProvider`, and all downstream components — including `ApplicationShell` — consume it from context. Passing it again as a prop would require every app to supply the same instance twice.
 
-- `ShellLayoutContext` — exposes the current `ShellLayout` snapshot. Read by `useShellLayout()`.
-- `RegionRegistryContext` — exposes the `RegionRegistry` instance. Read by `useRegionRegistry()`.
+The component provides ONE React context:
+
+```typescript
+interface ShellLayoutContextValue {
+  layout: ShellLayout;
+  setLayout: (updater: (prev: ShellLayout) => ShellLayout) => void;
+}
+```
+
+- `ShellLayoutContext` — exposes `layout` (current snapshot) and `setLayout` (functional updater). Read by `useShellLayout()`.
+
+**Auto-placement on mount:** When `initialLayout` is omitted, `ApplicationShell` calls `widgetRegistry.list()`, filters widgets that have a `defaultRegion` set, and constructs a `ShellLayout` where each region's `items` array contains one `RegionItem` per matching widget. The `RegionItem` is built as:
+
+```typescript
+{
+  id: widget.name,  // stable, unique — widget name is the ID
+  type: widget.name, // resolved via WidgetRegistry at render time
+  props: {},        // default props — no user configuration at auto-place time
+  order: 0,         // default order
+}
+```
+
+Widgets with no `defaultRegion` are not auto-placed. They are available in the registry but require an explicit `ShellLayout` entry to appear in the shell.
 
 The rendered tree:
 
@@ -210,27 +225,41 @@ The rendered tree:
 </ApplicationShell>
 ```
 
-Each sub-component is internal to the shell package. They read from `RegionRegistryContext` to render their contributed items. They do not accept region items as props — contributions flow through `RegionRegistry`, not through the component tree.
+Each sub-component is internal to the shell package. They read from `ShellLayoutContext` to render their placed items and call `setLayout` for toggle actions. They resolve each `item.type` against `WidgetRegistry` from context.
 
 **Hooks:**
 
 ```typescript
 /**
- * Returns the current ShellLayout snapshot.
+ * Returns the current ShellLayout and a functional updater.
  * Re-renders whenever the layout changes.
+ * Follows the same [value, setter] tuple pattern as React.useState.
  */
-function useShellLayout(): ShellLayout;
+function useShellLayout(): [
+  ShellLayout,
+  (updater: (prev: ShellLayout) => ShellLayout) => void,
+];
+```
 
-/**
- * Returns the RegionRegistry from context.
- * Use this to contribute items programmatically from within a component tree.
- */
-function useRegionRegistry(): RegionRegistry;
+The functional updater pattern (rather than a direct value setter) ensures atomic updates when multiple regions change at once — the updater always receives the latest state, preventing stale-closure bugs in concurrent renders. The sidebar toggle, for example:
+
+```typescript
+const [, setLayout] = useShellLayout();
+setLayout((prev) => ({
+  ...prev,
+  regions: {
+    ...prev.regions,
+    "sidebar-left": {
+      ...prev.regions["sidebar-left"],
+      visible: !prev.regions["sidebar-left"].visible,
+    },
+  },
+}));
 ```
 
 ---
 
-## 8. Design Decisions
+## 7. Design Decisions
 
 ### a. Why slot-based regions over a free-form grid (at this stage)
 
@@ -242,31 +271,45 @@ The bottom panel is a content area (log viewer, terminal, build output). Its vis
 
 ### c. Why layout data model is serializable from day one
 
-Retrofitting serializability is disproportionately expensive. It requires auditing every piece of state, removing function references, flattening component trees, and establishing stable ID schemes — all under time pressure just before a release. Designing for serializability upfront costs almost nothing: it constrains the data model in ways that improve it anyway (stable string IDs, no function references in state, clear separation between layout state and render-time resolution).
+Retrofitting serializability is disproportionately expensive. It requires auditing every piece of state, removing function references, flattening component trees, and establishing stable ID schemes — all under time pressure just before a release. Designing for serializability upfront costs almost nothing: it constrains the data model in ways that improve it anyway (stable string type names, no function references in state, clear separation between layout state and render-time resolution).
 
-### d. Why the region API follows the IDisposable pattern
+### d. Why there is no second registry — WidgetRegistry is sufficient
 
-Same reasoning as the widget registry. Returning a disposable from `contribute()` ties the lifetime of a contribution to the object that created it. When a module unloads or a component unmounts, it calls `dispose()` on its handle and the contribution is cleanly removed — no global registry cleanup, no dangling item IDs, no shared mutable state to coordinate. See also Design Decision (c) in the widget registry spec.
+A second registry would be a stateful object tracking what is currently placed in shell regions. But `ShellLayout` already IS that record — it is a plain JSON object describing every placement. There is no need for a separate stateful object to manage contributions on top of that.
 
-### e. Why ApplicationShell does NOT instantiate RegionRegistry or WidgetRegistry
+This follows the json-render pattern: a **spec** (`ShellLayout`) describes structure, a **registry** (`WidgetRegistry`) resolves type names to components, and a **renderer** (`ApplicationShell`) combines the two. Adding a second registry between spec and renderer would duplicate the responsibility already split cleanly between spec and registry.
 
-`ApplicationShell` is a layout component. `RegionRegistry` is a catalog. `WidgetRegistry` is another catalog. These are different responsibilities. Instantiating catalogs inside the shell would couple the shell's lifecycle to the catalog's lifecycle, make it impossible to share catalog instances across components, and make tests harder (they would need to mock a shell to get a registry). The application creates the registries, pre-populates them, and passes them in. This is the same pattern as `EventBusProvider` receiving its `WidgetRegistry` as a prop.
+When you find yourself writing:
 
-### f. Why sidebar visibility is in ShellLayout but status-bar visibility is not
+> "`RegionRegistry` is a catalog. `WidgetRegistry` is another catalog."
 
-Sidebar state (`sidebar-left` and `sidebar-right` visible/hidden) is user workspace state — it expresses which panels the user has chosen to see and is worth restoring across sessions. Status-bar and header visibility are not togglable (they are always visible), so they appear in `ShellLayout` as `visible: true` constants. This makes the data model self-consistent — every region appears in `ShellLayout`, but only the togglable ones will ever have `visible: false`.
+that is a signal to stop and ask whether both are needed. In this case, the answer is no — the spec replaces the need for the second catalog entirely.
+
+The practical consequence: to declare where a widget should appear, extension authors add `defaultRegion: "bottom"` to their `WidgetDefinition`. The shell reads it. There is no separate registration step, no second API to learn, no question of "which registry do I use?" — there is only one registry.
+
+### e. Why sidebar visibility is in ShellLayout but status-bar visibility is not
+
+Sidebar state (`sidebar-left`, `sidebar-right`, and `bottom` visible/hidden) is user workspace state — it expresses which panels the user has chosen to see and is worth restoring across sessions. Status-bar and header visibility are not togglable (they are always visible), so they appear in `ShellLayout` as `visible: true` constants. This makes the data model self-consistent — every region appears in `ShellLayout`, but only the togglable ones will ever have `visible: false`.
+
+The `bottom` panel follows the same rule — the user may want the terminal collapsed or open when they reload their layout, and this preference should be restored.
+
+### f. Why `defaultRegion` lives on `WidgetDefinition` and not on `ShellLayout`
+
+`defaultRegion` expresses the widget's own preference — "I am a log viewer, I belong in the bottom panel." This is a property of the widget type, not of any particular layout. Putting it on `WidgetDefinition` means the preference travels with the widget wherever it is registered, and every shell that uses the widget gets sensible auto-placement for free.
+
+`ShellLayout` expresses the user's arrangement — "in this session, I want the log viewer in the bottom panel at position 0 with maxLines 500." When a user saves their layout, `ShellLayout` captures their specific choices. `defaultRegion` is only used when no saved layout exists.
 
 ---
 
-## 9. Edge Cases
+## 8. Edge Cases
 
-**Empty region:** A region that has no contributed items renders its empty state — a region-specific placeholder (e.g., `main` shows a "No widgets placed" message; `sidebar-left` renders nothing). Empty regions that are hideable default to hidden if `initialLayout` is not supplied. The `main` region always renders something.
+**Empty region:** A region that has no placed items renders its empty state — a region-specific placeholder (e.g., `main` shows a "No widgets placed" message; `sidebar-left` renders nothing). Empty regions that are hideable default to hidden if `initialLayout` is not supplied. The `main` region always renders something.
 
-**Duplicate contribution ID:** `RegionRegistry.contribute()` throws synchronously if an item with the same `id` is already contributed. This is the same contract as `WidgetRegistry.register()`. Callers must use stable, unique IDs.
+**Widget registered after mount with a defaultRegion:** If `initialLayout` was omitted and a widget with `defaultRegion` is registered after `ApplicationShell` mounts, the shell does NOT automatically add it to the layout. Auto-placement only runs once at mount time. Post-mount registrations are available for explicit `ShellLayout` updates but do not silently modify the user's current layout. This prevents unexpected layout shifts when plugins load asynchronously.
 
-**Double-dispose:** Calling `dispose()` on a contribution handle a second time is a no-op (idempotent). No error is thrown. This follows the `IDisposable` contract established by the widget registry.
+**Shell renders before WidgetRegistry is populated:** `ApplicationShell` reads `WidgetRegistry` from context and subscribes to its `onChange`. If the shell mounts before widgets are registered (e.g., because a plugin registers its widgets after mount), items whose `type` is not yet in the registry render as the "Widget not found" placeholder on first render and automatically re-render to the correct component once the type is registered. This is the same live-subscription model used by `useWidgets`.
 
-**Shell renders before registry is populated:** `ApplicationShell` renders immediately with whatever contributions are present in `RegionRegistry` at mount time. Items contributed after mount trigger a re-render via `onChange`. This is the same live-subscription model used by `useWidgets` and `useWidgetRegistry`.
+**Unknown widget type in spec:** If `ShellLayout` contains a `RegionItem` whose `type` is not found in `WidgetRegistry`, the shell renders a clearly labelled placeholder ("Widget not found: {type}") in that item's position and continues rendering all other items normally. A stale or mistyped widget name in a saved layout never crashes the shell.
 
 **Sidebar collapse/expand state:** Visible/hidden is serializable state in `ShellLayout` (see Section 5). Animated transition state (mid-collapse) is ephemeral React state and is not part of `ShellLayout`. The distinction is: if the user saves and reloads, the panel should be in the same open/closed position; the animation itself does not need to resume.
 
@@ -276,61 +319,61 @@ Sidebar state (`sidebar-left` and `sidebar-right` visible/hidden) is user worksp
 
 ---
 
-## 10. Built-in Shell Content
+## 9. Built-in Shell Content
 
-With zero application-level configuration, `ApplicationShell` renders:
+With zero application-level configuration and no widgets registered with a `defaultRegion`, `ApplicationShell` renders:
 
-- `header` — empty bar (applications contribute toolbar items via `RegionRegistry`)
-- `sidebar-left` — hidden by default (no built-in items)
+- `header` — empty bar (no items placed)
+- `sidebar-left` — visible by default, empty (no items placed)
 - `main` — "No widgets placed" placeholder
-- `sidebar-right` — hidden by default (no built-in items)
-- `bottom` — hidden by default (no built-in items)
-- `status-bar` — empty bar (the status indicator widget contributes here once wired)
+- `sidebar-right` — hidden by default (no items placed)
+- `bottom` — hidden by default (no items placed)
+- `status-bar` — empty bar (no items placed)
 
-No widgets are pre-placed. The shell is a container; placement is the application's responsibility.
+When widgets with `defaultRegion` are registered before mount, auto-placement populates the matching regions automatically — no hand-authored layout required. See Section 6 for auto-placement behaviour.
+
+No widgets are pre-placed by the framework itself. The shell is a renderer; placement is the application's responsibility via `ShellLayout` or via `defaultRegion` on `WidgetDefinition`.
 
 ---
 
-## 11. Implementation Checklist
+## 10. Implementation Checklist
 
 ```
 - [ ] Task 1: Core types
-      - [ ] Define RegionId, RegionState, ShellLayout in shellTypes.ts
+      - [ ] Define RegionId, RegionItem, RegionState, ShellLayout in shellTypes.ts
       - [ ] Implement createDefaultShellLayout() in shellTypes.ts
-      - [ ] Define RegionItem, RegionChangeEvent in regionRegistry.ts
       - [ ] Export all types from index.ts
 
-- [ ] Task 2: RegionRegistry class
-      - [ ] contribute(item): IDisposable — throws on duplicate id
-      - [ ] getRegionItems(regionId): RegionItem[] — sorted by order
-      - [ ] list(): RegionItem[]
-      - [ ] onChange(listener): IDisposable
-      - [ ] Unit tests: contribute, dispose, duplicate id, double-dispose, onChange
-
-- [ ] Task 3: ApplicationShell component
-      - [ ] ShellLayoutContext and RegionRegistryContext
-      - [ ] ApplicationShell props: regionRegistry, initialLayout?
-      - [ ] Default ShellLayout from region spec (visibility defaults)
+- [ ] Task 2: ApplicationShell component
+      - [ ] ShellLayoutContext with ShellLayoutContextValue { layout, setLayout }
+      - [ ] ApplicationShell props: initialLayout? only — read WidgetRegistry via useWidgetRegistryInstance()
+      - [ ] Merge initialLayout over createDefaultShellLayout() on mount
+      - [ ] If initialLayout omitted: call widgetRegistry.list(), filter widgets with defaultRegion, build initial ShellLayout
+      - [ ] Widgets with no defaultRegion are not auto-placed
+      - [ ] Correct non-togglable regions (header, main, status-bar) to visible: true on load
       - [ ] Render header, sidebar-left, main, sidebar-right, bottom, status-bar regions
-      - [ ] Wire sidebar toggle actions to ShellLayout.regions visibility
+      - [ ] Subscribe to WidgetRegistry onChange — re-render when registry changes
+      - [ ] Resolve item.type via WidgetRegistry, call factory({ parameters: item.props })
+      - [ ] Render placeholder for unknown widget types — no crash
+      - [ ] Wire sidebar and bottom toggle actions via setLayout
 
-- [ ] Task 4: Region sub-components
+- [ ] Task 3: Region sub-components
       - [ ] ShellHeader — renders region: header items
       - [ ] ShellSidebar (side prop) — renders sidebar-left or sidebar-right items, collapsible
-      - [ ] ShellMain — renders region: main items, fallback placeholder
+      - [ ] ShellMain — renders region: main items, fallback placeholder when empty
       - [ ] ShellBottom — renders region: bottom items, collapsible
       - [ ] ShellStatusBar — renders region: status-bar items, always visible
 
-- [ ] Task 5: Hooks
-      - [ ] useShellLayout(): ShellLayout — subscribes to ShellLayoutContext
-      - [ ] useRegionRegistry(): RegionRegistry — reads RegionRegistryContext
-      - [ ] Tests: initial render, post-mount contribution re-render, toggle visibility
+- [ ] Task 4: useShellLayout hook
+      - [ ] useShellLayout(): [ShellLayout, setLayout] — subscribes to ShellLayoutContext, re-renders on change
+      - [ ] Tests: initial layout, layout update re-render, toggle visibility via setLayout
 
-- [ ] Task 6: Public exports
-      - [ ] Export ApplicationShell, useShellLayout, useRegionRegistry from index.ts
-      - [ ] Export RegionRegistry, RegionId, ShellLayout, RegionItem from index.ts
+- [ ] Task 5: Public exports
+      - [ ] Export ApplicationShell, useShellLayout from index.ts
+      - [ ] Export RegionId, RegionItem, RegionState, ShellLayout, ShellLayoutContextValue, createDefaultShellLayout from index.ts
+      - [ ] Note: defaultRegion field is defined in widget registry spec — ApplicationShell consumes it but does not define it
 
-- [ ] Task 7: Quality gate
+- [ ] Task 6: Quality gate
       - [ ] npm run typecheck
       - [ ] npm run lint
       - [ ] npm run test
