@@ -255,9 +255,9 @@ The `channelPattern: "geometry/*"` value is a new channel family unknown to the 
 
 ## 10. Hooks
 
-| Hook                              | Returns              | Description                                                                                                  |
-| --------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `useWidgetRegistry()`             | `WidgetDefinition[]` | All widgets in the registry; re-renders on any catalog change                                                |
-| `useWidgets(channel, mimeType?)`  | `WidgetDefinition[]` | Resolves widgets using channel-first then mimeType refinement; re-renders on catalog change |
+| Hook                             | Returns              | Description                                                                                 |
+| -------------------------------- | -------------------- | ------------------------------------------------------------------------------------------- |
+| `useWidgetRegistry()`            | `WidgetDefinition[]` | All widgets in the registry; re-renders on any catalog change                               |
+| `useWidgets(channel, mimeType?)` | `WidgetDefinition[]` | Resolves widgets using channel-first then mimeType refinement; re-renders on catalog change |
 
 Both hooks subscribe to `registry.onChange(...)` and clean up on unmount.
