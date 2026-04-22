@@ -126,11 +126,13 @@ describe("ApplicationShell", () => {
       renderer = renderShell(registry);
     });
 
-    // Initially no items in sidebar-left
+    // Initially no items in sidebar-left — no RegionItem instances rendered inside
     const sidebarLeft = renderer!.root.findByProps({
       "data-testid": "shell-sidebar-left",
     });
-    expect(sidebarLeft.children).toHaveLength(0);
+    expect(
+      sidebarLeft.findAll((node) => node.props["item"] !== undefined),
+    ).toHaveLength(0);
 
     // Register a widget after mount
     act(() => {
@@ -140,7 +142,9 @@ describe("ApplicationShell", () => {
     const sidebarLeftAfter = renderer!.root.findByProps({
       "data-testid": "shell-sidebar-left",
     });
-    expect(sidebarLeftAfter.children.length).toBeGreaterThan(0);
+    expect(
+      sidebarLeftAfter.findAll((node) => node.props["item"] !== undefined).length,
+    ).toBeGreaterThan(0);
   });
 
   it("post-mount auto-placement: widget with no defaultRegion defaults to main", () => {

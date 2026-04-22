@@ -127,7 +127,6 @@ export class WidgetRegistry {
       throw new Error(`Widget '${definition.name}' is already registered`);
     }
     this._widgets.set(definition.name, Object.freeze(definition));
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { factory: _factory, ...snapshot } = definition;
     this._notify({ type: "added", widget: snapshot });
 

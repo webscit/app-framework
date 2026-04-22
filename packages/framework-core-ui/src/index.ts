@@ -26,12 +26,14 @@ export {
   ApplicationShell,
   ShellLayoutContext,
   type ApplicationShellProps,
+  type ShellClassNames,
 } from "./ApplicationShell";
 export { useShellLayout } from "./useShellLayout";
 export {
   createDefaultShellLayout,
   type RegionId,
   type RegionItem,
+  type RegionSetter,
   type RegionState,
   type ShellLayout,
   type ShellLayoutContextValue,

@@ -1,31 +1,12 @@
-import React, { useContext } from "react";
+import React from "react";
 
-import { ShellLayoutContext } from "./ApplicationShell";
-import type { RegionItem, ShellLayoutContextValue } from "./shellTypes";
+import type { RegionItem, RegionSetter, RegionState } from "./shellTypes";
 import { useWidgetRegistryInstance } from "./WidgetRegistryContext";
 
-// ─── useShellLayoutContext ────────────────────────────────────────────────────
-
-/**
- * Returns the {@link ShellLayoutContextValue} from {@link ShellLayoutContext}.
- *
- * Throws a descriptive error if called outside {@link ApplicationShell},
- * consistent with the project's explicit-error convention.
- *
- * @returns Current shell layout context value.
- * @throws Error when rendered outside `<ApplicationShell>`.
- */
-function useShellLayoutContext(): ShellLayoutContextValue {
-  const ctx = useContext(ShellLayoutContext);
-  if (!ctx) {
-    throw new Error(
-      "Shell region components must be rendered inside <ApplicationShell>.",
-    );
-  }
-  return ctx;
-}
-
 // ─── RegionItemRenderer ───────────────────────────────────────────────────────
+
+// TODO: async factory (Promise return) is not yet handled beyond a loading placeholder —
+// there is no Suspense/lazy integration. Implement proper async widget loading in a future pass.
 
 /** Renders a single RegionItem — resolves type from registry, falls back to placeholders. */
 function RegionItemRenderer({ item }: { item: RegionItem }): JSX.Element {
@@ -42,33 +23,61 @@ function RegionItemRenderer({ item }: { item: RegionItem }): JSX.Element {
   return <WidgetComponent />;
 }
 
-// ─── ShellHeader ──────────────────────────────────────────────────────────────
+// ─── SortedItems ──────────────────────────────────────────────────────────────
 
-/**
- * Renders the `header` shell region. Always visible (non-togglable).
- *
- * Reads layout from {@link ShellLayoutContext} provided by {@link ApplicationShell}.
- *
- * @returns A div with `data-testid="shell-header"` containing sorted region items.
- * @example
- * ```tsx
- * <ApplicationShell>
- *   <ShellHeader />
- * </ApplicationShell>
- * ```
- */
-export function ShellHeader(): JSX.Element {
-  const ctx = useShellLayoutContext();
-  const region = ctx.layout.regions.header;
+/** Renders region items sorted by ascending `order`, then registration order. */
+function SortedItems({ items }: { items: RegionItem[] }): JSX.Element | null {
+  if (items.length === 0) return null;
   return (
-    <div data-testid="shell-header">
-      {region.items
+    <>
+      {items
         .slice()
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         .map((item) => (
           <RegionItemRenderer key={item.id} item={item} />
         ))}
-    </div>
+    </>
+  );
+}
+
+// ─── ShellHeaderProps ─────────────────────────────────────────────────────────
+
+/**
+ * Props for {@link ShellHeader}.
+ */
+export interface ShellHeaderProps {
+  /** Current state of the header region. */
+  region: RegionState;
+  /** Per-region updater (accepted for API consistency; header is non-togglable). */
+  setRegion: RegionSetter;
+  /** Optional CSS class name applied to the header element. */
+  className?: string;
+}
+
+// ─── ShellHeader ──────────────────────────────────────────────────────────────
+
+/**
+ * Renders the `header` shell region. Always visible (non-togglable).
+ *
+ * @param props - {@link ShellHeaderProps}
+ * @returns A header element with `data-testid="shell-header"` containing sorted region items.
+ * @example
+ * ```tsx
+ * <ShellHeader region={layout.regions.header} setRegion={makeRegionSetter("header")} />
+ * ```
+ */
+export function ShellHeader({
+  region,
+  setRegion: _setRegion,
+  className,
+}: ShellHeaderProps): JSX.Element {
+  return (
+    <header
+      className={["sct-ShellHeader", className].filter(Boolean).join(" ") || undefined}
+      data-testid="shell-header"
+    >
+      <SortedItems items={region.items} />
+    </header>
   );
 }
 
@@ -80,6 +89,12 @@ export function ShellHeader(): JSX.Element {
 export interface ShellSidebarProps {
   /** Which sidebar to render. */
   side: "left" | "right";
+  /** Current state of the sidebar region. */
+  region: RegionState;
+  /** Per-region updater for this sidebar. */
+  setRegion: RegionSetter;
+  /** Optional CSS class name applied to the sidebar element. */
+  className?: string;
 }
 
 // ─── ShellSidebar ─────────────────────────────────────────────────────────────
@@ -87,36 +102,44 @@ export interface ShellSidebarProps {
 /**
  * Renders a collapsible sidebar shell region (`sidebar-left` or `sidebar-right`).
  *
- * Reads layout from {@link ShellLayoutContext} provided by {@link ApplicationShell}.
  * Hidden via `display: none` when the region's `visible` flag is `false`.
  *
  * @param props - {@link ShellSidebarProps}
- * @returns A div with `data-testid="shell-sidebar-{side}"` containing sorted region items.
+ * @returns An aside with `data-testid="shell-sidebar-{side}"` containing sorted region items.
  * @example
  * ```tsx
- * <ApplicationShell>
- *   <ShellSidebar side="left" />
- *   <ShellSidebar side="right" />
- * </ApplicationShell>
+ * <ShellSidebar side="left" region={layout.regions["sidebar-left"]} setRegion={makeRegionSetter("sidebar-left")} />
  * ```
  */
-export function ShellSidebar({ side }: ShellSidebarProps): JSX.Element {
-  const regionId = side === "left" ? "sidebar-left" : "sidebar-right";
-  const ctx = useShellLayoutContext();
-  const region = ctx.layout.regions[regionId];
+export function ShellSidebar({
+  side,
+  region,
+  setRegion: _setRegion,
+  className,
+}: ShellSidebarProps): JSX.Element {
   return (
-    <div
+    <aside
+      className={["sct-ShellSidebar", className].filter(Boolean).join(" ") || undefined}
       data-testid={`shell-sidebar-${side}`}
       style={{ display: region.visible ? undefined : "none" }}
     >
-      {region.items
-        .slice()
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map((item) => (
-          <RegionItemRenderer key={item.id} item={item} />
-        ))}
-    </div>
+      <SortedItems items={region.items} />
+    </aside>
   );
+}
+
+// ─── ShellMainProps ───────────────────────────────────────────────────────────
+
+/**
+ * Props for {@link ShellMain}.
+ */
+export interface ShellMainProps {
+  /** Current state of the main region. */
+  region: RegionState;
+  /** Per-region updater (accepted for API consistency; main is non-togglable). */
+  setRegion: RegionSetter;
+  /** Optional CSS class name applied to the main element. */
+  className?: string;
 }
 
 // ─── ShellMain ────────────────────────────────────────────────────────────────
@@ -125,31 +148,45 @@ export function ShellSidebar({ side }: ShellSidebarProps): JSX.Element {
  * Renders the `main` shell region. Always visible (non-togglable).
  *
  * Shows a `data-testid="shell-main-empty"` fallback when no items are placed.
- * Reads layout from {@link ShellLayoutContext} provided by {@link ApplicationShell}.
  *
- * @returns A div with `data-testid="shell-main"` containing sorted region items or an empty placeholder.
+ * @param props - {@link ShellMainProps}
+ * @returns A main element with `data-testid="shell-main"` containing sorted region items or an empty placeholder.
  * @example
  * ```tsx
- * <ApplicationShell>
- *   <ShellMain />
- * </ApplicationShell>
+ * <ShellMain region={layout.regions.main} setRegion={makeRegionSetter("main")} />
  * ```
  */
-export function ShellMain(): JSX.Element {
-  const ctx = useShellLayoutContext();
-  const region = ctx.layout.regions.main;
+export function ShellMain({
+  region,
+  setRegion: _setRegion,
+  className,
+}: ShellMainProps): JSX.Element {
   return (
-    <div data-testid="shell-main">
+    <main
+      className={["sct-ShellMain", className].filter(Boolean).join(" ") || undefined}
+      data-testid="shell-main"
+    >
       {region.items.length === 0 ? (
         <div data-testid="shell-main-empty">No widgets placed</div>
       ) : (
-        region.items
-          .slice()
-          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-          .map((item) => <RegionItemRenderer key={item.id} item={item} />)
+        <SortedItems items={region.items} />
       )}
-    </div>
+    </main>
   );
+}
+
+// ─── ShellBottomProps ─────────────────────────────────────────────────────────
+
+/**
+ * Props for {@link ShellBottom}.
+ */
+export interface ShellBottomProps {
+  /** Current state of the bottom region. */
+  region: RegionState;
+  /** Per-region updater for this region. */
+  setRegion: RegionSetter;
+  /** Optional CSS class name applied to the bottom element. */
+  className?: string;
 }
 
 // ─── ShellBottom ──────────────────────────────────────────────────────────────
@@ -157,33 +194,43 @@ export function ShellMain(): JSX.Element {
 /**
  * Renders the `bottom` shell region. Collapsible.
  *
- * Reads layout from {@link ShellLayoutContext} provided by {@link ApplicationShell}.
  * Hidden via `display: none` when the region's `visible` flag is `false`.
  *
+ * @param props - {@link ShellBottomProps}
  * @returns A div with `data-testid="shell-bottom"` containing sorted region items.
  * @example
  * ```tsx
- * <ApplicationShell>
- *   <ShellBottom />
- * </ApplicationShell>
+ * <ShellBottom region={layout.regions.bottom} setRegion={makeRegionSetter("bottom")} />
  * ```
  */
-export function ShellBottom(): JSX.Element {
-  const ctx = useShellLayoutContext();
-  const region = ctx.layout.regions.bottom;
+export function ShellBottom({
+  region,
+  setRegion: _setRegion,
+  className,
+}: ShellBottomProps): JSX.Element {
   return (
     <div
+      className={["sct-ShellBottom", className].filter(Boolean).join(" ") || undefined}
       data-testid="shell-bottom"
       style={{ display: region.visible ? undefined : "none" }}
     >
-      {region.items
-        .slice()
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map((item) => (
-          <RegionItemRenderer key={item.id} item={item} />
-        ))}
+      <SortedItems items={region.items} />
     </div>
   );
+}
+
+// ─── ShellStatusBarProps ──────────────────────────────────────────────────────
+
+/**
+ * Props for {@link ShellStatusBar}.
+ */
+export interface ShellStatusBarProps {
+  /** Current state of the status-bar region. */
+  region: RegionState;
+  /** Per-region updater (accepted for API consistency; status-bar is non-togglable). */
+  setRegion: RegionSetter;
+  /** Optional CSS class name applied to the status-bar element. */
+  className?: string;
 }
 
 // ─── ShellStatusBar ───────────────────────────────────────────────────────────
@@ -191,27 +238,26 @@ export function ShellBottom(): JSX.Element {
 /**
  * Renders the `status-bar` shell region. Always visible (non-togglable).
  *
- * Reads layout from {@link ShellLayoutContext} provided by {@link ApplicationShell}.
- *
- * @returns A div with `data-testid="shell-status-bar"` containing sorted region items.
+ * @param props - {@link ShellStatusBarProps}
+ * @returns A footer element with `data-testid="shell-status-bar"` containing sorted region items.
  * @example
  * ```tsx
- * <ApplicationShell>
- *   <ShellStatusBar />
- * </ApplicationShell>
+ * <ShellStatusBar region={layout.regions["status-bar"]} setRegion={makeRegionSetter("status-bar")} />
  * ```
  */
-export function ShellStatusBar(): JSX.Element {
-  const ctx = useShellLayoutContext();
-  const region = ctx.layout.regions["status-bar"];
+export function ShellStatusBar({
+  region,
+  setRegion: _setRegion,
+  className,
+}: ShellStatusBarProps): JSX.Element {
   return (
-    <div data-testid="shell-status-bar">
-      {region.items
-        .slice()
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map((item) => (
-          <RegionItemRenderer key={item.id} item={item} />
-        ))}
-    </div>
+    <footer
+      className={
+        ["sct-ShellStatusBar", className].filter(Boolean).join(" ") || undefined
+      }
+      data-testid="shell-status-bar"
+    >
+      <SortedItems items={region.items} />
+    </footer>
   );
 }

@@ -45,6 +45,17 @@ export interface ShellLayoutContextValue {
 }
 
 /**
+ * Narrowed per-region updater.  Allows a region component to update only its
+ * own {@link RegionState} without touching the rest of the {@link ShellLayout}.
+ *
+ * Toggle visibility example:
+ * ```ts
+ * setRegion(prev => ({ ...prev, visible: !prev.visible }));
+ * ```
+ */
+export type RegionSetter = (updater: (prev: RegionState) => RegionState) => void;
+
+/**
  * Returns a {@link ShellLayout} with all six regions at their spec-defined
  * default visibility.
  *
