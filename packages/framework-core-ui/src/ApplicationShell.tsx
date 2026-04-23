@@ -99,7 +99,7 @@ export interface ApplicationShellProps {
    * `initialLayout` falls back to its default state.  Auto-placement from the
    * widget registry is skipped.  If omitted, `ApplicationShell` builds the
    * initial layout by grouping registered widgets by their `defaultRegion`
-   * field.  Widgets with no `defaultRegion` are not auto-placed.
+   * field.  Widgets with no `defaultRegion` are auto-placed into the `main` region.
    */
   initialLayout?: ShellLayout;
   /**

@@ -1,0 +1,84 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  height: 100vh;
+  overflow: hidden;
+}
+
+[data-testid="shell-layout"] {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.sct-ShellHeader {
+  background: #1e1e1e;
+  color: white;
+  padding: 8px 16px;
+  min-height: 40px;
+  border-bottom: 1px solid #444;
+  display: flex;
+  align-items: center;
+}
+
+.sct-ApplicationShell-Content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.sct-ShellSidebar {
+  background: #252526;
+  color: white;
+  width: 220px;
+  padding: 8px;
+  border-right: 1px solid #444;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Show button sits outside the sidebar — in the content area */
+.sct-ShellSidebar-toggle {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  z-index: 10;
+  background: #007acc;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.sct-ShellMain {
+  flex: 1;
+  background: #2d2d2d;
+  color: white;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.sct-ShellBottom {
+  background: #1e1e1e;
+  color: white;
+  height: 150px;
+  padding: 8px;
+  border-top: 1px solid #444;
+  overflow-y: auto;
+}
+
+.sct-ShellStatusBar {
+  background: #007acc;
+  color: white;
+  padding: 4px 16px;
+  min-height: 24px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}

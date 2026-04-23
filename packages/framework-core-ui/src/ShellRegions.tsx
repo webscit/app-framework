@@ -114,7 +114,7 @@ export interface ShellSidebarProps {
 export function ShellSidebar({
   side,
   region,
-  setRegion: _setRegion,
+  setRegion,
   className,
 }: ShellSidebarProps): JSX.Element {
   return (
@@ -123,6 +123,12 @@ export function ShellSidebar({
       data-testid={`shell-sidebar-${side}`}
       style={{ display: region.visible ? undefined : "none" }}
     >
+      <button
+        data-testid={`shell-sidebar-${side}-toggle`}
+        onClick={() => setRegion((prev) => ({ ...prev, visible: !prev.visible }))}
+      >
+        {region.visible ? "Hide" : "Show"}
+      </button>
       <SortedItems items={region.items} />
     </aside>
   );
@@ -205,7 +211,7 @@ export interface ShellBottomProps {
  */
 export function ShellBottom({
   region,
-  setRegion: _setRegion,
+  setRegion,
   className,
 }: ShellBottomProps): JSX.Element {
   return (
@@ -214,6 +220,12 @@ export function ShellBottom({
       data-testid="shell-bottom"
       style={{ display: region.visible ? undefined : "none" }}
     >
+      <button
+        data-testid="shell-bottom-toggle"
+        onClick={() => setRegion((prev) => ({ ...prev, visible: !prev.visible }))}
+      >
+        {region.visible ? "Hide" : "Show"}
+      </button>
       <SortedItems items={region.items} />
     </div>
   );

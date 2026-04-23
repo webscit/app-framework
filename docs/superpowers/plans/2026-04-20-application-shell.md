@@ -4,7 +4,7 @@
 
 **Goal:** Implement the top-level container that defines named slot regions, renders widgets placed in those regions, and provides a layout surface whose state is serializable to JSON from day one.
 
-**Architecture:** `ApplicationShell` is a renderer. It takes a `ShellLayout` spec (plain JSON describing which widgets are placed in which regions) and reads `WidgetRegistry` from the existing `EventBusProvider` context — the same registry the rest of the app uses. This follows the json-render pattern: spec + registry = rendered UI. No second registry is needed. Widget placement is declared on `WidgetDefinition` via a `defaultRegion` field — the shell reads this at startup to auto-populate regions without requiring a hand-authored layout. Phase 2 will wire `ShellLayout` save/load to a storage backend and add AI layout generation on top of this same spec format.
+**Architecture:** `ApplicationShell` is a renderer. It takes a `ShellLayout` spec (plain JSON describing which widgets are placed in which regions) and reads `WidgetRegistry` from the `WidgetRegistryContext` — the same registry the rest of the app uses. This follows the json-render pattern: spec + registry = rendered UI. No second registry is needed. Widget placement is declared on `WidgetDefinition` via a `defaultRegion` field — the shell reads this at startup to auto-populate regions without requiring a hand-authored layout. Phase 2 will wire `ShellLayout` save/load to a storage backend and add AI layout generation on top of this same spec format.
 
 **Tech Stack:** TypeScript — React, Vitest, react-test-renderer.
 
@@ -42,20 +42,7 @@ Phase 1 delivers the shell core:
 
 ---
 
-## 3. Phase 2 Preview (Out of Scope)
-
-Phase 2 will add:
-
-- **JSON persistence** — `ShellLayout` is already serializable; Phase 2 wires `save()` / `load(layout: ShellLayout)` to a storage backend (localStorage or server API).
-- **Drag-and-drop layout editor** — the layout editor reads region state from `ShellLayout` and writes changes back through `ShellLayout` updates. The shell does not change; only the editor is new.
-- **AI layout generation** — `ShellLayout` is pure JSON, making it a natural target for LLM-driven layout suggestions. The spec format is designed to accommodate this from day one.
-- **Plugin manifest system** — a `shell.json` manifest file per package declares initial widget placements declaratively. The shell merges these into `ShellLayout` at startup without hand-authoring the layout in application code. Same pattern as the widget registry Phase 2 manifest work.
-
-None of these require changes to the Phase 1 `ShellLayout` data model — the interfaces are designed to accommodate them.
-
----
-
-## 4. Shell Regions
+## 3. Shell Regions
 
 Each region has a fixed name, a fixed position in the layout, and a purpose. The shell renders all six regions in the DOM at all times; visibility is controlled by CSS (hidden regions take no space).
 
@@ -72,7 +59,7 @@ Each region has a fixed name, a fixed position in the layout, and a purpose. The
 
 ---
 
-## 5. Shell Data Model
+## 4. Shell Data Model
 
 The `ShellLayout` interface is the single source of truth for shell state that must survive a browser refresh. It is designed to be `JSON.stringify`-safe from day one: no functions, no class instances, no circular references, no `undefined` values.
 
@@ -128,7 +115,7 @@ interface ShellLayout {
 
 **Render-time resolution:** At render time, `ApplicationShell` iterates `ShellLayout.regions[id].items`, looks up each `item.type` in `WidgetRegistry`, and calls `factory({ parameters: item.props })` to obtain the React component. If `item.type` is not found in the registry, the shell renders a clearly labelled placeholder ("Widget not found: {type}") and continues — it never throws. A saved layout with a stale or mistyped widget name degrades gracefully.
 
-**`createDefaultShellLayout():`** A pure helper function that returns a `ShellLayout` with all six regions at their spec-defined default visibility (see Section 4 table). `ApplicationShell` calls this internally when `initialLayout` is omitted. Callers who want to supply a partial override merge their values on top of the default.
+**`createDefaultShellLayout():`** A pure helper function that returns a `ShellLayout` with all six regions at their spec-defined default visibility (see Section 3 table). `ApplicationShell` calls this internally when `initialLayout` is omitted. Callers who want to supply a partial override merge their values on top of the default.
 
 ```typescript
 function createDefaultShellLayout(): ShellLayout {
@@ -168,7 +155,7 @@ const LOG_VIEWER: WidgetDefinition = {
 
 ---
 
-## 6. Shell Component API
+## 5. Shell Component API
 
 The `ApplicationShell` component is the root of the UI. It is composed as follows:
 
@@ -178,13 +165,13 @@ interface ApplicationShellProps {
    * Explicit layout spec. If provided, used as-is — auto-placement is skipped.
    * If omitted, ApplicationShell builds the initial layout from WidgetRegistry
    * by grouping widgets by their defaultRegion field.
-   * Widgets with no defaultRegion are not auto-placed.
+   * Widgets with no defaultRegion are auto-placed into main.
    */
   initialLayout?: ShellLayout;
 }
 ```
 
-`WidgetRegistry` is **not** a prop — the shell calls `useWidgetRegistryInstance()` to read it from the `EventBusProvider` context already in the tree. This is the established framework pattern: the application creates one `WidgetRegistry`, passes it to `EventBusProvider`, and all downstream components — including `ApplicationShell` — consume it from context. Passing it again as a prop would require every app to supply the same instance twice.
+`WidgetRegistry` is **not** a prop — the shell calls `useWidgetRegistryInstance()` to read it from the `WidgetRegistryContext` already in the tree. This is the established framework pattern: the application creates one `WidgetRegistry`, passes it to `EventBusProvider`, and all downstream components — including `ApplicationShell` — consume it from context. Passing it again as a prop would require every app to supply the same instance twice.
 
 The component provides ONE React context:
 
@@ -201,7 +188,7 @@ interface ShellLayoutContextValue {
 
 ```typescript
 {
-  id: widget.name,  // stable, unique — widget name is the ID
+  id: widget.name,  // Phase 1: widget name used as ID — limits one placement per widget type per layout
   type: widget.name, // resolved via WidgetRegistry at render time
   props: {},        // default props — no user configuration at auto-place time
   order: 0,         // default order
@@ -214,14 +201,16 @@ The rendered tree:
 
 ```
 <ApplicationShell>
-  <ShellHeader />          ← region: header
+  <ShellHeader />
   <ShellBody>
-    <ShellSidebar side="left" />    ← region: sidebar-left
-    <ShellMain />                   ← region: main
-    <ShellSidebar side="right" />   ← region: sidebar-right
+    <ShellSidebar side="left" />
+    <ShellContent>
+      <ShellMain />
+      <ShellBottom />
+    </ShellContent>
+    <ShellSidebar side="right" />
   </ShellBody>
-  <ShellBottom />          ← region: bottom
-  <ShellStatusBar />       ← region: status-bar
+  <ShellStatusBar />
 </ApplicationShell>
 ```
 
@@ -233,18 +222,17 @@ Each sub-component is internal to the shell package. They read from `ShellLayout
 /**
  * Returns the current ShellLayout and a functional updater.
  * Re-renders whenever the layout changes.
- * Follows the same [value, setter] tuple pattern as React.useState.
  */
-function useShellLayout(): [
-  ShellLayout,
-  (updater: (prev: ShellLayout) => ShellLayout) => void,
-];
+function useShellLayout(): {
+  layout: ShellLayout;
+  setLayout: (updater: (prev: ShellLayout) => ShellLayout) => void;
+};
 ```
 
 The functional updater pattern (rather than a direct value setter) ensures atomic updates when multiple regions change at once — the updater always receives the latest state, preventing stale-closure bugs in concurrent renders. The sidebar toggle, for example:
 
 ```typescript
-const [, setLayout] = useShellLayout();
+const { setLayout } = useShellLayout();
 setLayout((prev) => ({
   ...prev,
   regions: {
@@ -259,7 +247,7 @@ setLayout((prev) => ({
 
 ---
 
-## 7. Design Decisions
+## 6. Design Decisions
 
 ### a. Why slot-based regions over a free-form grid (at this stage)
 
@@ -301,9 +289,9 @@ The `bottom` panel follows the same rule — the user may want the terminal coll
 
 ---
 
-## 8. Edge Cases
+## 7. Edge Cases
 
-**Empty region:** A region that has no placed items renders its empty state — a region-specific placeholder (e.g., `main` shows a "No widgets placed" message; `sidebar-left` renders nothing). Empty regions that are hideable default to hidden if `initialLayout` is not supplied. The `main` region always renders something.
+**Empty region:** A region that has no placed items renders its empty state — a region-specific placeholder (e.g., `main` shows a "No widgets placed" message; `sidebar-left` renders nothing). Hideable regions follow their defaults from `createDefaultShellLayout()` when no `initialLayout` is supplied. The `main` region always renders something.
 
 **Widget registered after mount with a defaultRegion:** If `initialLayout` was omitted and a widget with `defaultRegion` is registered after `ApplicationShell` mounts, the shell DOES automatically add it to the layout. This enables dynamic plugin activation similar to VS Code's extension marketplace — a user can activate or deactivate plugins at runtime and the shell layout updates immediately. If `initialLayout` was provided (controlled mode), post-mount registrations do not trigger auto-placement.
 
@@ -311,7 +299,7 @@ The `bottom` panel follows the same rule — the user may want the terminal coll
 
 **Unknown widget type in spec:** If `ShellLayout` contains a `RegionItem` whose `type` is not found in `WidgetRegistry`, the shell renders a clearly labelled placeholder ("Widget not found: {type}") in that item's position and continues rendering all other items normally. A stale or mistyped widget name in a saved layout never crashes the shell.
 
-**Sidebar collapse/expand state:** Visible/hidden is serializable state in `ShellLayout` (see Section 5). Animated transition state (mid-collapse) is ephemeral React state and is not part of `ShellLayout`. The distinction is: if the user saves and reloads, the panel should be in the same open/closed position; the animation itself does not need to resume.
+**Sidebar collapse/expand state:** Visible/hidden is serializable state in `ShellLayout` (see Section 4). Animated transition state (mid-collapse) is ephemeral React state and is not part of `ShellLayout`. The distinction is: if the user saves and reloads, the panel should be in the same open/closed position; the animation itself does not need to resume.
 
 **Status-bar visibility:** Always visible. Not togglable. `status-bar` always has `visible: true` in `ShellLayout`. This matches the VS Code status bar contract: it is chrome, not content.
 
@@ -319,7 +307,7 @@ The `bottom` panel follows the same rule — the user may want the terminal coll
 
 ---
 
-## 9. Built-in Shell Content
+## 8. Built-in Shell Content
 
 With zero application-level configuration and no widgets registered with a `defaultRegion`, `ApplicationShell` renders:
 
@@ -332,11 +320,11 @@ With zero application-level configuration and no widgets registered with a `defa
 
 When widgets with `defaultRegion` are registered before mount, auto-placement populates the matching regions automatically — no hand-authored layout required. See Section 6 for auto-placement behaviour.
 
-No widgets are pre-placed by the framework itself. The shell is a renderer; placement is the application's responsibility via `ShellLayout` or via `defaultRegion` on `WidgetDefinition`.
+The shell is a renderer. Widgets with `defaultRegion` set are auto-placed on mount. All other placement is the application's responsibility via `ShellLayout`.
 
 ---
 
-## 10. Implementation Checklist
+## 9. Implementation Checklist
 
 ```
 - [ ] Task 1: Core types
@@ -349,7 +337,7 @@ No widgets are pre-placed by the framework itself. The shell is a renderer; plac
       - [ ] ApplicationShell props: initialLayout? only — read WidgetRegistry via useWidgetRegistryInstance()
       - [ ] Merge initialLayout over createDefaultShellLayout() on mount
       - [ ] If initialLayout omitted: call widgetRegistry.list(), filter widgets with defaultRegion, build initial ShellLayout
-      - [ ] Widgets with no defaultRegion are not auto-placed
+      - [ ] Widgets with no defaultRegion are auto-placed to main
       - [ ] Correct non-togglable regions (header, main, status-bar) to visible: true on load
       - [ ] Render header, sidebar-left, main, sidebar-right, bottom, status-bar regions
       - [ ] Subscribe to WidgetRegistry onChange — re-render when registry changes
@@ -365,7 +353,7 @@ No widgets are pre-placed by the framework itself. The shell is a renderer; plac
       - [ ] ShellStatusBar — renders region: status-bar items, always visible
 
 - [ ] Task 4: useShellLayout hook
-      - [ ] useShellLayout(): [ShellLayout, setLayout] — subscribes to ShellLayoutContext, re-renders on change
+      - [ ] useShellLayout(): { layout, setLayout } — subscribes to ShellLayoutContext, re-renders on change
       - [ ] Tests: initial layout, layout update re-render, toggle visibility via setLayout
 
 - [ ] Task 5: Public exports
