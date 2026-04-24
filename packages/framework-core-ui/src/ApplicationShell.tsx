@@ -21,6 +21,13 @@ import {
 
 // ─── Non-togglable correction ─────────────────────────────────────────────────
 
+/** Regions that must always be visible — silently corrected if `false`. */
+const NON_TOGGLABLE: ReadonlySet<RegionId> = new Set<RegionId>([
+  "header",
+  "main",
+  "status-bar",
+]);
+
 /**
  * Ensures non-togglable regions (`header`, `main`, `status-bar`) have
  * `visible: true`.  Returns a new layout object if any correction was needed,
@@ -29,12 +36,6 @@ import {
  * @param layout - Layout to validate.
  * @returns Corrected layout.
  */
-const NON_TOGGLABLE: ReadonlySet<RegionId> = new Set<RegionId>([
-  "header",
-  "main",
-  "status-bar",
-]);
-
 function applyNonTogglableCorrection(layout: ShellLayout): ShellLayout {
   let corrected = false;
   const regions = { ...layout.regions } as Record<RegionId, RegionState>;
