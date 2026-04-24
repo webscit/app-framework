@@ -1,0 +1,31 @@
+.sct-LogViewer-empty {
+  padding: 8px;
+  color: #888;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.sct-LogViewer-container {
+  font-family: monospace;
+  font-size: 12px;
+  overflow-y: auto;
+  height: 100%;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.sct-LogViewer-line {
+  white-space: pre;
+  margin-bottom: 2px;
+}
+
+.sct-LogViewer-line--wrap {
+  white-space: pre-wrap;
+}
+
+.sct-LogViewer-timestamp {
+  color: #888;
+  margin-right: 8px;
+}

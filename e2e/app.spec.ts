@@ -7,6 +7,16 @@ test("renders the application shell", async ({ page }) => {
   await expect(page.locator("[data-testid='shell-layout']")).toBeVisible();
 });
 
+test("renders the log viewer in the app shell", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("[data-testid='log-viewer']")).toBeVisible();
+});
+
+test("renders the dashboard local component", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("[data-testid='dashboard']")).toBeVisible();
+});
+
 test("backend health endpoint returns ok", async ({ request }) => {
   const response = await request.get(`${backendUrl}/health`);
   expect(response.ok()).toBeTruthy();

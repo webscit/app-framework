@@ -23,7 +23,7 @@ export {
   type ChangeListener,
   WidgetRegistry,
 } from "./widgetRegistry";
-export { WidgetLoader, type SctManifest, type SctManifestEntry } from "./widgetLoader";
+export { WidgetLoader, type SctManifest, type SctWidgetEntry } from "./widgetLoader";
 export { useWidgetLoader } from "./useWidgetLoader";
 export {
   ApplicationShell,

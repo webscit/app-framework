@@ -2,52 +2,14 @@ import { createElement } from "react";
 import type { ComponentType } from "react";
 
 import type { IDisposable } from "./disposable";
-import type { RegionId, WidgetDefinition, WidgetRegistry } from "./widgetRegistry";
+import type { WidgetDefinition, WidgetRegistry } from "./widgetRegistry";
 
 // ─── Manifest types ───────────────────────────────────────────────────────────
 
-/** A single widget entry in an {@link SctManifest}. */
-export interface SctManifestEntry {
-  /** Unique widget identifier used as the registry key. */
-  name: string;
-  /** Human-readable description of the widget's purpose. */
-  description: string;
-  /**
-   * Glob pattern matched against EventBus channel names to determine
-   * whether this widget can handle a given event stream.
-   */
-  channelPattern: string;
-  /**
-   * List of event type names that this widget expects to receive.
-   * Used for capability-based layout resolution.
-   */
-  consumes: string[];
-  /**
-   * Priority used to break ties when multiple widgets match the same channel.
-   * Higher values win.
-   */
-  priority: number;
-  /** Optional preferred region where this widget should be placed by default. */
-  defaultRegion?: RegionId;
-  /**
-   * JSON Schema–compatible map of configurable parameter names to their
-   * schema descriptors. Consumed by the layout engine to render config UIs.
-   */
-  parameters: Record<string, unknown>;
-  /**
-   * Relative import path resolved from the manifest file's location.
-   * Always starts with `./`.
-   */
-  module: string;
-  /** Named export in the module that holds the React component. */
-  export: string;
-}
-
-/** Shape of a parsed `sct-manifest.json` file. */
-export interface SctManifest {
-  version: string;
-  widgets: SctManifestEntry[];
-}
+// Generated from sct-manifest.schema.json — do not edit by hand.
+// To regenerate: npx json-schema-to-typescript <path>/sct-manifest.schema.json -o <path>/sct-manifest.types.ts
+import type { SctManifest } from "./sct-manifest.types";
+export type { SctManifest, SctWidgetEntry } from "./sct-manifest.types";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 

@@ -197,7 +197,7 @@ describe("LogViewerComponent", () => {
 
     const json = renderer!.toJSON();
     const text = JSON.stringify(json);
-    expect(text).toContain("jp-LogViewer-line--wrap");
+    expect(text).toContain("sct-LogViewer-line--wrap");
   });
 
   it("uses pre (no-wrap) style when wrapLines is false", () => {
@@ -220,6 +220,6 @@ describe("LogViewerComponent", () => {
     const json = renderer!.toJSON();
     const text = JSON.stringify(json);
     // pre is the nowrap style
-    expect(text).not.toContain("jp-LogViewer-line--wrap");
+    expect(text).not.toContain("sct-LogViewer-line--wrap");
   });
 });

@@ -35,7 +35,7 @@ Replace the `LogViewerPlaceholder` in `defaultWidgets.ts` with a functional Reac
 - Optionally show timestamp prefix when `showTimestamps: true`.
 - Optionally wrap long lines when `wrapLines: true`.
 - Show a "No logs yet" placeholder when the channel has produced no events.
-- Apply styles via deterministic CSS class names prefixed with `jp-LogViewer-`. A single `<style>` block is injected into `document.head` on first render — no external CSS dependencies, no inline styles.
+- Apply styles via deterministic CSS class names prefixed with `sct-LogViewer-`. A single `<style>` block is injected into `document.head` on first render — no external CSS dependencies, no inline styles.
 
 The component is framework-internal and lives in `packages/framework-core-ui/src/LogViewer.tsx`. It is not exported from `index.ts` — consumers obtain it through the registry's factory, not by importing it directly.
 
@@ -366,7 +366,7 @@ Manifest entries contain every `WidgetDefinition` field except `factory`. Only `
 
 ### 3.5 CSS Class Names Instead of Inline Styles
 
-`LogViewer` applies styles via deterministic `jp-LogViewer-*` class names, injected once into `document.head`. This allows theming and overrides from consuming applications without specificity battles against inline styles.
+`LogViewer` applies styles via deterministic `sct-LogViewer-*` class names, injected once into `document.head`. This allows theming and overrides from consuming applications without specificity battles against inline styles.
 
 ### 3.6 Same URL Called Twice is a No-op
 
@@ -395,7 +395,7 @@ The old design threw `Error: manifest already loaded` on a second `loadManifest`
 packages/framework-core-ui/src/
 ├── widgetRegistry.ts         # MODIFIED: defaultRegion on WidgetDefinition; removed duplicate field
 ├── defaultWidgets.ts         # MODIFIED: real factories; defaultRegion on both widgets
-├── LogViewer.tsx             # NEW: real LogViewer component with jp-LogViewer- CSS classes
+├── LogViewer.tsx             # NEW: real LogViewer component with sct-LogViewer- CSS classes
 ├── widgetLoader.ts           # NEW: WidgetLoader implements IDisposable; multi-manifest
 ├── WidgetLoaderContext.tsx   # NEW: shared WidgetLoader context provider
 ├── useWidgetLoader.ts        # NEW: useWidgetLoader hook; WidgetLoaderStatus type

@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "$schema": {
-      "type": "string"
+      "const": "https://app-framework/schemas/sct-manifest.json"
     },
     "version": {
       "type": "string",
@@ -17,12 +17,12 @@
     "widgets": {
       "type": "array",
       "description": "List of widget definitions provided by this plugin.",
-      "items": { "$ref": "#/$defs/SctManifestEntry" }
+      "items": { "$ref": "#/$defs/SctWidgetEntry" }
     }
   },
   "$defs": {
-    "SctManifestEntry": {
-      "title": "SctManifestEntry",
+    "SctWidgetEntry": {
+      "title": "SctWidgetEntry",
       "description": "A single widget entry in the manifest.",
       "type": "object",
       "required": [

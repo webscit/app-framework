@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 
 import { useEventBusClient } from "./EventBusContext";
 import type { WireEvent } from "./client";
+import "./LogViewer.css";
 
 interface LogEntry {
   id: string;
@@ -33,54 +34,7 @@ export interface LogViewerProps {
   wrapLines?: boolean;
 }
 
-const LOG_VIEWER_PREFIX = "jp-LogViewer";
-
-const STYLES = `
-  .${LOG_VIEWER_PREFIX}-empty {
-    padding: 8px;
-    color: #888;
-    font-family: monospace;
-    font-size: 12px;
-  }
-
-  .${LOG_VIEWER_PREFIX}-container {
-    font-family: monospace;
-    font-size: 12px;
-    overflow-y: auto;
-    height: 100%;
-    background-color: #1e1e1e;
-    color: #d4d4d4;
-    padding: 8px;
-    box-sizing: border-box;
-  }
-
-  .${LOG_VIEWER_PREFIX}-line {
-    white-space: pre;
-    margin-bottom: 2px;
-  }
-
-  .${LOG_VIEWER_PREFIX}-line--wrap {
-    white-space: pre-wrap;
-  }
-
-  .${LOG_VIEWER_PREFIX}-timestamp {
-    color: #888;
-    margin-right: 8px;
-  }
-`;
-
-let stylesInjected = false;
-
-function injectStyles(): void {
-  if (stylesInjected || typeof document === "undefined") {
-    return;
-  }
-  const style = document.createElement("style");
-  style.setAttribute("data-jp-log-viewer", "");
-  style.textContent = STYLES;
-  document.head.appendChild(style);
-  stylesInjected = true;
-}
+const LOG_VIEWER_PREFIX = "sct-LogViewer";
 
 /**
  * Displays a live, auto-scrolling log stream from an EventBus channel.
@@ -95,8 +49,7 @@ function injectStyles(): void {
  * does NOT resubscribe and does NOT reset the log history.
  *
  * Styles are applied via deterministic CSS class names prefixed with
- * `jp-LogViewer-`. A single `<style>` block is injected into `document.head`
- * on first render and reused for all subsequent instances.
+ * `sct-LogViewer-`, defined in `LogViewer.css`
  *
  * @param props Component props — see {@link LogViewerProps}.
  * @returns A scrolling log viewer element.
@@ -114,8 +67,6 @@ export const LogViewerComponent: ComponentType<LogViewerProps> = ({
   const client = useEventBusClient();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  injectStyles();
 
   /**
    * Ref that mirrors the `maxLines` prop so the subscription callback always
@@ -159,11 +110,15 @@ export const LogViewerComponent: ComponentType<LogViewerProps> = ({
   }, [logs]);
 
   if (logs.length === 0) {
-    return <div className={`${LOG_VIEWER_PREFIX}-empty`}>No logs yet</div>;
+    return (
+      <div className={`${LOG_VIEWER_PREFIX}-empty`} data-testid="log-viewer">
+        No logs yet
+      </div>
+    );
   }
 
   return (
-    <div className={`${LOG_VIEWER_PREFIX}-container`}>
+    <div className={`${LOG_VIEWER_PREFIX}-container`} data-testid="log-viewer">
       {logs.map((entry) => (
         <div
           key={entry.id}
