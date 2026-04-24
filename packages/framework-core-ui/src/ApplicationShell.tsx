@@ -19,9 +19,9 @@ import {
   type ShellLayout,
 } from "./shellTypes";
 
-// ─── Non-togglable correction ─────────────────────────────────────────────────
+// ─── Non-togglable ──────────────────────────────────────────────────────────
 
-/** Regions that must always be visible — silently corrected if `false`. */
+/** Regions that must always be visible — silently forced to true if false. */
 const NON_TOGGLABLE: ReadonlySet<RegionId> = new Set<RegionId>([
   "header",
   "main",
@@ -30,11 +30,11 @@ const NON_TOGGLABLE: ReadonlySet<RegionId> = new Set<RegionId>([
 
 /**
  * Ensures non-togglable regions (`header`, `main`, `status-bar`) have
- * `visible: true`.  Returns a new layout object if any correction was needed,
+ * `visible: true`. Returns a new layout object if any change was needed,
  * otherwise returns the same reference.
  *
  * @param layout - Layout to validate.
- * @returns Corrected layout.
+ * @returns Validated layout.
  */
 function applyNonTogglableCorrection(layout: ShellLayout): ShellLayout {
   let corrected = false;
