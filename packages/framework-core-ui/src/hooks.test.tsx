@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
-import { act, create, type ReactTestRenderer } from "react-test-renderer";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, act } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { EventBusProvider } from "./EventBusContext";
 import type { WebSocketLike } from "./client";
@@ -10,27 +10,22 @@ import { usePublish } from "./usePublish";
 
 class FakeWebSocket implements WebSocketLike {
   public static readonly OPEN = 1;
-
   public onopen: ((event: Event) => void) | null = null;
   public onmessage: ((event: MessageEvent) => void) | null = null;
   public onerror: ((event: Event) => void) | null = null;
   public onclose: ((event: CloseEvent) => void) | null = null;
-
   public readyState = FakeWebSocket.OPEN;
   public readonly sent: string[] = [];
 
   public send(data: string): void {
     this.sent.push(data);
   }
-
   public close(): void {
     this.onclose?.({} as CloseEvent);
   }
-
   public open(): void {
     this.onopen?.({} as Event);
   }
-
   public receive(data: unknown): void {
     this.onmessage?.({ data } as MessageEvent);
   }
@@ -41,19 +36,6 @@ function parseSentMessages(socket: FakeWebSocket): unknown[] {
 }
 
 describe("framework-core-ui hooks", () => {
-  beforeEach(() => {
-    vi.stubGlobal("window", {
-      location: {
-        protocol: "http:",
-        host: "localhost:5173",
-      },
-    });
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it("useChannel returns latest merged payload and unsubscribes on unmount", () => {
     const socket = new FakeWebSocket();
     const seen: Array<Record<string, unknown> | null> = [];
@@ -72,7 +54,6 @@ describe("framework-core-ui hooks", () => {
       useEffect(() => {
         setMounted = set;
       }, []);
-
       return (
         <EventBusProvider path="/ws" webSocketFactory={() => socket}>
           {mounted ? <Probe /> : null}
@@ -80,10 +61,7 @@ describe("framework-core-ui hooks", () => {
       );
     }
 
-    let renderer: ReactTestRenderer;
-    act(() => {
-      renderer = create(<Host />);
-    });
+    const { unmount } = render(<Host />);
 
     act(() => {
       socket.open();
@@ -120,9 +98,7 @@ describe("framework-core-ui hooks", () => {
       channel: "sensor/temperature",
     });
 
-    act(() => {
-      renderer!.unmount();
-    });
+    unmount();
   });
 
   it("useChannel handles non-object payloads", () => {
@@ -137,13 +113,11 @@ describe("framework-core-ui hooks", () => {
       return null;
     }
 
-    act(() => {
-      create(
-        <EventBusProvider path="/ws" webSocketFactory={() => socket}>
-          <Probe />
-        </EventBusProvider>,
-      );
-    });
+    render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <Probe />
+      </EventBusProvider>,
+    );
 
     act(() => {
       socket.open();
@@ -175,13 +149,11 @@ describe("framework-core-ui hooks", () => {
       return null;
     }
 
-    act(() => {
-      create(
-        <EventBusProvider path="/ws" webSocketFactory={() => socket}>
-          <Probe />
-        </EventBusProvider>,
-      );
-    });
+    render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <Probe />
+      </EventBusProvider>,
+    );
 
     act(() => {
       socket.open();
@@ -207,13 +179,11 @@ describe("framework-core-ui hooks", () => {
       return null;
     }
 
-    act(() => {
-      create(
-        <EventBusProvider path="/ws" webSocketFactory={() => socket}>
-          <Probe />
-        </EventBusProvider>,
-      );
-    });
+    render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <Probe />
+      </EventBusProvider>,
+    );
 
     act(() => {
       socket.open();
@@ -235,11 +205,9 @@ describe("framework-core-ui hooks", () => {
       return null;
     }
 
-    expect(() => {
-      act(() => {
-        create(<Probe />);
-      });
-    }).toThrow("EventBus hooks must be used inside EventBusProvider.");
+    expect(() => render(<Probe />)).toThrow(
+      "EventBus hooks must be used inside EventBusProvider.",
+    );
   });
 
   it("throws when usePublish is used outside EventBusProvider", () => {
@@ -248,11 +216,9 @@ describe("framework-core-ui hooks", () => {
       return null;
     }
 
-    expect(() => {
-      act(() => {
-        create(<Probe />);
-      });
-    }).toThrow("EventBus hooks must be used inside EventBusProvider.");
+    expect(() => render(<Probe />)).toThrow(
+      "EventBus hooks must be used inside EventBusProvider.",
+    );
   });
 
   it("throws when useEventBusStatus is used outside EventBusProvider", () => {
@@ -261,10 +227,8 @@ describe("framework-core-ui hooks", () => {
       return null;
     }
 
-    expect(() => {
-      act(() => {
-        create(<Probe />);
-      });
-    }).toThrow("EventBus hooks must be used inside EventBusProvider.");
+    expect(() => render(<Probe />)).toThrow(
+      "EventBus hooks must be used inside EventBusProvider.",
+    );
   });
 });

@@ -31,3 +31,5 @@ test-results/
 .cache/
 .e2e-venv/
 uv.lock
+packages/framework-core-ui/.vitest-attachments/
+packages/framework-core-ui/src/__screenshots__/

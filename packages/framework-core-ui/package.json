@@ -18,10 +18,16 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18",
     "@types/react-test-renderer": "^18",
+    "@vitest/browser": "^4.1.5",
+    "@vitest/browser-playwright": "^4.1.5",
+    "playwright": "^1.59.1",
     "react-test-renderer": "^18",
     "typescript": "^5",
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.5"
   }
 }
