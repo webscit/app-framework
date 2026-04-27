@@ -170,7 +170,7 @@ export class WidgetLoader implements IDisposable {
         description: entry.description,
         channelPattern: entry.channelPattern,
         consumes: entry.consumes,
-        priority: entry.priority,
+        priority: entry.priority ?? -1,
         defaultRegion: entry.defaultRegion,
         parameters: entry.parameters,
         factory: () => {
