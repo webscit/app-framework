@@ -13,7 +13,4 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["dist/**"],
   },
-  optimizeDeps: {
-    include: ["@testing-library/react", "@testing-library/dom"],
-  },
 });

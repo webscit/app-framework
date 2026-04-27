@@ -119,8 +119,8 @@ function makeTree(
     <WidgetRegistryContext.Provider value={registry}>
       <EventBusProvider path="/ws" webSocketFactory={() => socket}>
         <WidgetLoaderProvider>
-          {probes.map(({ url, onStatus }) => (
-            <Probe key={url} url={url} onStatus={onStatus} />
+          {probes.map(({ url, onStatus }, index) => (
+            <Probe key={`${url}-${index}`} url={url} onStatus={onStatus} />
           ))}
         </WidgetLoaderProvider>
       </EventBusProvider>
