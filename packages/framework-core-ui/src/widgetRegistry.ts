@@ -2,9 +2,11 @@ import type { ComponentType } from "react";
 
 import { channelMatches } from "./client";
 import type { IDisposable } from "./disposable";
-import type { RegionId } from "./shellTypes";
 
 export type { IDisposable } from "./disposable";
+
+/** Identifies a named layout region, e.g. `"bottom"`, `"status-bar"`, `"main"`. */
+export type RegionId = string;
 
 // ─── ComponentOptions ─────────────────────────────────────────────────────────
 
@@ -34,12 +36,6 @@ export interface WidgetDefinition {
   description: string;
 
   /**
-   * The shell region where this widget should be auto-placed when no
-   * explicit ShellLayout is provided. Defaults to "main" if omitted.
-   */
-  defaultRegion?: RegionId;
-
-  /**
    * Glob pattern matching the EventBus channels this widget handles.
    * e.g. `"log/*"`, `"data/temperature"`, `"control/*"`.
    *
@@ -64,6 +60,15 @@ export interface WidgetDefinition {
    * order.
    */
   priority: number;
+
+  /**
+   * The layout region this widget prefers by default, e.g. `"bottom"`,
+   * `"status-bar"`, `"main"`.
+   *
+   * Consumers may override this at placement time. When absent, the host
+   * application decides where to place the widget.
+   */
+  defaultRegion?: RegionId;
 
   /**
    * JSON schema of user-configurable parameters displayed in the layout editor.

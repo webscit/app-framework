@@ -1,0 +1,40 @@
+{
+  "$schema": "https://app-framework/schemas/sct-manifest.json",
+  "version": "1.0.0",
+  "widgets": [
+    {
+      "name": "LogViewer",
+      "description": "Displays live log stream from simulation stdout/stderr. Suitable for real-time monitoring of text-based output with a scrollable, searchable interface.",
+      "channelPattern": "log/*",
+      "consumes": ["text/plain"],
+      "priority": 10,
+      "defaultRegion": "bottom",
+      "parameters": {
+        "maxLines": {
+          "type": "integer",
+          "default": 1000,
+          "minimum": 100,
+          "maximum": 10000
+        },
+        "showTimestamps": { "type": "boolean", "default": true },
+        "wrapLines": { "type": "boolean", "default": false }
+      },
+      "module": "./LogViewer",
+      "export": "LogViewerComponent"
+    },
+    {
+      "name": "StatusIndicator",
+      "description": "Displays heartbeat and run status from the control channel. Shows connection status, last heartbeat time, and simulation run state.",
+      "channelPattern": "control/*",
+      "consumes": ["application/x-control+json"],
+      "priority": 10,
+      "defaultRegion": "status-bar",
+      "parameters": {
+        "label": { "type": "string", "default": "Simulation Status" },
+        "showLastSeen": { "type": "boolean", "default": true }
+      },
+      "module": "./StatusIndicator",
+      "export": "StatusIndicatorComponent"
+    }
+  ]
+}

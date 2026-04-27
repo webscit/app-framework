@@ -8,6 +8,7 @@ export {
   WidgetRegistryContext,
   useWidgetRegistryInstance,
 } from "./WidgetRegistryContext";
+export { WidgetLoaderProvider } from "./WidgetLoaderContext";
 export { useChannel, toPayloadWithHeaders } from "./useChannel";
 export { usePublish } from "./usePublish";
 export { useEventBusStatus } from "./useEventBusStatus";
@@ -22,6 +23,8 @@ export {
   type ChangeListener,
   WidgetRegistry,
 } from "./widgetRegistry";
+export { WidgetLoader, type SctManifest, type SctWidgetEntry } from "./widgetLoader";
+export { useWidgetLoader } from "./useWidgetLoader";
 export {
   ApplicationShell,
   type ApplicationShellProps,

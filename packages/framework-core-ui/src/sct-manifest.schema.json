@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://app-framework/schemas/sct-manifest.json",
+  "title": "SctManifest",
+  "description": "Manifest file declaring the widget types provided by a framework-core-ui plugin.",
+  "type": "object",
+  "required": ["version", "widgets"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "const": "https://app-framework/schemas/sct-manifest.json"
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest format version."
+    },
+    "widgets": {
+      "type": "array",
+      "description": "List of widget definitions provided by this plugin.",
+      "items": { "$ref": "#/$defs/SctWidgetEntry" }
+    }
+  },
+  "$defs": {
+    "SctWidgetEntry": {
+      "title": "SctWidgetEntry",
+      "description": "A single widget entry in the manifest.",
+      "type": "object",
+      "required": [
+        "name",
+        "description",
+        "channelPattern",
+        "consumes",
+        "module",
+        "export"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique widget identifier used as the registry key."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the widget's purpose."
+        },
+        "channelPattern": {
+          "type": "string",
+          "description": "Glob pattern matched against EventBus channel names to determine whether this widget can handle a given event stream."
+        },
+        "consumes": {
+          "type": "array",
+          "description": "List of MIME types that this widget expects to receive. Used for capability-based layout resolution.",
+          "items": { "type": "string" }
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Priority used to break ties when multiple widgets match the same channel. Higher values win."
+        },
+        "defaultRegion": {
+          "type": "string",
+          "description": "Optional preferred region where this widget should be placed by default."
+        },
+        "parameters": {
+          "type": "object",
+          "description": "JSON Schema-compatible map of configurable parameter names to their schema descriptors.",
+          "additionalProperties": {
+            "type": "object",
+            "description": "JSON Schema descriptor for a single parameter."
+          }
+        },
+        "module": {
+          "type": "string",
+          "description": "Relative import path resolved from the manifest file's location. Always starts with './'.",
+          "pattern": "^\\./."
+        },
+        "export": {
+          "type": "string",
+          "description": "Named export in the module that holds the React component."
+        }
+      }
+    }
+  }
+}

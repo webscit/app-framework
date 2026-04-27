@@ -136,7 +136,7 @@ export function ApplicationShell({
       const regions = { ...base.regions } as Record<RegionId, RegionState>;
 
       for (const widget of registry.list()) {
-        const region = widget.defaultRegion ?? "main";
+        const region = (widget.defaultRegion ?? "main") as RegionId;
         const newItem: RegionItem = {
           id: widget.name,
           type: widget.name,
@@ -162,7 +162,7 @@ export function ApplicationShell({
         if (isControlled) return;
         // FIXME: Auto-injecting widgets on registration should be removed at a later stage.
         setLayout((prev) => {
-          const region = event.widget.defaultRegion ?? "main";
+          const region = (event.widget.defaultRegion ?? "main") as RegionId;
           const newItem: RegionItem = {
             id: event.widget.name,
             type: event.widget.name,

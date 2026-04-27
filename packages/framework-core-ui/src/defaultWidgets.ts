@@ -1,15 +1,16 @@
 import type { ComponentType } from "react";
 
+import { LogViewerComponent } from "./LogViewer";
 import type { WidgetDefinition } from "./widgetRegistry";
 
-// Placeholder components — real implementations live in the application layer.
-const LogViewerPlaceholder: ComponentType = () => null;
+// Placeholder component — real LogViewer implementation is in LogViewer.tsx.
 const StatusIndicatorPlaceholder: ComponentType = () => null;
 
 /**
  * Built-in widget that displays live log entries arriving on log channels.
  *
  * Renders text/plain payloads from any channel matching `"log/*"`.
+ * Defaults to the `"bottom"` layout region.
  */
 export const LOG_VIEWER: WidgetDefinition = {
   name: "LogViewer",
@@ -20,19 +21,20 @@ export const LOG_VIEWER: WidgetDefinition = {
   channelPattern: "log/*",
   consumes: ["text/plain"],
   priority: 10,
+  defaultRegion: "bottom",
   parameters: {
     maxLines: { type: "integer", default: 1000, minimum: 100, maximum: 10000 },
     showTimestamps: { type: "boolean", default: true },
     wrapLines: { type: "boolean", default: false },
   },
-  factory: () => LogViewerPlaceholder,
+  factory: () => LogViewerComponent,
 };
 
 /**
  * Built-in widget that displays heartbeat and run status from control channels.
  *
  * Renders `application/x-control+json` payloads from channels matching
- * `"control/*"`.
+ * `"control/*"`. Defaults to the `"status-bar"` layout region.
  */
 export const STATUS_INDICATOR: WidgetDefinition = {
   name: "StatusIndicator",
@@ -42,6 +44,7 @@ export const STATUS_INDICATOR: WidgetDefinition = {
   channelPattern: "control/*",
   consumes: ["application/x-control+json"],
   priority: 10,
+  defaultRegion: "status-bar",
   parameters: {
     label: { type: "string", default: "Simulation Status" },
     showLastSeen: { type: "boolean", default: true },

@@ -1,71 +1,82 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-
 import {
   ApplicationShell,
   EventBusProvider,
   WidgetRegistry,
   WidgetRegistryContext,
-  createDefaultShellLayout,
-  useEventBusStatus,
+  WidgetLoaderProvider,
+  useWidgetLoader,
 } from "@app-framework/core-ui";
 import { useSimulation } from "./useSimulation";
-
 import "./shell.css";
 
-// ─── Dashboard widget ─────────────────────────────────────────────────────────
+const registry = new WidgetRegistry();
 
-function DashboardComponent() {
-  return function Dashboard() {
-    const { sine, log } = useSimulation();
-    const status = useEventBusStatus();
-    return (
-      <div>
-        <h1>UI shell placeholder</h1>
-        <p>Status: {status}</p>
-        <p>Latest sine: {sine?.value?.toFixed(4) ?? "n/a"}</p>
-        <p>Latest log: {log?.message ?? "n/a"}</p>
-      </div>
-    );
-  };
+function Dashboard() {
+  const { sine, log } = useSimulation();
+
+  return (
+    <div
+      data-testid="dashboard"
+      style={{
+        padding: "12px 16px",
+        borderBottom: "1px solid #333",
+        fontFamily: "monospace",
+        fontSize: 13,
+        display: "flex",
+        gap: 32,
+        alignItems: "center",
+      }}
+    >
+      <strong>Simulation Dashboard</strong>
+
+      <span>
+        Sine: <span data-testid="sine-value">{sine ? sine.value.toFixed(4) : "—"}</span>
+      </span>
+
+      <span>
+        Last log:{" "}
+        <span data-testid="last-log">
+          {log ? `[${log.level}] ${log.message}` : "—"}
+        </span>
+      </span>
+    </div>
+  );
 }
 
-// ─── Registry ─────────────────────────────────────────────────────────────────
+function AppShell() {
+  const loaderStatus = useWidgetLoader("/sct-manifest.json");
 
-const registry = new WidgetRegistry();
-registry.register({
-  name: "Dashboard",
-  description: "Main dashboard widget",
-  channelPattern: "data/*",
-  consumes: ["text/plain"],
-  priority: 10,
-  parameters: {},
-  defaultRegion: "main",
-  factory: DashboardComponent,
-});
+  if (loaderStatus === "loading") {
+    return <p>Loading widgets…</p>;
+  }
+  if (loaderStatus === "error") {
+    return <p>Failed to load widget manifest.</p>;
+  }
 
-// ─── Initial layout ───────────────────────────────────────────────────────────
-
-const initialLayout = {
-  ...createDefaultShellLayout(),
-  regions: {
-    ...createDefaultShellLayout().regions,
-    main: {
-      visible: true,
-      items: [{ id: "dashboard-1", type: "Dashboard", props: {}, order: 0 }],
-    },
-  },
-};
-
-// ─── App ──────────────────────────────────────────────────────────────────────
+  return (
+    <div
+      data-testid="shell-layout"
+      style={{ display: "flex", flexDirection: "column", height: "100vh" }}
+    >
+      <Dashboard />
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        <ApplicationShell />
+      </div>
+    </div>
+  );
+}
 
 function App() {
   return (
-    <EventBusProvider path="/ws">
-      <WidgetRegistryContext.Provider value={registry}>
-        <ApplicationShell initialLayout={initialLayout} />
-      </WidgetRegistryContext.Provider>
-    </EventBusProvider>
+    <WidgetRegistryContext.Provider value={registry}>
+      <EventBusProvider path="/ws">
+        <WidgetLoaderProvider>
+          <AppShell />
+        </WidgetLoaderProvider>
+      </EventBusProvider>
+    </WidgetRegistryContext.Provider>
   );
 }
 
