@@ -1,6 +1,6 @@
 {
   "$schema": "https://app-framework/schemas/sct-manifest.json",
-  "version": "1",
+  "version": "1.0.0",
   "widgets": [
     {
       "name": "LogViewer",
