@@ -59,6 +59,8 @@ jobs:
         run: npm run lint
       - name: TypeScript typecheck
         run: npm run typecheck
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
       - name: Run Vitest
         run: npm run test:ui
 
