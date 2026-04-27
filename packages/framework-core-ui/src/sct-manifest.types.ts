@@ -41,7 +41,7 @@ export interface SctWidgetEntry {
   /**
    * Priority used to break ties when multiple widgets match the same channel. Higher values win.
    */
-  priority: number;
+  priority?: number;
   /**
    * Optional preferred region where this widget should be placed by default.
    */
@@ -49,7 +49,7 @@ export interface SctWidgetEntry {
   /**
    * JSON Schema-compatible map of configurable parameter names to their schema descriptors.
    */
-  parameters: {
+  parameters?: {
     /**
      * JSON Schema descriptor for a single parameter.
      */
@@ -65,4 +65,5 @@ export interface SctWidgetEntry {
    * Named export in the module that holds the React component.
    */
   export: string;
+  [k: string]: unknown;
 }
