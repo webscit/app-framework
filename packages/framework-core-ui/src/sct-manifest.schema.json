@@ -35,7 +35,6 @@
         "module",
         "export"
       ],
-      "additionalProperties": false,
       "properties": {
         "name": {
           "type": "string",
