@@ -33,10 +33,10 @@ class FakeWebSocket implements WebSocketLike {
 const MANIFEST_A_URL = "/plugin-a/sct-manifest.json";
 const MANIFEST_B_URL = "/plugin-b/sct-manifest.json";
 
-const EMPTY_MANIFEST: SctManifest = { version: "1", widgets: [] };
+const EMPTY_MANIFEST: SctManifest = { version: "1.0.0", widgets: [] };
 
 const MANIFEST_WITH_WIDGET: SctManifest = {
-  version: "1",
+  version: "1.0.0",
   widgets: [
     {
       name: "TestWidget",
@@ -52,7 +52,7 @@ const MANIFEST_WITH_WIDGET: SctManifest = {
 };
 
 const MANIFEST_B_WITH_WIDGET: SctManifest = {
-  version: "1",
+  version: "1.0.0",
   widgets: [
     {
       name: "ChartWidget",

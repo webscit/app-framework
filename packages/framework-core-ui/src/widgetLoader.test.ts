@@ -9,7 +9,7 @@ const MANIFEST_A_URL = "/plugin-a/sct-manifest.json";
 const MANIFEST_B_URL = "/plugin-b/sct-manifest.json";
 
 const MANIFEST_A: SctManifest = {
-  version: "1",
+  version: "1.0.0",
   widgets: [
     {
       name: "LogViewer",
@@ -37,7 +37,7 @@ const MANIFEST_A: SctManifest = {
 };
 
 const MANIFEST_B: SctManifest = {
-  version: "1",
+  version: "1.0.0",
   widgets: [
     {
       name: "ChartWidget",
