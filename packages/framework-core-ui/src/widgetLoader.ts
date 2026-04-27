@@ -172,7 +172,7 @@ export class WidgetLoader implements IDisposable {
         consumes: entry.consumes,
         priority: entry.priority ?? -1,
         defaultRegion: entry.defaultRegion,
-        parameters: entry.parameters,
+        parameters: entry.parameters ?? {},
         factory: () => {
           if (!cachedPromise) {
             cachedPromise = this._importFn(entry.module)
