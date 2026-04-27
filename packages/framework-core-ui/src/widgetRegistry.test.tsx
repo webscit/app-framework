@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { render, act } from "@testing-library/react";
+import React, { useEffect, act } from "react";
+import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
 import { EventBusProvider } from "./EventBusContext";
@@ -9,6 +9,8 @@ import type { WebSocketLike } from "./client";
 import { useWidgetRegistry } from "./useWidgetRegistry";
 import { useWidgets } from "./useWidgets";
 import { type WidgetDefinition, WidgetRegistry } from "./widgetRegistry";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeWidget(name: string, channelPattern = "data/*"): WidgetDefinition {
   return {
@@ -168,7 +170,7 @@ describe("WidgetRegistry", () => {
 // ─── React hook tests ─────────────────────────────────────────────────────────
 
 describe("widget hooks", () => {
-  it("useWidgetRegistry returns all registered widgets", () => {
+  it("useWidgetRegistry returns all registered widgets", async () => {
     const registry = new WidgetRegistry();
     registry.register(LOG_VIEWER);
     registry.register(STATUS_INDICATOR);
@@ -183,7 +185,7 @@ describe("widget hooks", () => {
       return null;
     }
 
-    render(
+    await render(
       <WidgetRegistryContext.Provider value={registry}>
         <EventBusProvider path="/ws" webSocketFactory={() => socket}>
           <Probe />
@@ -196,7 +198,7 @@ describe("widget hooks", () => {
     expect(latest.map((w) => w.name)).toContain("StatusIndicator");
   });
 
-  it("useWidgets resolves widgets by channel", () => {
+  it("useWidgets resolves widgets by channel", async () => {
     const registry = new WidgetRegistry();
     registry.register(LOG_VIEWER);
     registry.register(STATUS_INDICATOR);
@@ -211,7 +213,7 @@ describe("widget hooks", () => {
       return null;
     }
 
-    render(
+    await render(
       <WidgetRegistryContext.Provider value={registry}>
         <EventBusProvider path="/ws" webSocketFactory={() => socket}>
           <Probe />
@@ -224,7 +226,7 @@ describe("widget hooks", () => {
     expect(latest.map((w) => w.name)).not.toContain("StatusIndicator");
   });
 
-  it("useWidgets re-renders when a widget is registered after mount", () => {
+  it("useWidgets re-renders when a widget is registered after mount", async () => {
     const registry = new WidgetRegistry();
     const socket = new FakeWebSocket();
     const seen: WidgetDefinition[][] = [];
@@ -237,7 +239,7 @@ describe("widget hooks", () => {
       return null;
     }
 
-    render(
+    await render(
       <WidgetRegistryContext.Provider value={registry}>
         <EventBusProvider path="/ws" webSocketFactory={() => socket}>
           <Probe />
@@ -247,14 +249,14 @@ describe("widget hooks", () => {
 
     expect(seen.at(-1)).toEqual([]);
 
-    act(() => {
+    await act(async () => {
       registry.register(LOG_VIEWER);
     });
 
     expect(seen.at(-1)!.map((w) => w.name)).toContain("LogViewer");
   });
 
-  it("useWidgets refines by mimeType when provided", () => {
+  it("useWidgets refines by mimeType when provided", async () => {
     const registry = new WidgetRegistry();
     registry.register(LOG_VIEWER);
     registry.register(STATUS_INDICATOR);
@@ -269,7 +271,7 @@ describe("widget hooks", () => {
       return null;
     }
 
-    render(
+    await render(
       <WidgetRegistryContext.Provider value={registry}>
         <EventBusProvider path="/ws" webSocketFactory={() => socket}>
           <Probe />
