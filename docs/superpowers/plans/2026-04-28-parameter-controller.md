@@ -55,11 +55,11 @@ The Parameter Controller widget solves this by providing a ready-made control pa
 
 Each parameter in the config produces one control:
 
-| Control type | When to use                          | Props                                      |
-| ------------ | ------------------------------------ | ------------------------------------------ |
-| `slider`     | Continuous numeric range             | `min`, `max`, `step`, `default`            |
-| `number`     | Precise numeric entry                | `min`, `max`, `step`, `default`            |
-| `select`     | Fixed set of string/number options   | `options: string[]`, `default`             |
+| Control type | When to use                        | Props                           |
+| ------------ | ---------------------------------- | ------------------------------- |
+| `slider`     | Continuous numeric range           | `min`, `max`, `step`, `default` |
+| `number`     | Precise numeric entry              | `min`, `max`, `step`, `default` |
+| `select`     | Fixed set of string/number options | `options: string[]`, `default`  |
 
 ---
 
@@ -191,38 +191,40 @@ const layout: ShellLayout = {
     ...createDefaultShellLayout().regions,
     "sidebar-left": {
       visible: true,
-      items: [{
-        id: "sim-params",
-        type: "ParameterController",
-        props: {
-          channel: "params/control",
-          parameters: {
-            timestep: {
-              label: "Time Step",
-              type: "slider",
-              min: 0.001,
-              max: 1.0,
-              step: 0.001,
-              default: 0.01,
-            },
-            max_iterations: {
-              label: "Max Iterations",
-              type: "number",
-              min: 1,
-              max: 10000,
-              step: 1,
-              default: 1000,
-            },
-            solver: {
-              label: "Solver",
-              type: "select",
-              options: ["euler", "rk4", "adams"],
-              default: "rk4",
+      items: [
+        {
+          id: "sim-params",
+          type: "ParameterController",
+          props: {
+            channel: "params/control",
+            parameters: {
+              timestep: {
+                label: "Time Step",
+                type: "slider",
+                min: 0.001,
+                max: 1.0,
+                step: 0.001,
+                default: 0.01,
+              },
+              max_iterations: {
+                label: "Max Iterations",
+                type: "number",
+                min: 1,
+                max: 10000,
+                step: 1,
+                default: 1000,
+              },
+              solver: {
+                label: "Solver",
+                type: "select",
+                options: ["euler", "rk4", "adams"],
+                default: "rk4",
+              },
             },
           },
+          order: 0,
         },
-        order: 0,
-      }],
+      ],
     },
   },
 };
