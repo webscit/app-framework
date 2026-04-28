@@ -5,6 +5,9 @@
     "packages/framework-core-ui",
     "examples/frontend"
   ],
+  "overrides": {
+    "react-dom": "^18"
+  },
   "scripts": {
     "dev": "npm run dev -w @app-framework/examples-frontend",
     "build": "npm run build --workspaces --if-present",
