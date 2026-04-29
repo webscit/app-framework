@@ -80,3 +80,6 @@ export function createDefaultShellLayout(): ShellLayout {
     },
   };
 }
+
+/** Increment this when ShellLayout schema changes in a breaking way. */
+export const SHELL_LAYOUT_STORAGE_VERSION = 1;

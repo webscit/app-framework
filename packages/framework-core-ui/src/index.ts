@@ -30,9 +30,14 @@ export {
   type ApplicationShellProps,
   type ShellClassNames,
 } from "./ApplicationShell";
-export { useShellLayoutStore, type ShellLayoutStore } from "./stores/shellStore";
+export {
+  useShellLayoutStore,
+  clearPersistedLayout,
+  type ShellLayoutStore,
+} from "./stores/shellStore";
 export {
   createDefaultShellLayout,
+  SHELL_LAYOUT_STORAGE_VERSION,
   type RegionId,
   type RegionItem,
   type RegionSetter,
