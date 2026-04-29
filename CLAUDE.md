@@ -95,6 +95,11 @@
 - Imports:
   - Keep imports clean, grouped, and lint/formatter compliant.
   - Prefer explicit named imports over wildcard imports.
+- Testing:
+  - Do not add or use `data-testid` except as a last resort when no accessible selector is possible (e.g. custom canvas-based widgets with no ARIA roles).
+  - Always prefer accessibility-based selectors: `page.getByRole()`, `page.getByLabelText()`, `page.getByText()`, `page.getByPlaceholder()`.
+  - Use `getByRole(role, { name: '...' })` as the primary selector — it validates both the element type and its accessible name simultaneously.
+  - `data-testid` is only acceptable for elements that have no semantic role and cannot be identified by any accessible attribute.
 
 ## Good Practices for Future Agents
 
