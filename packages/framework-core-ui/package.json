@@ -23,6 +23,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
     "react": "^19",
+    "recharts": "^3.8.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.4",
     "zustand": "^5.0.12"

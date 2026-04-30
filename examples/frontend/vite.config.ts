@@ -5,6 +5,7 @@ import { resolve } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const pkgSrc = resolve(__dirname, "../../packages/framework-core-ui/src");
 
 export default defineConfig({
   plugins: [
@@ -23,7 +24,15 @@ export default defineConfig({
       },
     },
   ],
+  resolve: {
+    alias: {
+      "@": pkgSrc,
+    },
+  },
   server: {
+    fs: {
+      allow: [resolve(__dirname, "../../")],
+    },
     proxy: {
       "/ws": {
         target: "http://127.0.0.1:8000",

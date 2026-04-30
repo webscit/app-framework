@@ -8,6 +8,7 @@ import {
   WidgetLoaderProvider,
   useWidgetLoader,
   PARAMETER_CONTROLLER,
+  CHART,
   createDefaultShellLayout,
 } from "@app-framework/core-ui";
 import type { ShellLayout } from "@app-framework/core-ui";
@@ -16,10 +17,36 @@ import "./shell.css";
 
 const registry = new WidgetRegistry();
 registry.register(PARAMETER_CONTROLLER);
+registry.register(CHART);
 
 const initialLayout: ShellLayout = {
   regions: {
     ...createDefaultShellLayout().regions,
+    main: {
+      visible: true,
+      items: [
+        {
+          id: "sine-chart",
+          type: "Chart",
+          props: {
+            title: "Sine Wave",
+            maxPoints: 300,
+            yDomain: [-2.1, 2.1],
+            yLabel: "Amplitude",
+            xLabel: "Elapsed time (s)",
+            series: [
+              {
+                channel: "data/sine",
+                field: "value",
+                label: "sin(t)",
+                color: "var(--chart-1)",
+              },
+            ],
+          },
+          order: 0,
+        },
+      ],
+    },
     "sidebar-left": {
       visible: true,
       items: [
@@ -29,29 +56,23 @@ const initialLayout: ShellLayout = {
           props: {
             channel: "params/control",
             parameters: {
-              timestep: {
-                title: "Time Step",
+              frequency: {
+                title: "Frequency (Hz)",
                 type: "number",
-                minimum: 0.001,
-                maximum: 1.0,
-                multipleOf: 0.001,
-                default: 0.01,
+                minimum: 0.1,
+                maximum: 10.0,
+                multipleOf: 0.1,
+                default: 1.0,
                 "x-options": { widget: "slider" },
               },
-              max_iterations: {
-                title: "Max Iterations",
+              amplitude: {
+                title: "Amplitude",
                 type: "number",
-                minimum: 1,
-                maximum: 10000,
-                multipleOf: 1,
-                default: 1000,
-              },
-              solver: {
-                title: "Solver",
-                type: "string",
-                enum: ["euler", "rk4", "adams"],
-                default: "rk4",
-                "x-options": { widget: "select" },
+                minimum: 0.1,
+                maximum: 2.0,
+                multipleOf: 0.05,
+                default: 1.0,
+                "x-options": { widget: "slider" },
               },
             },
           },
