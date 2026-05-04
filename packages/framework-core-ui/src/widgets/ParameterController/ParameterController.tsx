@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Field } from "@base-ui/react/field";
-import { Label } from "../../components/ui/label";
+import { Form } from "@base-ui/react/form";
 import { Slider } from "../../components/ui/slider";
-import { Input } from "../../components/ui/input";
 import {
   Select,
   SelectContent,
