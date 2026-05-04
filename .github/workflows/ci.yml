@@ -47,6 +47,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         # npm install is used instead of npm ci because the lock file is generated on
@@ -86,6 +87,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "22"
+          cache: "npm"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7

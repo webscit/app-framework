@@ -54,6 +54,12 @@ export const STATUS_INDICATOR: WidgetDefinition = {
   factory: () => StatusIndicatorPlaceholder,
 };
 
+/**
+ * Built-in widget that renders interactive parameter controls for runtime tuning.
+ *
+ * Publishes user-adjusted values as `application/x-params+json` payloads to
+ * `"params/control"` (configurable). Defaults to the `"sidebar-left"` layout region.
+ */
 export const PARAMETER_CONTROLLER: WidgetDefinition = {
   name: "ParameterController",
   description:

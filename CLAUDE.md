@@ -85,6 +85,9 @@
 - Public APIs must be documented:
   - TypeScript: JSDoc with description, `@param`, `@returns`, and `@example`.
   - Python: consistent docstrings with summary + `Args`/`Returns` (or equivalent).
+  - Every exported interface or type field must have an inline JSDoc comment (`/** ... */`).
+  - **Never remove existing doc strings or JSDoc comments.** If you refactor or rename an API, update its doc string to match — do not delete it.
+  - When adding new exported symbols, write the doc string before writing the implementation.
 - Every feature must be tested:
   - Python behavior in pytest unit tests.
   - TypeScript hooks/client behavior in Vitest tests.

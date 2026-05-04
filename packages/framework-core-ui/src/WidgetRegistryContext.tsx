@@ -4,6 +4,13 @@ import type { WidgetRegistry } from "./widgetRegistry";
 
 export const WidgetRegistryContext = createContext<WidgetRegistry | null>(null);
 
+/**
+ * Returns the {@link WidgetRegistry} instance from the nearest
+ * `WidgetRegistryContext.Provider`.
+ *
+ * @returns Shared {@link WidgetRegistry} instance.
+ * @throws Error if called outside of a `WidgetRegistryContext.Provider`.
+ */
 export function useWidgetRegistryInstance(): WidgetRegistry {
   const registry = useContext(WidgetRegistryContext);
   if (!registry) {

@@ -1,5 +1,11 @@
+/** Current state of the WebSocket connection to the EventBus. */
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
+/**
+ * Metadata envelope attached to every wire event.
+ *
+ * Produced by the backend and forwarded unchanged to channel subscribers.
+ */
 export interface EventHeaders {
   message_id: string;
   /** Milliseconds since Unix epoch. */
@@ -14,15 +20,28 @@ export interface EventHeaders {
   mimeType?: string;
 }
 
+/** Raw message received from the WebSocket before payload deserialization. */
 export interface WireEvent {
+  /** Channel the message was published on. */
   channel: string;
+  /** Metadata envelope attached by the backend. */
   headers: EventHeaders;
+  /** Untyped payload — consumers cast this via {@link toPayloadWithHeaders}. */
   payload: unknown;
 }
 
+/** Callback invoked for each incoming {@link WireEvent} matching a subscription pattern. */
 export type ChannelHandler = (event: WireEvent) => void;
+
+/** Callback invoked whenever the WebSocket {@link ConnectionStatus} changes. */
 export type StatusListener = (status: ConnectionStatus) => void;
 
+/**
+ * Minimal WebSocket interface used internally.
+ *
+ * Modelled after the browser `WebSocket` API so that tests can inject
+ * a lightweight fake via {@link WebSocketFactory}.
+ */
 export interface WebSocketLike {
   onopen: ((event: Event) => void) | null;
   onmessage: ((event: MessageEvent) => void) | null;
@@ -33,6 +52,12 @@ export interface WebSocketLike {
   close(): void;
 }
 
+/**
+ * Factory that produces a {@link WebSocketLike} for a given URL.
+ *
+ * Defaults to the native `WebSocket` constructor. Override in tests to
+ * inject a fake socket without touching global state.
+ */
 export type WebSocketFactory = (url: string) => WebSocketLike;
 
 interface ClientOptions {

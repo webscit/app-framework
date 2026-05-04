@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from framework_core.bus import BaseEvent, EventBus
 
@@ -26,16 +26,11 @@ class SineParams:
 
     Updated at runtime by the ``params/control`` consumer whenever the
     frontend ``ParameterController`` widget publishes new values.
-
-    Args:
-        frequency: Wave frequency in Hz.
-        amplitude: Wave amplitude (peak value).
-        time_step: Elapsed-time increment per tick (seconds).
     """
 
-    frequency: float = field(default=1.0)
-    amplitude: float = field(default=1.0)
-    time_step: float = field(default=0.1)
+    frequency: float = 1.0
+    amplitude: float = 1.0
+    time_step: float = 0.1
 
 
 #: Shared singleton — consumers write to this, the producer reads from it.
