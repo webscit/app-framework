@@ -45,4 +45,4 @@ ignore_errors = true
 # rest of strict checking in these modules.
 [[tool.mypy.overrides]]
 module = ["framework_core.ws_bridge", "framework_core"]
-disable_error_code = ["untyped-decorator"]
+disable_error_code = []

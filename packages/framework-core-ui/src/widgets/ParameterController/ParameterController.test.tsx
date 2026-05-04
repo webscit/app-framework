@@ -3,10 +3,10 @@ import { render } from "vitest-browser-react";
 import { page } from "vitest/browser";
 import { describe, expect, it } from "vitest";
 
-import { EventBusProvider } from "./EventBusContext";
+import { EventBusProvider } from "../../EventBusContext";
 import { ParameterControllerComponent } from "./ParameterController";
 import type { ParameterConfig } from "./ParameterController";
-import type { WebSocketLike } from "./client";
+import type { WebSocketLike } from "../../client";
 
 // ─── FakeWebSocket ────────────────────────────────────────────────────────────
 

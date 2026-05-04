@@ -8,6 +8,7 @@ import {
   WidgetLoaderProvider,
   useWidgetLoader,
   PARAMETER_CONTROLLER,
+  CHART,
   createDefaultShellLayout,
 } from "@app-framework/core-ui";
 import type { ShellLayout } from "@app-framework/core-ui";
@@ -17,10 +18,36 @@ import "@/globals.css";
 
 const registry = new WidgetRegistry();
 registry.register(PARAMETER_CONTROLLER);
+registry.register(CHART);
 
 const initialLayout: ShellLayout = {
   regions: {
     ...createDefaultShellLayout().regions,
+    main: {
+      visible: true,
+      items: [
+        {
+          id: "sine-chart",
+          type: "Chart",
+          props: {
+            title: "Sine Wave",
+            maxPoints: 300,
+            yDomain: [-2.1, 2.1],
+            yLabel: "Amplitude",
+            xLabel: "Elapsed time (s)",
+            series: [
+              {
+                channel: "data/sine",
+                field: "value",
+                label: "sin(t)",
+                color: "var(--chart-1)",
+              },
+            ],
+          },
+          order: 0,
+        },
+      ],
+    },
     "sidebar-left": {
       visible: true,
       items: [

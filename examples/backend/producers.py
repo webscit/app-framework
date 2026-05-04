@@ -42,6 +42,9 @@ async def start_sine_wave_producer(bus: EventBus) -> None:
 
     The wave shape is controlled by :data:`sine_params` which is updated
     in real time by the ``params/control`` consumer.
+
+    Args:
+        bus: The shared EventBus to publish events on.
     """
 
     t = 0.0
