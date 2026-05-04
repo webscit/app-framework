@@ -41,7 +41,7 @@ describe("framework-core-ui hooks", () => {
     const seen: Array<Record<string, unknown> | null> = [];
     let setMounted: ((value: boolean) => void) | null = null;
 
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       const value = useChannel<Record<string, unknown>>("sensor/temperature");
       useEffect(() => {
         seen.push(value);
@@ -49,7 +49,7 @@ describe("framework-core-ui hooks", () => {
       return null;
     }
 
-    function Host(): JSX.Element {
+    function Host(): React.ReactElement {
       const [mounted, set] = React.useState(true);
       useEffect(() => {
         setMounted = set;
@@ -105,7 +105,7 @@ describe("framework-core-ui hooks", () => {
     const socket = new FakeWebSocket();
     const seen: Array<Record<string, unknown> | null> = [];
 
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       const value = useChannel<Record<string, unknown>>("logs/app");
       useEffect(() => {
         seen.push(value);
@@ -141,7 +141,7 @@ describe("framework-core-ui hooks", () => {
     const socket = new FakeWebSocket();
     let publishFn: ((channel: string, payload: unknown) => void) | null = null;
 
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       const publish = usePublish();
       useEffect(() => {
         publishFn = publish;
@@ -174,7 +174,7 @@ describe("framework-core-ui hooks", () => {
     const socket = new FakeWebSocket();
     const statuses: string[] = [];
 
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       const status = useEventBusStatus();
       useEffect(() => {
         statuses.push(status);
@@ -203,7 +203,7 @@ describe("framework-core-ui hooks", () => {
   });
 
   it("throws when useChannel is used outside EventBusProvider", async () => {
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       useChannel("sensor/temperature");
       return null;
     }
@@ -214,7 +214,7 @@ describe("framework-core-ui hooks", () => {
   });
 
   it("throws when usePublish is used outside EventBusProvider", async () => {
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       usePublish();
       return null;
     }
@@ -225,7 +225,7 @@ describe("framework-core-ui hooks", () => {
   });
 
   it("throws when useEventBusStatus is used outside EventBusProvider", async () => {
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       useEventBusStatus();
       return null;
     }

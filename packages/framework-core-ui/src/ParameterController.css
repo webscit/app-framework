@@ -1,0 +1,158 @@
+/* ─── Container ─────────────────────────────────────────────────────────────── */
+
+.sct-ParameterController-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 16px;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.sct-ParameterController-empty {
+  padding: 12px 16px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #888;
+}
+
+/* ─── Row ────────────────────────────────────────────────────────────────────── */
+
+.sct-ParameterController-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sct-ParameterController-label {
+  font-size: 12px;
+  color: #aaa;
+  user-select: none;
+}
+
+.sct-ParameterController-control {
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Slider ─────────────────────────────────────────────────────────────────── */
+
+.sct-ParameterController-slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.sct-ParameterController-slider-root {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  height: 20px;
+  cursor: pointer;
+}
+
+.sct-ParameterController-slider-track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+}
+
+.sct-ParameterController-slider-range {
+  position: absolute;
+  height: 100%;
+  background: #4a9eff;
+  border-radius: 2px;
+}
+
+.sct-ParameterController-slider-thumb {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: #4a9eff;
+  border-radius: 50%;
+  outline: none;
+  cursor: grab;
+}
+
+.sct-ParameterController-slider-thumb:focus-visible {
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.4);
+}
+
+.sct-ParameterController-value {
+  min-width: 48px;
+  text-align: right;
+  color: #ccc;
+  font-size: 12px;
+}
+
+/* ─── Number input ───────────────────────────────────────────────────────────── */
+
+.sct-ParameterController-input {
+  width: 100%;
+  padding: 4px 8px;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #ccc;
+  font-family: monospace;
+  font-size: 13px;
+  outline: none;
+}
+
+.sct-ParameterController-input:focus {
+  border-color: #4a9eff;
+}
+
+/* ─── Select ─────────────────────────────────────────────────────────────────── */
+
+.sct-ParameterController-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 4px 8px;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #ccc;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+.sct-ParameterController-select-trigger:focus {
+  border-color: #4a9eff;
+}
+
+.sct-ParameterController-select-icon {
+  color: #888;
+  font-size: 11px;
+}
+
+.sct-ParameterController-select-content {
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.sct-ParameterController-select-item {
+  padding: 6px 10px;
+  color: #ccc;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+.sct-ParameterController-select-item:hover,
+.sct-ParameterController-select-item[data-highlighted] {
+  background: #2a2a2a;
+  color: #fff;
+}

@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 
 import { LogViewerComponent } from "./LogViewer";
 import type { WidgetDefinition } from "./widgetRegistry";
+import { ParameterControllerComponent } from "./ParameterController";
 
 // Placeholder component — real LogViewer implementation is in LogViewer.tsx.
 const StatusIndicatorPlaceholder: ComponentType = () => null;
@@ -50,4 +51,27 @@ export const STATUS_INDICATOR: WidgetDefinition = {
     showLastSeen: { type: "boolean", default: true },
   },
   factory: () => StatusIndicatorPlaceholder,
+};
+
+/**
+ * Built-in widget that renders interactive parameter controls for runtime tuning.
+ *
+ * Publishes user-adjusted values as `application/x-params+json` payloads to
+ * `"params/control"` (configurable). Defaults to the `"sidebar-left"` layout region.
+ */
+export const PARAMETER_CONTROLLER: WidgetDefinition = {
+  name: "ParameterController",
+  description:
+    "Interactive control panel for tuning simulation parameters at runtime. " +
+    "Publishes parameter updates to a configurable EventBus channel as " +
+    "application/x-params+json payloads.",
+  channelPattern: "params/*",
+  consumes: [],
+  priority: 10,
+  defaultRegion: "sidebar-left",
+  parameters: {
+    channel: { type: "string", default: "params/control" },
+    debounceMs: { type: "integer", default: 300, minimum: 0, maximum: 2000 },
+  },
+  factory: () => ParameterControllerComponent,
 };

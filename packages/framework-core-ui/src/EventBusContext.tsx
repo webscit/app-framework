@@ -61,7 +61,7 @@ export function EventBusProvider({
   reconnectDelayMs,
   webSocketFactory,
   children,
-}: EventBusProviderProps): JSX.Element {
+}: EventBusProviderProps): React.ReactElement {
   const client = useMemo(() => {
     if (typeof window === "undefined") {
       throw new Error("EventBusProvider requires a browser environment.");

@@ -1,4 +1,5 @@
 import React, { act } from "react";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
@@ -38,18 +39,20 @@ async function renderWithShell(registry: WidgetRegistry, initialLayout?: ShellLa
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("ShellHeader", () => {
-  it("renders shell-header", async () => {
+  it("renders header landmark", async () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
-    expect(document.querySelector('[data-testid="shell-header"]')).not.toBeNull();
+    expect(page.getByRole("banner").query()).not.toBeNull();
   });
 });
 
 describe("ShellSidebar", () => {
-  it("side=left renders shell-sidebar-left", async () => {
+  it("side=left renders left sidebar", async () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
-    expect(document.querySelector('[data-testid="shell-sidebar-left"]')).not.toBeNull();
+    expect(
+      page.getByRole("complementary", { name: "left sidebar" }).query(),
+    ).not.toBeNull();
   });
 
   it("side=left is hidden when sidebar-left.visible=false", async () => {
@@ -62,20 +65,20 @@ describe("ShellSidebar", () => {
     };
     await renderWithShell(registry, layout);
 
-    const el = document.querySelector<HTMLElement>(
-      '[data-testid="shell-sidebar-left"]',
-    );
+    const el = page
+      .getByRole("complementary", { name: "left sidebar" })
+      .element() as HTMLElement;
     expect(el).not.toBeNull();
     // Collapsed sidebar uses width:32px instead of display:none
-    expect(el!.style.width).toBe("32px");
-    expect(el!.style.overflow).toBe("hidden");
+    expect(el.style.width).toBe("32px");
+    expect(el.style.overflow).toBe("hidden");
   });
 
-  it("side=right renders shell-sidebar-right", async () => {
+  it("side=right renders right sidebar", async () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
     expect(
-      document.querySelector('[data-testid="shell-sidebar-right"]'),
+      page.getByRole("complementary", { name: "right sidebar" }).query(),
     ).not.toBeNull();
   });
 
@@ -83,26 +86,26 @@ describe("ShellSidebar", () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
 
-    const el = document.querySelector<HTMLElement>(
-      '[data-testid="shell-sidebar-right"]',
-    );
+    const el = page
+      .getByRole("complementary", { name: "right sidebar" })
+      .element() as HTMLElement;
     expect(el).not.toBeNull();
-    expect(el!.style.width).toBe("32px");
-    expect(el!.style.overflow).toBe("hidden");
+    expect(el.style.width).toBe("32px");
+    expect(el.style.overflow).toBe("hidden");
   });
 });
 
 describe("ShellMain", () => {
-  it("renders shell-main", async () => {
+  it("renders main landmark", async () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
-    expect(document.querySelector('[data-testid="shell-main"]')).not.toBeNull();
+    expect(page.getByRole("main").query()).not.toBeNull();
   });
 
-  it("shows shell-main-empty placeholder when no items", async () => {
+  it("shows empty placeholder when no items", async () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).not.toBeNull();
+    expect(page.getByText("No widgets placed").query()).not.toBeNull();
   });
 
   it("renders items when present and no empty placeholder", async () => {
@@ -110,7 +113,7 @@ describe("ShellMain", () => {
     registry.register(makeWidget("MainWidget", "main"));
     await renderWithShell(registry);
 
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).toBeNull();
+    expect(page.getByText("No widgets placed").query()).toBeNull();
   });
 
   it("renders items in ascending order", async () => {
@@ -123,8 +126,7 @@ describe("ShellMain", () => {
       consumes: ["text/plain"],
       priority: 10,
       parameters: {},
-      factory: () => () =>
-        React.createElement("span", { "data-testid": `widget-${name}` }),
+      factory: () => () => React.createElement("span", null, name),
     });
 
     registry.register(makeOrderedWidget("WidgetA"));
@@ -145,9 +147,9 @@ describe("ShellMain", () => {
 
     await renderWithShell(registry, layout);
 
-    const output = document.querySelector('[data-testid="shell-main"]')!.innerHTML;
-    const idxB = output.indexOf("widget-WidgetB");
-    const idxA = output.indexOf("widget-WidgetA");
+    const output = page.getByRole("main").element().innerHTML;
+    const idxB = output.indexOf("WidgetB");
+    const idxA = output.indexOf("WidgetA");
     expect(idxB).toBeGreaterThan(-1);
     expect(idxA).toBeGreaterThan(-1);
     // WidgetB (order:1) must appear before WidgetA (order:2)
@@ -156,27 +158,31 @@ describe("ShellMain", () => {
 });
 
 describe("ShellBottom", () => {
-  it("renders shell-bottom", async () => {
+  it("renders bottom panel region", async () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
-    expect(document.querySelector('[data-testid="shell-bottom"]')).not.toBeNull();
+    expect(
+      page.getByRole("region", { name: "bottom panel", includeHidden: true }).query(),
+    ).not.toBeNull();
   });
 
   it("is hidden by default (visible=false)", async () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
 
-    const el = document.querySelector<HTMLElement>('[data-testid="shell-bottom"]');
+    const el = page
+      .getByRole("region", { name: "bottom panel", includeHidden: true })
+      .element() as HTMLElement;
     expect(el).not.toBeNull();
-    expect(el!.style.display).toBe("none");
+    expect(el.style.display).toBe("none");
   });
 });
 
 describe("ShellStatusBar", () => {
-  it("renders shell-status-bar", async () => {
+  it("renders contentinfo landmark", async () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
-    expect(document.querySelector('[data-testid="shell-status-bar"]')).not.toBeNull();
+    expect(page.getByRole("contentinfo").query()).not.toBeNull();
   });
 });
 
@@ -195,9 +201,9 @@ describe("RegionItemRenderer (via ShellMain)", () => {
 
     await renderWithShell(registry, layout);
 
-    const placeholder = document.querySelector('[data-testid="widget-not-found"]');
+    const placeholder = page.getByText(/Widget not found/).element();
     expect(placeholder).not.toBeNull();
-    expect(placeholder!.textContent).toContain("GhostWidget");
+    expect(placeholder.textContent).toContain("GhostWidget");
   });
 
   it("renders widget-loading placeholder for async (Promise) factory", async () => {
@@ -225,7 +231,7 @@ describe("RegionItemRenderer (via ShellMain)", () => {
 
     await renderWithShell(registry, layout);
 
-    expect(document.querySelector('[data-testid="widget-loading"]')).not.toBeNull();
+    expect(page.getByText(/Loading:/).query()).not.toBeNull();
   });
 
   it("renders widget-load-error placeholder when async factory rejects", async () => {
@@ -253,11 +259,53 @@ describe("RegionItemRenderer (via ShellMain)", () => {
 
     await renderWithShell(registry, layout);
 
-    // Wait for the async factory rejection to propagate
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(document.querySelector('[data-testid="widget-load-error"]')).not.toBeNull();
+    expect(page.getByText(/Failed to load:/).query()).not.toBeNull();
+  });
+
+  it("passes item.props to the rendered widget component", async () => {
+    const registry = new WidgetRegistry();
+    const receivedProps: Record<string, unknown>[] = [];
+
+    const propsWidget: WidgetDefinition = {
+      name: "PropsWidget",
+      description: "Records received props",
+      channelPattern: "data/*",
+      consumes: ["text/plain"],
+      priority: 10,
+      parameters: {},
+      factory: () => (props: Record<string, unknown>) => {
+        receivedProps.push(props);
+        return React.createElement("span", null, String(props["label"] ?? ""));
+      },
+    };
+    registry.register(propsWidget);
+
+    const layout: ShellLayout = {
+      regions: {
+        ...createDefaultShellLayout().regions,
+        main: {
+          visible: true,
+          items: [
+            {
+              id: "pw1",
+              type: "PropsWidget",
+              props: { label: "hello", value: 42 },
+              order: 0,
+            },
+          ],
+        },
+      },
+    };
+
+    await renderWithShell(registry, layout);
+
+    const el = page.getByText("hello").element();
+    expect(el).not.toBeNull();
+    expect(el.textContent).toBe("hello");
+    expect(receivedProps[0]).toMatchObject({ label: "hello", value: 42 });
   });
 });

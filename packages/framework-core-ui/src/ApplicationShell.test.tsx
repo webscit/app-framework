@@ -1,4 +1,5 @@
 import React, { act } from "react";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
@@ -42,69 +43,69 @@ describe("ApplicationShell", () => {
     const registry = new WidgetRegistry();
     await renderShell(registry);
 
-    const testIds = [
-      "shell-header",
-      "shell-sidebar-left",
-      "shell-main",
-      "shell-sidebar-right",
-      "shell-bottom",
-      "shell-status-bar",
-    ];
-
-    for (const testId of testIds) {
-      expect(document.querySelector(`[data-testid="${testId}"]`)).not.toBeNull();
-    }
+    expect(page.getByRole("banner").query()).not.toBeNull();
+    expect(
+      page.getByRole("complementary", { name: "left sidebar" }).query(),
+    ).not.toBeNull();
+    expect(page.getByRole("main").query()).not.toBeNull();
+    expect(
+      page.getByRole("complementary", { name: "right sidebar" }).query(),
+    ).not.toBeNull();
+    expect(
+      page.getByRole("region", { name: "bottom panel", includeHidden: true }).query(),
+    ).not.toBeNull();
+    expect(page.getByRole("contentinfo").query()).not.toBeNull();
   });
 
   it("hidden regions have correct style when visible=false", async () => {
     const registry = new WidgetRegistry();
     await renderShell(registry);
 
-    // sidebar-right is collapsed (width:32px), bottom is hidden (display:none)
-    const sidebarRight = document.querySelector<HTMLElement>(
-      '[data-testid="shell-sidebar-right"]',
-    );
-    const bottom = document.querySelector<HTMLElement>('[data-testid="shell-bottom"]');
+    const sidebarRight = page
+      .getByRole("complementary", { name: "right sidebar" })
+      .element() as HTMLElement;
+    const bottom = page
+      .getByRole("region", { name: "bottom panel", includeHidden: true })
+      .element() as HTMLElement;
 
     expect(sidebarRight).not.toBeNull();
     expect(bottom).not.toBeNull();
-    expect(bottom!.style.display).toBe("none");
+    expect(bottom.style.display).toBe("none");
   });
 
   it("visible regions are rendered", async () => {
     const registry = new WidgetRegistry();
     await renderShell(registry);
 
-    expect(document.querySelector('[data-testid="shell-header"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="shell-main"]')).not.toBeNull();
+    expect(page.getByRole("banner").query()).not.toBeNull();
+    expect(page.getByRole("main").query()).not.toBeNull();
   });
 
   it("auto-places widgets with defaultRegion on mount", async () => {
     const registry = new WidgetRegistry();
     registry.register(makeWidget("HeaderWidget", "header"));
     registry.register(makeWidget("MainWidget", "main"));
-    // No defaultRegion → goes to main
     registry.register(makeWidget("DefaultWidget", undefined));
 
     await renderShell(registry);
 
-    // main should not show the empty placeholder since widgets are placed there
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).toBeNull();
+    // Widgets placed — placeholder gone
+    expect(page.getByText("No widgets placed").query()).toBeNull();
   });
 
   it("post-mount auto-placement: widget registered after mount appears in region", async () => {
     const registry = new WidgetRegistry();
     await renderShell(registry);
 
-    // No widgets yet — empty placeholder visible
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).not.toBeNull();
+    // No widgets yet — placeholder visible
+    expect(page.getByText("No widgets placed").query()).not.toBeNull();
 
     await act(async () => {
       registry.register(makeWidget("MainWidget", "main"));
     });
 
-    // After registration, placeholder should be gone
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).toBeNull();
+    // After registration — placeholder gone
+    expect(page.getByText("No widgets placed").query()).toBeNull();
   });
 
   it("post-mount auto-placement: widget with no defaultRegion defaults to main", async () => {
@@ -115,8 +116,8 @@ describe("ApplicationShell", () => {
       registry.register(makeWidget("NoRegionWidget", undefined));
     });
 
-    // Widget should appear in main — empty placeholder gone
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).toBeNull();
+    // Widget placed in main — placeholder gone
+    expect(page.getByText("No widgets placed").query()).toBeNull();
   });
 
   it("removal removes the widget from the layout", async () => {
@@ -128,15 +129,15 @@ describe("ApplicationShell", () => {
       handle = registry.register(makeWidget("RemovableWidget", "main"));
     });
 
-    // Widget present — no empty placeholder
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).toBeNull();
+    // Widget present — no placeholder
+    expect(page.getByText("No widgets placed").query()).toBeNull();
 
     await act(async () => {
       handle.dispose();
     });
 
-    // Widget gone — empty placeholder shows
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).not.toBeNull();
+    // Widget gone — placeholder shows
+    expect(page.getByText("No widgets placed").query()).not.toBeNull();
   });
 
   it("unknown widget type renders 'Widget not found' placeholder", async () => {
@@ -153,9 +154,9 @@ describe("ApplicationShell", () => {
 
     await renderShell(registry, layout);
 
-    const placeholder = document.querySelector('[data-testid="widget-not-found"]');
+    const placeholder = page.getByText(/Widget not found/).element();
     expect(placeholder).not.toBeNull();
-    expect(placeholder!.textContent).toContain("GhostWidget");
+    expect(placeholder.textContent).toContain("GhostWidget");
   });
 
   it("non-togglable correction: initialLayout with header/main/status-bar visible=false corrects to true", async () => {
@@ -171,17 +172,15 @@ describe("ApplicationShell", () => {
 
     await renderShell(registry, layout);
 
-    // Non-togglable regions always render
-    expect(document.querySelector('[data-testid="shell-header"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="shell-main"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="shell-status-bar"]')).not.toBeNull();
+    expect(page.getByRole("banner").query()).not.toBeNull();
+    expect(page.getByRole("main").query()).not.toBeNull();
+    expect(page.getByRole("contentinfo").query()).not.toBeNull();
   });
 
   it("initialLayout skips auto-placement: widget with defaultRegion not placed", async () => {
     const registry = new WidgetRegistry();
     registry.register(makeWidget("AutoWidget", "main"));
 
-    // Explicit empty main — auto-placement should be skipped
     const layout: ShellLayout = {
       regions: {
         ...createDefaultShellLayout().regions,
@@ -191,7 +190,7 @@ describe("ApplicationShell", () => {
 
     await renderShell(registry, layout);
 
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).not.toBeNull();
+    expect(page.getByText("No widgets placed").query()).not.toBeNull();
   });
 
   it("initialLayout skips post-mount auto-placement when widget registered after mount", async () => {
@@ -204,8 +203,7 @@ describe("ApplicationShell", () => {
       registry.register(makeWidget("LateWidget", "main"));
     });
 
-    // No auto-placement when initialLayout was provided
-    expect(document.querySelector('[data-testid="shell-main-empty"]')).not.toBeNull();
+    expect(page.getByText("No widgets placed").query()).not.toBeNull();
   });
 
   it("async factory (Promise return) renders loading placeholder", async () => {
@@ -218,7 +216,6 @@ describe("ApplicationShell", () => {
       consumes: ["text/plain"],
       priority: 10,
       parameters: {},
-      // Never resolves — keeps loading state permanently
       factory: () => new Promise(() => {}),
     };
 
@@ -235,14 +232,13 @@ describe("ApplicationShell", () => {
     registry.register(asyncWidget);
     await renderShell(registry, layout);
 
-    expect(document.querySelector('[data-testid="widget-loading"]')).not.toBeNull();
+    expect(page.getByText(/Loading:/).query()).not.toBeNull();
   });
 
   it("ShellLayoutContext is provided — shell-layout and shell-main are rendered", async () => {
     const registry = new WidgetRegistry();
     await renderShell(registry);
 
-    expect(document.querySelector('[data-testid="shell-layout"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="shell-main"]')).not.toBeNull();
+    expect(page.getByRole("main").query()).not.toBeNull();
   });
 });

@@ -7,6 +7,6 @@
     "strict": true,
     "jsx": "react-jsx",
     "skipLibCheck": true,
-    "types": ["vite/client"]
+    "types": ["vite/client", "react/jsx-runtime"]
   }
 }

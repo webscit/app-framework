@@ -12,20 +12,20 @@ import { useWidgetRegistryInstance } from "./WidgetRegistryContext";
 const componentCache = new Map<string, React.ComponentType>();
 
 /** Renders a single RegionItem — resolves type from registry, falls back to placeholders. */
-function RegionItemRenderer({ item }: { item: RegionItem }): JSX.Element {
+function RegionItemRenderer({ item }: { item: RegionItem }): React.ReactElement {
   const registry = useWidgetRegistryInstance();
   const definition = registry.get(item.type);
 
   if (!definition) {
-    return <div data-testid="widget-not-found">Widget not found: {item.type}</div>;
+    return <div>Widget not found: {item.type}</div>;
   }
 
   const result = definition.factory({ parameters: item.props });
 
   // Sync factory — result is already a component
   if (typeof result === "function") {
-    const WidgetComponent = result;
-    return <WidgetComponent />;
+    const WidgetComponent = result as React.ComponentType<Record<string, unknown>>;
+    return <WidgetComponent {...item.props} />;
   }
 
   // Async factory — result is a Promise, use React.lazy + Suspense
@@ -35,18 +35,18 @@ function RegionItemRenderer({ item }: { item: RegionItem }): JSX.Element {
       (result as Promise<React.ComponentType>)
         .then((Component) => ({ default: Component }))
         .catch(() => ({
-          default: () => (
-            <div data-testid="widget-load-error">Failed to load: {widgetType}</div>
-          ),
+          default: () => <div>Failed to load: {widgetType}</div>,
         })),
     );
     componentCache.set(item.type, LazyComponent);
   }
 
-  const LazyWidget = componentCache.get(item.type)!;
+  const LazyWidget = componentCache.get(item.type)! as React.ComponentType<
+    Record<string, unknown>
+  >;
   return (
-    <Suspense fallback={<div data-testid="widget-loading">Loading: {item.type}</div>}>
-      <LazyWidget />
+    <Suspense fallback={<div>Loading: {item.type}</div>}>
+      <LazyWidget {...item.props} />
     </Suspense>
   );
 }
@@ -54,7 +54,7 @@ function RegionItemRenderer({ item }: { item: RegionItem }): JSX.Element {
 // ─── SortedItems ──────────────────────────────────────────────────────────────
 
 /** Renders region items sorted by ascending `order`, then registration order. */
-function SortedItems({ items }: { items: RegionItem[] }): JSX.Element | null {
+function SortedItems({ items }: { items: RegionItem[] }): React.ReactElement | null {
   if (items.length === 0) return null;
   return (
     <>
@@ -103,7 +103,7 @@ export function ShellHeader({
   region,
   setRegion: _setRegion,
   className,
-}: ShellHeaderProps): JSX.Element {
+}: ShellHeaderProps): React.ReactElement {
   return (
     <header
       className={mergeClassNames("sct-ShellHeader", className)}
@@ -144,9 +144,10 @@ export function ShellSidebar({
   region,
   setRegion,
   className,
-}: ShellSidebarProps): JSX.Element {
+}: ShellSidebarProps): React.ReactElement {
   return (
     <aside
+      aria-label={`${side} sidebar`}
       className={mergeClassNames("sct-ShellSidebar", className)}
       data-testid={`shell-sidebar-${side}`}
       style={{ width: region.visible ? "220px" : "32px", overflow: "hidden" }}
@@ -188,7 +189,7 @@ export function ShellMain({
   region,
   setRegion: _setRegion,
   className,
-}: ShellMainProps): JSX.Element {
+}: ShellMainProps): React.ReactElement {
   return (
     <main
       className={mergeClassNames("sct-ShellMain", className)}
@@ -228,9 +229,11 @@ export function ShellBottom({
   region,
   setRegion,
   className,
-}: ShellBottomProps): JSX.Element {
+}: ShellBottomProps): React.ReactElement {
   return (
     <div
+      role="region"
+      aria-label="bottom panel"
       className={mergeClassNames("sct-ShellBottom", className)}
       data-testid="shell-bottom"
       style={{ display: region.visible ? undefined : "none" }}
@@ -269,7 +272,7 @@ export function ShellStatusBar({
   region,
   setRegion: _setRegion,
   className,
-}: ShellStatusBarProps): JSX.Element {
+}: ShellStatusBarProps): React.ReactElement {
   return (
     <footer
       className={mergeClassNames("sct-ShellStatusBar", className)}

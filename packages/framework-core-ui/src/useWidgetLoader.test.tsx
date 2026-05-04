@@ -102,7 +102,7 @@ function Probe({
 }: {
   url: string;
   onStatus: (s: Status) => void;
-}): JSX.Element | null {
+}): React.ReactElement | null {
   const status = useWidgetLoader(url);
   useEffect(() => {
     onStatus(status);
@@ -113,7 +113,7 @@ function Probe({
 function makeTree(
   registry: WidgetRegistry,
   probes: Array<{ url: string; onStatus: (s: Status) => void }>,
-): JSX.Element {
+): React.ReactElement {
   const socket = new FakeWebSocket();
   return (
     <WidgetRegistryContext.Provider value={registry}>
@@ -132,7 +132,7 @@ function makeSingleTree(
   registry: WidgetRegistry,
   url: string,
   onStatus: (s: Status) => void,
-): JSX.Element {
+): React.ReactElement {
   return makeTree(registry, [{ url, onStatus }]);
 }
 

@@ -1,22 +1,29 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, mergeConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
+import viteConfig from "./vite.config";
 
-export default defineConfig({
-  optimizeDeps: {
-    // zustand/middleware is a CJS module that Vite does not pre-bundle by default
-    // in browser mode. Without this, Vite unexpectedly reloads mid-test run which
-    // can cause flaky behaviour and duplicated test runs.
-    include: ["zustand/middleware"],
-  },
-  test: {
-    browser: {
-      enabled: true,
-      headless: true,
-      provider: playwright(),
-      instances: [{ browser: "chromium" }],
+export default mergeConfig(
+  viteConfig,
+  defineConfig({
+    optimizeDeps: {
+      include: [
+        "zustand/middleware",
+        "@base-ui/react/input",
+        "@base-ui/react/field",
+        "@base-ui/react/select",
+        "@base-ui/react/slider",
+      ],
     },
-    globals: true,
-    include: ["src/**/*.test.{ts,tsx}"],
-    exclude: ["dist/**"],
-  },
-});
+    test: {
+      browser: {
+        enabled: true,
+        headless: true,
+        provider: playwright(),
+        instances: [{ browser: "chromium" }],
+      },
+      globals: true,
+      include: ["src/**/*.test.{ts,tsx}"],
+      exclude: ["dist/**"],
+    },
+  }),
+);

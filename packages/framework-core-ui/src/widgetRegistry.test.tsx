@@ -177,7 +177,7 @@ describe("widget hooks", () => {
     const socket = new FakeWebSocket();
     const seen: WidgetDefinition[][] = [];
 
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       const widgets = useWidgetRegistry();
       useEffect(() => {
         seen.push(widgets);
@@ -205,7 +205,7 @@ describe("widget hooks", () => {
     const socket = new FakeWebSocket();
     const seen: WidgetDefinition[][] = [];
 
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       const widgets = useWidgets("log/app");
       useEffect(() => {
         seen.push(widgets);
@@ -231,7 +231,7 @@ describe("widget hooks", () => {
     const socket = new FakeWebSocket();
     const seen: WidgetDefinition[][] = [];
 
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       const widgets = useWidgets("log/app");
       useEffect(() => {
         seen.push(widgets);
@@ -263,7 +263,7 @@ describe("widget hooks", () => {
     const socket = new FakeWebSocket();
     const seen: WidgetDefinition[][] = [];
 
-    function Probe(): JSX.Element | null {
+    function Probe(): React.ReactElement | null {
       const widgets = useWidgets("log/app", "text/plain");
       useEffect(() => {
         seen.push(widgets);

@@ -14,7 +14,14 @@ export { usePublish } from "./usePublish";
 export { useEventBusStatus } from "./useEventBusStatus";
 export { useWidgetRegistry } from "./useWidgetRegistry";
 export { useWidgets } from "./useWidgets";
-export { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
+export { LOG_VIEWER, STATUS_INDICATOR, PARAMETER_CONTROLLER } from "./defaultWidgets";
+export {
+  ParameterControllerComponent,
+  type ParameterControllerProps,
+  type ParameterConfig,
+  type ParameterType,
+  type ParameterWidget,
+} from "./ParameterController";
 export type { IDisposable } from "./disposable";
 export {
   type WidgetDefinition,

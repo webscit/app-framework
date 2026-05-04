@@ -93,6 +93,7 @@ export interface WidgetChangeEvent {
   widget: Omit<WidgetDefinition, "factory">;
 }
 
+/** Callback invoked when a widget is added or removed from the registry. */
 export type ChangeListener = (change: WidgetChangeEvent) => void;
 
 /**

@@ -115,7 +115,7 @@ export interface ApplicationShellProps {
 export function ApplicationShell({
   initialLayout,
   classNames,
-}: ApplicationShellProps): JSX.Element {
+}: ApplicationShellProps): React.ReactElement {
   const registry = useWidgetRegistryInstance();
   const isControlled = initialLayout !== undefined;
   const { layout, setLayout } = useShellLayoutStore();

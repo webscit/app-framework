@@ -85,6 +85,9 @@
 - Public APIs must be documented:
   - TypeScript: JSDoc with description, `@param`, `@returns`, and `@example`.
   - Python: consistent docstrings with summary + `Args`/`Returns` (or equivalent).
+  - Every exported interface or type field must have an inline JSDoc comment (`/** ... */`).
+  - **Never remove existing doc strings or JSDoc comments.** If you refactor or rename an API, update its doc string to match — do not delete it.
+  - When adding new exported symbols, write the doc string before writing the implementation.
 - Every feature must be tested:
   - Python behavior in pytest unit tests.
   - TypeScript hooks/client behavior in Vitest tests.
@@ -95,6 +98,11 @@
 - Imports:
   - Keep imports clean, grouped, and lint/formatter compliant.
   - Prefer explicit named imports over wildcard imports.
+- Testing:
+  - Do not add or use `data-testid` except as a last resort when no accessible selector is possible (e.g. custom canvas-based widgets with no ARIA roles).
+  - Always prefer accessibility-based selectors: `page.getByRole()`, `page.getByLabelText()`, `page.getByText()`, `page.getByPlaceholder()`.
+  - Use `getByRole(role, { name: '...' })` as the primary selector — it validates both the element type and its accessible name simultaneously.
+  - `data-testid` is only acceptable for elements that have no semantic role and cannot be identified by any accessible attribute.
 
 ## Good Practices for Future Agents
 

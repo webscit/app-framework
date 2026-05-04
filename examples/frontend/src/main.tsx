@@ -7,11 +7,65 @@ import {
   WidgetRegistryContext,
   WidgetLoaderProvider,
   useWidgetLoader,
+  PARAMETER_CONTROLLER,
+  createDefaultShellLayout,
 } from "@app-framework/core-ui";
+import type { ShellLayout } from "@app-framework/core-ui";
 import { useSimulation } from "./useSimulation";
 import "./shell.css";
+import "@/globals.css";
 
 const registry = new WidgetRegistry();
+registry.register(PARAMETER_CONTROLLER);
+
+const initialLayout: ShellLayout = {
+  regions: {
+    ...createDefaultShellLayout().regions,
+    "sidebar-left": {
+      visible: true,
+      items: [
+        {
+          id: "sim-params",
+          type: "ParameterController",
+          props: {
+            channel: "params/control",
+            debounceMs: 300,
+            parameters: {
+              frequency: {
+                title: "Frequency (Hz)",
+                type: "number",
+                minimum: 0.1,
+                maximum: 10.0,
+                multipleOf: 0.1,
+                default: 1.0,
+                "x-options": { widget: "slider" },
+              },
+              amplitude: {
+                title: "Amplitude",
+                type: "number",
+                minimum: 0.1,
+                maximum: 2.0,
+                multipleOf: 0.1,
+                default: 1.0,
+                "x-options": { widget: "slider" },
+              },
+              time_step: {
+                title: "Time Step",
+                type: "number",
+                minimum: 0.01,
+                maximum: 0.5,
+                multipleOf: 0.01,
+                default: 0.1,
+                "x-options": { widget: "slider" },
+              },
+            },
+          },
+          order: 0,
+        },
+      ],
+    },
+  },
+};
 
 function Dashboard() {
   const { sine, log } = useSimulation();
@@ -30,11 +84,9 @@ function Dashboard() {
       }}
     >
       <strong>Simulation Dashboard</strong>
-
       <span>
         Sine: <span data-testid="sine-value">{sine ? sine.value.toFixed(4) : "—"}</span>
       </span>
-
       <span>
         Last log:{" "}
         <span data-testid="last-log">
@@ -48,12 +100,8 @@ function Dashboard() {
 function AppShell() {
   const loaderStatus = useWidgetLoader("/sct-manifest.json");
 
-  if (loaderStatus === "loading") {
-    return <p>Loading widgets…</p>;
-  }
-  if (loaderStatus === "error") {
-    return <p>Failed to load widget manifest.</p>;
-  }
+  if (loaderStatus === "loading") return <p>Loading widgets…</p>;
+  if (loaderStatus === "error") return <p>Failed to load widget manifest.</p>;
 
   return (
     <div
@@ -62,7 +110,7 @@ function AppShell() {
     >
       <Dashboard />
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <ApplicationShell />
+        <ApplicationShell initialLayout={initialLayout} />
       </div>
     </div>
   );
