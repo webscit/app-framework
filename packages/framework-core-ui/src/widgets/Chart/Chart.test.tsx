@@ -20,7 +20,7 @@ function setPayload(channel: string, value: unknown) {
   listeners.get(channel)?.forEach((cb) => cb());
 }
 
-vi.mock("./useChannel", () => ({
+vi.mock("../../useChannel", () => ({
   useChannel: (channel: string) => {
     const [value, setValue] = useState<unknown>(() => payloads.get(channel) ?? null);
 

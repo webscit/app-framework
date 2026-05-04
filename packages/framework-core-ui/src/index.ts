@@ -19,16 +19,16 @@ export {
   STATUS_INDICATOR,
   PARAMETER_CONTROLLER,
   CHART,
-} from "./defaultWidgets";
+} from "./widgets/defaultWidgets";
 export {
   ParameterControllerComponent,
   type ParameterControllerProps,
   type ParameterConfig,
   type ParameterType,
   type ParameterWidget,
-} from "./ParameterController";
-export { ChartComponent, getFieldValue } from "./Chart";
-export type { ChartProps, SeriesConfig } from "./Chart";
+} from "./widgets/ParameterController";
+export { ChartComponent, getFieldValue } from "./widgets/Chart";
+export type { ChartProps, SeriesConfig } from "./widgets/Chart";
 export type { IDisposable } from "./disposable";
 export {
   type WidgetDefinition,

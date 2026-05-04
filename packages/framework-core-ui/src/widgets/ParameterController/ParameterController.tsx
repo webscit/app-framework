@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Field } from "@base-ui/react/field";
-import { Form } from "@base-ui/react/form";
-import { Slider } from "./components/ui/slider";
+import { Label } from "../../components/ui/label";
+import { Slider } from "../../components/ui/slider";
+import { Input } from "../../components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./components/ui/select";
-import { usePublish } from "./usePublish";
+} from "../../components/ui/select";
+import { usePublish } from "../../usePublish";
 import "./ParameterController.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

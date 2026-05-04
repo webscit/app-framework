@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 
-import { LogViewerComponent } from "./LogViewer";
-import type { WidgetDefinition } from "./widgetRegistry";
-import { ParameterControllerComponent } from "./ParameterController";
-import { ChartComponent } from "./Chart";
+import { LogViewerComponent } from "./LogViewer/LogViewer";
+import type { WidgetDefinition } from "../widgetRegistry";
+import { ParameterControllerComponent } from "./ParameterController/ParameterController";
+import { ChartComponent } from "./Chart/Chart";
 
 // Placeholder component — real implementation is in StatusIndicator.tsx.
 const StatusIndicatorPlaceholder: ComponentType = () => null;

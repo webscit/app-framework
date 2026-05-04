@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
-import { ChartContainer, ChartTooltipContent } from "./components/ui/chart";
-import type { ChartConfig } from "./components/ui/chart";
-import { useChannel } from "./useChannel";
+import { ChartContainer, ChartTooltipContent } from "../../components/ui/chart";
+import type { ChartConfig } from "../../components/ui/chart";
+import { useChannel } from "../../useChannel";
 import "./Chart.css";
 
 // ---------------------------------------------------------------------------
