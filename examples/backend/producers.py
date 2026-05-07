@@ -33,20 +33,19 @@ class SineParams:
     time_step: float = 0.1
 
 
-#: Shared singleton — consumers write to this, the producer reads from it.
-sine_params: SineParams = SineParams()
-
-
-async def start_sine_wave_producer(bus: EventBus) -> None:
+async def start_sine_wave_producer(bus: EventBus, params: SineParams) -> None:
     """Publish a sine wave reading to ``data/sine`` every 100 ms.
 
-    The wave shape is controlled by :data:`sine_params` which is updated
-    in real time by the ``params/control`` consumer.
+    The wave shape is controlled by ``params`` which is updated in real time
+    by the ``params/control`` consumer.
+
+    Args:
+        bus: The shared EventBus to publish events on.
+        params: Mutable sine wave parameters shared with the consumer.
     """
 
     t = 0.0
     while True:
-        params = sine_params
         value = params.amplitude * math.sin(2 * math.pi * params.frequency * t)
         await bus.publish("data/sine", SineReading(value=value))
         t += params.time_step

@@ -2,9 +2,9 @@ import React, { act } from "react";
 import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
-import { EventBusProvider } from "./EventBusContext";
+import { EventBusProvider } from "../../EventBusContext";
 import { LogViewerComponent } from "./LogViewer";
-import type { WebSocketLike } from "./client";
+import type { WebSocketLike } from "../../client";
 
 class FakeWebSocket implements WebSocketLike {
   public static readonly OPEN = 1;

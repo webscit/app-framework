@@ -14,14 +14,21 @@ export { usePublish } from "./usePublish";
 export { useEventBusStatus } from "./useEventBusStatus";
 export { useWidgetRegistry } from "./useWidgetRegistry";
 export { useWidgets } from "./useWidgets";
-export { LOG_VIEWER, STATUS_INDICATOR, PARAMETER_CONTROLLER } from "./defaultWidgets";
+export {
+  LOG_VIEWER,
+  STATUS_INDICATOR,
+  PARAMETER_CONTROLLER,
+  CHART,
+} from "./widgets/defaultWidgets";
 export {
   ParameterControllerComponent,
   type ParameterControllerProps,
   type ParameterConfig,
   type ParameterType,
   type ParameterWidget,
-} from "./ParameterController";
+} from "./widgets/ParameterController";
+export { ChartComponent, getFieldValue } from "./widgets/Chart";
+export type { ChartProps, SeriesConfig } from "./widgets/Chart";
 export type { IDisposable } from "./disposable";
 export {
   type WidgetDefinition,

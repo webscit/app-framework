@@ -33,6 +33,9 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
   },
   server: {
+    fs: {
+      allow: [resolve(__dirname, "../../")],
+    },
     proxy: {
       "/ws": {
         target: "http://127.0.0.1:8000",

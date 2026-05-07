@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 
-import { useEventBusClient } from "./EventBusContext";
-import type { WireEvent } from "./client";
+import { useEventBusClient } from "../../EventBusContext";
+import type { WireEvent } from "../../client";
 import "./LogViewer.css";
 
 interface LogEntry {

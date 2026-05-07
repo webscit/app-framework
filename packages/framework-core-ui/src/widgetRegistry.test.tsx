@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { EventBusProvider } from "./EventBusContext";
 import { WidgetRegistryContext } from "./WidgetRegistryContext";
-import { LOG_VIEWER, STATUS_INDICATOR } from "./defaultWidgets";
+import { LOG_VIEWER, STATUS_INDICATOR } from "./widgets/defaultWidgets";
 import type { WebSocketLike } from "./client";
 import { useWidgetRegistry } from "./useWidgetRegistry";
 import { useWidgets } from "./useWidgets";

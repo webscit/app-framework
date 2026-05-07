@@ -8,16 +8,18 @@ from fastapi import FastAPI
 from framework_core import create_app
 
 from .consumers import register_consumers
-from .producers import start_log_producer, start_sine_wave_producer
+from .producers import SineParams, start_log_producer, start_sine_wave_producer
+
+params = SineParams()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Register demo services and manage producer task lifecycle."""
 
-    register_consumers(app.state.bus)
+    register_consumers(app.state.bus, params)
     tasks = [
-        asyncio.create_task(start_sine_wave_producer(app.state.bus)),
+        asyncio.create_task(start_sine_wave_producer(app.state.bus, params)),
         asyncio.create_task(start_log_producer(app.state.bus)),
     ]
     try:
