@@ -639,7 +639,7 @@ async def call_openrouter(
     Args:
         messages: OpenAI-format messages array.
         model: OpenRouter model identifier. Defaults to OPENROUTER_DEFAULT_MODEL env var
-               or "anthropic/claude-3.5-sonnet".
+               or "anthropic/claude-sonnet-4.6".
         temperature: Sampling temperature (0.0–1.0). Default 0.2 for structured output.
         max_tokens: Maximum tokens in the response.
         api_key: OpenRouter API key. Defaults to OPENROUTER_API_KEY env var.
