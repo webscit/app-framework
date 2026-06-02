@@ -5,6 +5,7 @@
 **Architecture:** A chat panel is added to the application shell. User messages are sent to the Python backend which constructs a structured prompt (user message + widget registry catalog + JSON layout schema) and forwards the request to an AI provider via **OpenRouter**. The backend returns a validated `ShellLayout` JSON. The frontend shows a diff of the proposed layout and waits for the user to approve before applying it.
 
 **Tech Stack:**
+
 - Frontend — TypeScript, React, **shadcn/ui** (not the custom toolkit). New components: `AIChatPanel`, `LayoutDiffViewer`.
 - Backend — Python, FastAPI, `httpx` for OpenRouter HTTP calls. New module: `pypackages/framework-core/src/framework_core/ai.py`.
 - AI provider abstraction — **OpenRouter** (`https://openrouter.ai/api/v1`), OpenAI-compatible API, model-switchable via config.
@@ -152,6 +153,7 @@ The `AIChatPanel` is mounted in the application shell. It slides in from the rig
 **Step 2 — User sends a prompt**
 
 Example:
+
 > "I have a sinusoid model with frequency (0.1–10 Hz) and amplitude (0.1–2.0) parameters. I want sliders to control them and a live chart showing the output."
 
 The frontend sends:
@@ -183,8 +185,8 @@ The AI responds with a JSON object containing a `ShellLayout` and a short human-
   "explanation": "I placed a ParameterController in the left sidebar with frequency and amplitude sliders, and a Chart in the main area subscribed to data/sine.",
   "layout": {
     "regions": {
-      "header":        { "visible": true,  "items": [] },
-      "sidebar-left":  {
+      "header": { "visible": true, "items": [] },
+      "sidebar-left": {
         "visible": true,
         "items": [
           {
@@ -243,8 +245,8 @@ The AI responds with a JSON object containing a `ShellLayout` and a short human-
         ]
       },
       "sidebar-right": { "visible": false, "items": [] },
-      "bottom":        { "visible": false, "items": [] },
-      "status-bar":    { "visible": true,  "items": [] }
+      "bottom": { "visible": false, "items": [] },
+      "status-bar": { "visible": true, "items": [] }
     }
   }
 }
@@ -253,6 +255,7 @@ The AI responds with a JSON object containing a `ShellLayout` and a short human-
 **Step 5 — Backend validates**
 
 Before returning the response, the backend:
+
 - Checks that all `type` values in `items` exist in the registered widget catalog
 - Checks that the `regions` object has all six required region keys
 - Rejects any response that references an unregistered widget type with a `400` error and retries once (see Section 9.3)
@@ -289,6 +292,7 @@ A toggle in `AIChatPanel` switches between "Layout" and "Code" mode. In code mod
 **Step 2 — User sends a code request**
 
 Example:
+
 > "Write a Python producer that reads from a TCP socket and publishes float values to data/pressure every 50ms."
 
 The frontend sends:
@@ -305,6 +309,7 @@ POST /ai/code
 **Step 3 — Backend generates code**
 
 The backend uses a different system prompt (see Section 8.3) that injects:
+
 - Framework conventions (channel naming, `BaseEvent` extension, `EventBus.publish` signature)
 - File structure conventions from `CLAUDE.md`
 - An example producer from `examples/backend/producers.py`
@@ -346,20 +351,25 @@ type WidgetCatalog = WidgetCatalogEntry[];
     "consumes": ["application/x-scalar+json"],
     "defaultRegion": "main",
     "parameters": {
-      "title":     { "type": "string",  "default": "" },
-      "maxPoints": { "type": "integer", "default": 200, "minimum": 10, "maximum": 2000 },
-      "yDomain":   { "type": "string",  "default": "auto" },
-      "yLabel":    { "type": "string",  "default": "" },
-      "xLabel":    { "type": "string",  "default": "Elapsed time (s)" },
-      "series":    {
+      "title": { "type": "string", "default": "" },
+      "maxPoints": {
+        "type": "integer",
+        "default": 200,
+        "minimum": 10,
+        "maximum": 2000
+      },
+      "yDomain": { "type": "string", "default": "auto" },
+      "yLabel": { "type": "string", "default": "" },
+      "xLabel": { "type": "string", "default": "Elapsed time (s)" },
+      "series": {
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
             "channel": { "type": "string" },
-            "field":   { "type": "string", "default": "value" },
-            "label":   { "type": "string" },
-            "color":   { "type": "string" }
+            "field": { "type": "string", "default": "value" },
+            "label": { "type": "string" },
+            "color": { "type": "string" }
           },
           "required": ["channel"]
         }
@@ -373,7 +383,7 @@ type WidgetCatalog = WidgetCatalogEntry[];
     "consumes": [],
     "defaultRegion": "sidebar-left",
     "parameters": {
-      "channel":    { "type": "string",  "default": "params/control" },
+      "channel": { "type": "string", "default": "params/control" },
       "debounceMs": { "type": "integer", "default": 300 },
       "parameters": {
         "type": "object",
@@ -381,13 +391,13 @@ type WidgetCatalog = WidgetCatalogEntry[];
         "additionalProperties": {
           "type": "object",
           "properties": {
-            "title":     { "type": "string" },
-            "type":      { "type": "string", "enum": ["number", "string"] },
-            "default":   {},
-            "minimum":   { "type": "number" },
-            "maximum":   { "type": "number" },
-            "multipleOf":{ "type": "number" },
-            "enum":      { "type": "array", "items": { "type": "string" } },
+            "title": { "type": "string" },
+            "type": { "type": "string", "enum": ["number", "string"] },
+            "default": {},
+            "minimum": { "type": "number" },
+            "maximum": { "type": "number" },
+            "multipleOf": { "type": "number" },
+            "enum": { "type": "array", "items": { "type": "string" } },
             "x-options": {
               "type": "object",
               "properties": {
@@ -407,10 +417,15 @@ type WidgetCatalog = WidgetCatalogEntry[];
     "consumes": ["text/plain"],
     "defaultRegion": "bottom",
     "parameters": {
-      "channel":        { "type": "string",  "default": "log/*" },
-      "maxLines":       { "type": "integer", "default": 1000, "minimum": 100, "maximum": 10000 },
+      "channel": { "type": "string", "default": "log/*" },
+      "maxLines": {
+        "type": "integer",
+        "default": 1000,
+        "minimum": 100,
+        "maximum": 10000
+      },
       "showTimestamps": { "type": "boolean", "default": true },
-      "wrapLines":      { "type": "boolean", "default": false }
+      "wrapLines": { "type": "boolean", "default": false }
     }
   }
 ]
@@ -452,14 +467,21 @@ The AI must output a complete `ShellLayout` object. The backend validates the re
   "properties": {
     "regions": {
       "type": "object",
-      "required": ["header", "sidebar-left", "main", "sidebar-right", "bottom", "status-bar"],
+      "required": [
+        "header",
+        "sidebar-left",
+        "main",
+        "sidebar-right",
+        "bottom",
+        "status-bar"
+      ],
       "properties": {
-        "header":        { "$ref": "#/definitions/RegionState" },
-        "sidebar-left":  { "$ref": "#/definitions/RegionState" },
-        "main":          { "$ref": "#/definitions/RegionState" },
+        "header": { "$ref": "#/definitions/RegionState" },
+        "sidebar-left": { "$ref": "#/definitions/RegionState" },
+        "main": { "$ref": "#/definitions/RegionState" },
         "sidebar-right": { "$ref": "#/definitions/RegionState" },
-        "bottom":        { "$ref": "#/definitions/RegionState" },
-        "status-bar":    { "$ref": "#/definitions/RegionState" }
+        "bottom": { "$ref": "#/definitions/RegionState" },
+        "status-bar": { "$ref": "#/definitions/RegionState" }
       }
     }
   },
@@ -469,15 +491,18 @@ The AI must output a complete `ShellLayout` object. The backend validates the re
       "required": ["visible", "items"],
       "properties": {
         "visible": { "type": "boolean" },
-        "items":   { "type": "array", "items": { "$ref": "#/definitions/RegionItem" } }
+        "items": { "type": "array", "items": { "$ref": "#/definitions/RegionItem" } }
       }
     },
     "RegionItem": {
       "type": "object",
       "required": ["id", "type", "props"],
       "properties": {
-        "id":    { "type": "string" },
-        "type":  { "type": "string", "description": "Must match a registered widget name." },
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "description": "Must match a registered widget name."
+        },
         "props": { "type": "object" },
         "order": { "type": "integer", "default": 0 }
       }
@@ -488,13 +513,13 @@ The AI must output a complete `ShellLayout` object. The backend validates the re
 
 ### 7.2 Validation rules enforced server-side
 
-| Rule | Check |
-|------|-------|
-| All six region keys present | `regions` has `header`, `sidebar-left`, `main`, `sidebar-right`, `bottom`, `status-bar` |
-| `header`, `main`, `status-bar` are visible | `visible: true` forced if false (mirrors `applyNonTogglableCorrection`) |
-| Widget type exists | Every `item.type` must be in the server-side registry list |
-| Item IDs are unique | No two items in the entire layout share the same `id` |
-| Props are an object | `item.props` is a non-null object (not an array or primitive) |
+| Rule                                       | Check                                                                                   |
+| ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| All six region keys present                | `regions` has `header`, `sidebar-left`, `main`, `sidebar-right`, `bottom`, `status-bar` |
+| `header`, `main`, `status-bar` are visible | `visible: true` forced if false (mirrors `applyNonTogglableCorrection`)                 |
+| Widget type exists                         | Every `item.type` must be in the server-side registry list                              |
+| Item IDs are unique                        | No two items in the entire layout share the same `id`                                   |
+| Props are an object                        | `item.props` is a non-null object (not an array or primitive)                           |
 
 ---
 
@@ -571,10 +596,10 @@ The AI is told explicitly in the system prompt that it may only use widget names
 
 ### 8.5 Temperature and model settings
 
-| Setting | Value | Rationale |
-|---------|-------|-----------|
-| `temperature` | `0.2` | Deterministic JSON output, minimal creative drift |
-| `max_tokens` | `2048` | Enough for a full ShellLayout with several widgets |
+| Setting           | Value                       | Rationale                                                  |
+| ----------------- | --------------------------- | ---------------------------------------------------------- |
+| `temperature`     | `0.2`                       | Deterministic JSON output, minimal creative drift          |
+| `max_tokens`      | `2048`                      | Enough for a full ShellLayout with several widgets         |
 | `response_format` | `{ "type": "json_object" }` | Enforced where the model supports it (OpenAI, some others) |
 
 > ⚠️ **Decision needed:** Not all models on OpenRouter support `response_format: json_object`. For models that don't, the backend should use a regex or `json.loads` with error recovery to extract the JSON from a markdown-fenced response. A utility `extract_json(text: str) -> dict` should handle both cases.
@@ -589,7 +614,7 @@ This module lives in the `framework-core` package and is imported by the example
 
 **`SHELL_LAYOUT_JSON_SCHEMA` note:** This constant does not exist yet anywhere in the Python codebase — it must be written from scratch. To avoid two sources of truth diverging (the TypeScript `shellTypes.ts` and a Python dict), create a `shell_layout_schema.json` file at the repo root that both sides reference. `ai.py` imports it at module load time; a CI check validates that it matches the TypeScript type. Until that CI check exists, treat the schema in Section 7.1 as the authoritative source and copy it verbatim into `ai.py` as `SHELL_LAYOUT_JSON_SCHEMA`.
 
-```python
+````python
 # pypackages/framework-core/src/framework_core/ai.py
 
 import json
@@ -711,7 +736,7 @@ def build_layout_prompt(
 
     messages.append({"role": "user", "content": user_message})
     return messages
-```
+````
 
 ### 9.2 New FastAPI endpoints
 
@@ -827,12 +852,12 @@ def validate_layout(
 
 ### 9.4 Environment variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | Yes | — | OpenRouter API key |
-| `OPENROUTER_DEFAULT_MODEL` | No | `anthropic/claude-3.5-sonnet` | Model identifier |
-| `OPENROUTER_MAX_TOKENS` | No | `2048` | Max tokens per request |
-| `OPENROUTER_TEMPERATURE` | No | `0.2` | Sampling temperature |
+| Variable                   | Required | Default                       | Description            |
+| -------------------------- | -------- | ----------------------------- | ---------------------- |
+| `OPENROUTER_API_KEY`       | Yes      | —                             | OpenRouter API key     |
+| `OPENROUTER_DEFAULT_MODEL` | No       | `anthropic/claude-3.5-sonnet` | Model identifier       |
+| `OPENROUTER_MAX_TOKENS`    | No       | `2048`                        | Max tokens per request |
+| `OPENROUTER_TEMPERATURE`   | No       | `0.2`                         | Sampling temperature   |
 
 ---
 
@@ -875,6 +900,7 @@ interface ChatMessage {
 ```
 
 **Behaviour:**
+
 - Maintains a `messages: ChatMessage[]` array in local state.
 - On submit, appends the user message, calls `POST /ai/layout` or `POST /ai/code` depending on mode.
 - While waiting, shows a typing indicator.
@@ -889,6 +915,7 @@ npx shadcn@latest add sheet scroll-area textarea
 ```
 
 **UI structure (shadcn/ui components):**
+
 ```
 <Sheet> (right-side panel, width 420px)
   <SheetHeader>
@@ -923,6 +950,7 @@ interface LayoutDiffViewerProps {
 ```
 
 **Behaviour:**
+
 - Renders the AI's `explanation` text.
 - Shows a human-readable summary of the diff: which regions changed, which widgets were added/removed/modified.
 - Does NOT show raw JSON by default. Provides a "Show JSON" toggle that expands a `<pre>` block with the proposed layout JSON for power users.
@@ -983,12 +1011,12 @@ OpenRouter provides a single OpenAI-compatible endpoint (`https://openrouter.ai/
 
 ### 11.2 Model selection strategy
 
-| Use case | Suggested starting model | Notes |
-|----------|--------------------------|-------|
-| Layout generation (default) | `anthropic/claude-3.5-sonnet` | Best at structured JSON, instruction following |
-| Layout generation (fast/cheap) | `anthropic/claude-3-haiku` | Test if prompt quality holds at lower cost |
-| Code generation | `openai/gpt-4o` | Strong at code; compare with Sonnet |
-| Evaluation / comparison | `google/gemini-2.5-pro` | Alternate provider |
+| Use case                       | Suggested starting model      | Notes                                          |
+| ------------------------------ | ----------------------------- | ---------------------------------------------- |
+| Layout generation (default)    | `anthropic/claude-3.5-sonnet` | Best at structured JSON, instruction following |
+| Layout generation (fast/cheap) | `anthropic/claude-3-haiku`    | Test if prompt quality holds at lower cost     |
+| Code generation                | `openai/gpt-4o`               | Strong at code; compare with Sonnet            |
+| Evaluation / comparison        | `google/gemini-2.5-pro`       | Alternate provider                             |
 
 The model is controlled entirely by the `OPENROUTER_DEFAULT_MODEL` environment variable. No code change is needed to switch.
 
@@ -1015,55 +1043,55 @@ headers = {
 
 ### 12.1 Python unit tests (`pypackages/framework-core/tests/test_ai.py`)
 
-| Test | What it checks |
-|------|----------------|
-| `test_extract_json_bare` | `extract_json` parses a bare JSON string |
-| `test_extract_json_fenced` | `extract_json` strips markdown fences |
-| `test_extract_json_invalid_raises` | `extract_json` raises `ValueError` on garbage input |
-| `test_validate_layout_valid` | Returns empty errors for a well-formed layout |
-| `test_validate_layout_missing_region` | Detects missing required region key |
-| `test_validate_layout_unknown_widget` | Detects unregistered widget type |
-| `test_validate_layout_duplicate_id` | Detects duplicate item IDs |
-| `test_build_layout_prompt_structure` | Messages array has correct role sequence |
-| `test_call_openrouter_success` | Uses `httpx.MockTransport` to assert correct request shape |
-| `test_call_openrouter_missing_key` | Raises `ValueError` when no API key |
-| `test_call_openrouter_http_error` | Raises `httpx.HTTPStatusError` on 4xx |
+| Test                                  | What it checks                                             |
+| ------------------------------------- | ---------------------------------------------------------- |
+| `test_extract_json_bare`              | `extract_json` parses a bare JSON string                   |
+| `test_extract_json_fenced`            | `extract_json` strips markdown fences                      |
+| `test_extract_json_invalid_raises`    | `extract_json` raises `ValueError` on garbage input        |
+| `test_validate_layout_valid`          | Returns empty errors for a well-formed layout              |
+| `test_validate_layout_missing_region` | Detects missing required region key                        |
+| `test_validate_layout_unknown_widget` | Detects unregistered widget type                           |
+| `test_validate_layout_duplicate_id`   | Detects duplicate item IDs                                 |
+| `test_build_layout_prompt_structure`  | Messages array has correct role sequence                   |
+| `test_call_openrouter_success`        | Uses `httpx.MockTransport` to assert correct request shape |
+| `test_call_openrouter_missing_key`    | Raises `ValueError` when no API key                        |
+| `test_call_openrouter_http_error`     | Raises `httpx.HTTPStatusError` on 4xx                      |
 
 ### 12.2 FastAPI integration tests (`pypackages/framework-core/tests/test_ai_endpoints.py`)
 
 Use `TestClient` with a patched `call_openrouter` that returns a canned valid layout JSON.
 
-| Test | What it checks |
-|------|----------------|
-| `test_layout_endpoint_returns_layout` | Valid prompt → 200 with layout + explanation |
-| `test_layout_endpoint_rejects_unknown_widget` | AI returns unregistered widget → 422 |
-| `test_layout_endpoint_missing_api_key` | No env var → 500 with clear error message |
-| `test_code_endpoint_returns_code` | Valid code request → 200 with code string |
+| Test                                          | What it checks                               |
+| --------------------------------------------- | -------------------------------------------- |
+| `test_layout_endpoint_returns_layout`         | Valid prompt → 200 with layout + explanation |
+| `test_layout_endpoint_rejects_unknown_widget` | AI returns unregistered widget → 422         |
+| `test_layout_endpoint_missing_api_key`        | No env var → 500 with clear error message    |
+| `test_code_endpoint_returns_code`             | Valid code request → 200 with code string    |
 
 ### 12.3 Frontend unit tests
 
-| Test | What it checks |
-|------|----------------|
-| `AIChatPanel` — renders empty state | Shows placeholder before any messages |
-| `AIChatPanel` — sends request on submit | `fetch` called with correct body |
-| `AIChatPanel` — shows loading indicator | Spinner visible while awaiting response |
-| `AIChatPanel` — renders assistant message | Message appears after response |
-| `AIChatPanel` — renders LayoutDiffViewer | Diff viewer shown when proposedLayout present |
-| `LayoutDiffViewer` — approve calls callback | `onApprove` called on button click |
-| `LayoutDiffViewer` — reject calls callback | `onReject` called on button click |
-| `LayoutDiffViewer` — shows added widgets | Diff summary lists added items |
+| Test                                        | What it checks                                |
+| ------------------------------------------- | --------------------------------------------- |
+| `AIChatPanel` — renders empty state         | Shows placeholder before any messages         |
+| `AIChatPanel` — sends request on submit     | `fetch` called with correct body              |
+| `AIChatPanel` — shows loading indicator     | Spinner visible while awaiting response       |
+| `AIChatPanel` — renders assistant message   | Message appears after response                |
+| `AIChatPanel` — renders LayoutDiffViewer    | Diff viewer shown when proposedLayout present |
+| `LayoutDiffViewer` — approve calls callback | `onApprove` called on button click            |
+| `LayoutDiffViewer` — reject calls callback  | `onReject` called on button click             |
+| `LayoutDiffViewer` — shows added widgets    | Diff summary lists added items                |
 
 ### 12.4 Layout quality evaluation (manual / model comparison)
 
 For each candidate model, run a fixed set of benchmark prompts and score the output:
 
-| Benchmark prompt | Pass criteria |
-|-----------------|---------------|
-| "Sinusoid with frequency and amplitude sliders, chart output" | Has `ParameterController` + `Chart`, correct channels |
-| "Add a log viewer showing heartbeat messages" | Adds `LogViewer` to existing layout, does not remove other widgets |
-| "Make the chart show a blue line" | Updates `series[0].color` to a valid blue value |
-| "Move the parameter panel to the right sidebar" | Changes `defaultRegion` placement correctly |
-| Prompt with no matching widget need | Does not hallucinate; places nothing or uses closest match |
+| Benchmark prompt                                              | Pass criteria                                                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------------ |
+| "Sinusoid with frequency and amplitude sliders, chart output" | Has `ParameterController` + `Chart`, correct channels              |
+| "Add a log viewer showing heartbeat messages"                 | Adds `LogViewer` to existing layout, does not remove other widgets |
+| "Make the chart show a blue line"                             | Updates `series[0].color` to a valid blue value                    |
+| "Move the parameter panel to the right sidebar"               | Changes `defaultRegion` placement correctly                        |
+| Prompt with no matching widget need                           | Does not hallucinate; places nothing or uses closest match         |
 
 Scoring: 1 point per criterion met. Models scoring < 3/5 on average are unsuitable for production.
 
@@ -1174,15 +1202,15 @@ examples/frontend/src/
 
 ## 15. Open Questions / Decisions Needed
 
-| # | Question | Impact | Suggested default |
-|---|----------|--------|-------------------|
-| 1 | ~~Where does the registry catalog come from on the server?~~ **Resolved:** The backend has no Python registry. The frontend must send its catalog in the request body — this is the only valid approach. See Section 6.3. | — | Frontend sends it (only option) |
-| 2 | `AIChatPanel` as a `Sheet` overlay or a docked shell region? | Shell schema changes if docked | Sheet overlay for v1 |
-| 3 | Should rejected AI turns be excluded from conversation history? | AI context quality | Yes — only approved turns sent back |
-| 4 | How to handle models that don't support `response_format: json_object`? | Reliability | `extract_json()` fallback for all models |
-| 5 | Store chat history in `localStorage`? | UX continuity | Out of scope for v1 |
-| 6 | Should `POST /ai/layout` be a streaming endpoint (SSE)? | Perceived latency | Non-streaming for v1; consider SSE in v2 |
-| 7 | Benchmark script for model comparison — in-repo or ad-hoc? | Dev tooling | `scripts/eval_models.py` in-repo |
+| #   | Question                                                                                                                                                                                                                  | Impact                         | Suggested default                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------- |
+| 1   | ~~Where does the registry catalog come from on the server?~~ **Resolved:** The backend has no Python registry. The frontend must send its catalog in the request body — this is the only valid approach. See Section 6.3. | —                              | Frontend sends it (only option)          |
+| 2   | `AIChatPanel` as a `Sheet` overlay or a docked shell region?                                                                                                                                                              | Shell schema changes if docked | Sheet overlay for v1                     |
+| 3   | Should rejected AI turns be excluded from conversation history?                                                                                                                                                           | AI context quality             | Yes — only approved turns sent back      |
+| 4   | How to handle models that don't support `response_format: json_object`?                                                                                                                                                   | Reliability                    | `extract_json()` fallback for all models |
+| 5   | Store chat history in `localStorage`?                                                                                                                                                                                     | UX continuity                  | Out of scope for v1                      |
+| 6   | Should `POST /ai/layout` be a streaming endpoint (SSE)?                                                                                                                                                                   | Perceived latency              | Non-streaming for v1; consider SSE in v2 |
+| 7   | Benchmark script for model comparison — in-repo or ad-hoc?                                                                                                                                                                | Dev tooling                    | `scripts/eval_models.py` in-repo         |
 
 ---
 
