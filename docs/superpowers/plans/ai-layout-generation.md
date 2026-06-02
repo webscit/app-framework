@@ -1,6 +1,6 @@
 # AI Layout Generation — Implementation Plan
 
-**Goal:** Enable engineers to describe their simulation in natural language and receive a ready-made dashboard layout — using only widgets already registered in the `WidgetRegistry` — without writing any frontend code. A secondary developer mode generates framework-compliant Python code (connectors, widget definitions, layout JSON) on demand.
+**Goal:** Enable engineers to describe their simulation in natural language and receive a ready-made dashboard layout — using only widgets already registered in the `WidgetRegistry` — without writing any frontend code.
 
 **Architecture:** A chat panel is added to the application shell. User messages are sent to the Python backend which constructs a structured prompt (user message + widget registry catalog + JSON layout schema) and forwards the request to an AI provider via **OpenRouter**. The backend returns a validated `ShellLayout` JSON. The frontend shows a diff of the proposed layout and waits for the user to approve before applying it.
 
@@ -20,18 +20,11 @@ A simulation engineer knows their model — its inputs, outputs, and tunable par
 
 **What they need:** Describe the simulation in plain English and get a working dashboard in seconds. Then refine it iteratively: "make the chart line blue", "add a second chart for residual", "move the sliders to the right sidebar".
 
-### 1.2 Developer personal
-
-A developer extending the framework needs boilerplate for a new event producer, a custom widget definition, or a connector wiring a backend simulation to the EventBus. Today they copy-paste from examples and adapt manually. Mistakes are common (wrong channel patterns, missing `BaseEvent` fields, incorrect `factory` signatures).
-
-**What they need:** Describe the connector or widget they want and get framework-compliant Python/TypeScript code that they can drop in, review, and run.
-
 ### 1.3 What this solves
 
 - Zero-code layout generation from a plain-English description
 - AI constrained to the registered widget catalog — no hallucinated widget types
 - Iterative refinement over a conversation history
-- Developer boilerplate generation that follows framework conventions
 - Model-agnostic infrastructure — test Claude, GPT-4o, Gemini, xAI, etc. via a single OpenRouter integration
 
 ### 1.4 What this does not solve (out of scope for v1)
@@ -39,7 +32,6 @@ A developer extending the framework needs boilerplate for a new event producer, 
 - Streaming widget output directly into AI context (AI cannot see live data values)
 - Saving or sharing chat histories
 - Layout import/export from file (covered by JSON persistence spec)
-- Custom widget code actually being executed in the browser (code generation only, not execution)
 - Authentication / multi-user sessions
 
 ---
@@ -49,11 +41,10 @@ A developer extending the framework needs boilerplate for a new event producer, 
 **In scope for v1:**
 
 - Mode 1 — Visual layout generation via natural language chat
-- Mode 2 — Framework code generation (Python connector, widget definition skeleton)
 - Chat panel component integrated into the application shell
 - Layout diff viewer (show proposed changes, approve / reject)
 - Python `ai.py` helper module in `framework-core` for OpenRouter calls
-- New FastAPI endpoints: `POST /ai/layout` and `POST /ai/code`
+- New FastAPI endpoint: `POST /ai/layout`
 - OpenRouter model selection via server config / environment variable
 - Widget registry serialisation into the AI prompt context
 - System prompt that enforces the widget registry constraint
@@ -91,7 +82,7 @@ Browser (React)                        Backend (FastAPI / framework-core)
 └──────────────────────────────┘
 ```
 
-### 3.2 Data flow summary — Mode 1 (layout generation)
+### 3.2 Data flow summary
 
 ```
 1. User types prompt in AIChatPanel
@@ -103,17 +94,6 @@ Browser (React)                        Backend (FastAPI / framework-core)
 7. Frontend renders LayoutDiffViewer (before vs proposed)
 8. User clicks Approve → ApplicationShell applies new layout
    User clicks Reject → discard, continue conversation
-```
-
-### 3.3 Data flow summary — Mode 2 (code generation)
-
-```
-1. User types code request in AIChatPanel (developer mode)
-2. Frontend POST /ai/code { prompt, history, target: "connector"|"widget"|"layout_json" }
-3. Backend builds prompt: code_system_prompt + framework_conventions + user_message
-4. Backend calls OpenRouter → AI returns code string
-5. Backend returns { code: string, language: "python"|"typescript"|"json" }
-6. Frontend renders code block with copy button (no diff viewer)
 ```
 
 ### 3.4 Prerequisites before implementation
@@ -279,66 +259,24 @@ The backend appends the new prompt to the existing history and generates a revis
 
 ---
 
-## 5. Mode 2 — Code Generation (Developer Mode)
-
-### 5.1 Step-by-step
-
-**Step 1 — User switches to developer mode**
-
-A toggle in `AIChatPanel` switches between "Layout" and "Code" mode. In code mode the input placeholder reads:
-
-> "Describe a connector, custom widget, or backend producer you want to build."
-
-**Step 2 — User sends a code request**
-
-Example:
-
-> "Write a Python producer that reads from a TCP socket and publishes float values to data/pressure every 50ms."
-
-The frontend sends:
-
-```json
-POST /ai/code
-{
-  "prompt": "Write a Python producer that reads from a TCP socket...",
-  "history": [],
-  "target": "connector"
-}
-```
-
-**Step 3 — Backend generates code**
-
-The backend uses a different system prompt (see Section 8.3) that injects:
-
-- Framework conventions (channel naming, `BaseEvent` extension, `EventBus.publish` signature)
-- File structure conventions from `CLAUDE.md`
-- An example producer from `examples/backend/producers.py`
-
-**Step 4 — Frontend renders code block**
-
-The response is rendered as a syntax-highlighted code block (Python or TypeScript) with a **Copy** button. No diff viewer — the user reads the code and decides what to use.
-
----
-
 ## 6. Widget Registry Catalog Format
 
-The registry catalog is serialised server-side before being injected into the AI prompt. The factory function is excluded — only the metadata fields are sent.
+The initial prompt includes only widget names and descriptions — a lightweight catalog that keeps the prompt short and focused. Full widget details (channelPattern, consumes, priority, defaultRegion, parameters) are made available via a `get_widget_details` tool that the AI can call on demand.
 
 ### 6.1 Catalog schema
+
+Lightweight catalog sent in every prompt:
 
 ```typescript
 interface WidgetCatalogEntry {
   name: string;
   description: string;
-  channelPattern: string;
-  consumes: string[];
-  priority: number;
-  defaultRegion?: string; // optional — matches WidgetDefinition in widgetRegistry.ts
-  parameters: Record<string, unknown>; // JSON Schema fragment
 }
 
 type WidgetCatalog = WidgetCatalogEntry[];
 ```
+
+Full widget details are available through the `get_widget_details` tool (see Section 6.3).
 
 ### 6.2 Example serialised catalog (sent in prompt)
 
@@ -346,109 +284,71 @@ type WidgetCatalog = WidgetCatalogEntry[];
 [
   {
     "name": "Chart",
-    "description": "Live time-series line chart. Subscribes to one or more EventBus channels and plots incoming scalar values in a scrolling window.",
-    "channelPattern": "data/*",
-    "consumes": ["application/x-scalar+json"],
-    "defaultRegion": "main",
-    "parameters": {
-      "title": { "type": "string", "default": "" },
-      "maxPoints": {
-        "type": "integer",
-        "default": 200,
-        "minimum": 10,
-        "maximum": 2000
-      },
-      "yDomain": { "type": "string", "default": "auto" },
-      "yLabel": { "type": "string", "default": "" },
-      "xLabel": { "type": "string", "default": "Elapsed time (s)" },
-      "series": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "channel": { "type": "string" },
-            "field": { "type": "string", "default": "value" },
-            "label": { "type": "string" },
-            "color": { "type": "string" }
-          },
-          "required": ["channel"]
-        }
-      }
-    }
+    "description": "Live time-series line chart. Subscribes to one or more EventBus channels and plots incoming scalar values in a scrolling window."
   },
   {
     "name": "ParameterController",
-    "description": "Interactive control panel for tuning simulation parameters at runtime. Publishes parameter updates to a configurable EventBus channel.",
-    "channelPattern": "params/*",
-    "consumes": [],
-    "defaultRegion": "sidebar-left",
-    "parameters": {
-      "channel": { "type": "string", "default": "params/control" },
-      "debounceMs": { "type": "integer", "default": 300 },
-      "parameters": {
-        "type": "object",
-        "description": "Map of parameter name → ParameterConfig. Each entry renders one control (slider, input, or select).",
-        "additionalProperties": {
-          "type": "object",
-          "properties": {
-            "title": { "type": "string" },
-            "type": { "type": "string", "enum": ["number", "string"] },
-            "default": {},
-            "minimum": { "type": "number" },
-            "maximum": { "type": "number" },
-            "multipleOf": { "type": "number" },
-            "enum": { "type": "array", "items": { "type": "string" } },
-            "x-options": {
-              "type": "object",
-              "properties": {
-                "widget": { "type": "string", "enum": ["slider", "input", "select"] }
-              }
-            }
-          },
-          "required": ["title", "type", "default"]
-        }
-      }
-    }
+    "description": "Interactive control panel for tuning simulation parameters at runtime. Publishes parameter updates to a configurable EventBus channel."
   },
   {
     "name": "LogViewer",
-    "description": "Displays live log stream from simulation stdout/stderr. Suitable for real-time monitoring of text-based output with a scrollable, searchable interface.",
-    "channelPattern": "log/*",
-    "consumes": ["text/plain"],
-    "defaultRegion": "bottom",
-    "parameters": {
-      "channel": { "type": "string", "default": "log/*" },
-      "maxLines": {
-        "type": "integer",
-        "default": 1000,
-        "minimum": 100,
-        "maximum": 10000
-      },
-      "showTimestamps": { "type": "boolean", "default": true },
-      "wrapLines": { "type": "boolean", "default": false }
-    }
+    "description": "Displays live log stream from simulation stdout/stderr. Suitable for real-time monitoring of text-based output with a scrollable, searchable interface."
+  },
+  {
+    "name": "StatusIndicator",
+    "description": "Displays heartbeat and run status from the control channel. Shows connection status, last heartbeat time, and simulation run state."
   }
 ]
 ```
 
-### 6.3 How the catalog is built and sent
+### 6.3 `get_widget_details` tool
+
+When the AI needs full schema information for a widget (to correctly populate props), it calls `get_widget_details`:
+
+```typescript
+// Tool definition sent to the AI alongside the catalog
+{
+  "type": "function",
+  "function": {
+    "name": "get_widget_details",
+    "description": "Returns full details for a registered widget: channelPattern, consumes, priority, defaultRegion, and parameters schema.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "widget_name": {
+          "type": "string",
+          "description": "The exact widget name from the catalog (e.g. \"Chart\", \"ParameterController\")."
+        }
+      },
+      "required": ["widget_name"]
+    }
+  }
+}
+```
+
+The backend handles this tool call by looking up the widget in `request.registry` (the full `WidgetDefinition` list the frontend sends, minus the `factory` function) and returning the entry for that widget name.
+
+### 6.4 How the catalog is built and sent
 
 The backend has no Python registry — `WidgetRegistry` is a frontend-only TypeScript class. The frontend **must** send its registry snapshot in the `/ai/layout` request body. This is the only valid approach for v1.
 
-The frontend serialises `registry.list()` (excluding the `factory` function, which is not JSON-serialisable) and includes it in the request:
+The frontend sends the full registry (factory excluded) in the request body. The backend extracts only name + description for the initial prompt, and serves full details on demand for tool calls:
 
 ```typescript
-const catalog = registry.list().map(({ factory: _factory, ...rest }) => rest);
-// catalog is included in the POST /ai/layout body as `registry`
+// Full registry sent in request body for tool-call lookups
+const registry = widgetRegistry.list().map(({ factory: _factory, ...rest }) => rest);
+// POST /ai/layout body includes `registry`
 ```
 
-The backend receives it as `request.registry` (a plain list of dicts) and passes it directly to `build_layout_prompt`. A helper strips any unexpected keys:
+The backend serialises only name + description into the system prompt:
 
 ```python
-def serialise_registry(registry: list[dict]) -> list[dict]:
-    keep = {"name", "description", "channelPattern", "consumes", "priority", "defaultRegion", "parameters"}
-    return [{k: v for k, v in widget.items() if k in keep} for widget in registry]
+def serialise_catalog(registry: list[dict]) -> list[dict]:
+    """Extract lightweight catalog (name + description only) for the initial prompt."""
+    return [{"name": w["name"], "description": w["description"]} for w in registry]
 ```
+
+Full widget details are served on demand when the AI calls `get_widget_details`, by looking up the widget name in the full `request.registry` list.
 
 ---
 
@@ -540,13 +440,16 @@ RULES — you must follow all of them:
 3. Do not wrap the JSON in markdown code fences.
 4. Do not add any text outside the JSON object.
 5. Every RegionItem must have a unique "id" string.
-6. Use the widget's "defaultRegion" as a guide for placement unless the user specifies otherwise.
-7. For ParameterController, populate the "parameters" prop from the user's description of their
+6. Call get_widget_details(widget_name) BEFORE setting any props on a widget — the catalog
+   only provides names and descriptions. Full parameter schemas are only available via the tool.
+7. Use the widget's "defaultRegion" (returned by get_widget_details) as a guide for placement
+   unless the user specifies otherwise.
+8. For ParameterController, populate the "parameters" prop from the user's description of their
    simulation inputs. Infer reasonable min/max/default values from context.
-8. For Chart, set the "series" prop to subscribe to the channel the backend publishes data on.
+9. For Chart, set the "series" prop to subscribe to the channel the backend publishes data on.
    Default to "data/<signal_name>" if the user does not specify a channel.
 
-WIDGET CATALOG:
+WIDGET CATALOG (name and description only — call get_widget_details for full schema):
 <catalog_json>
 
 LAYOUT SCHEMA:
@@ -569,24 +472,7 @@ messages = [
 
 The `history` field in the request body is a list of `{ "user": str, "assistant": str }` objects representing prior approved turns. Rejected turns are excluded — the user's intent was not realised so they should not pollute the context.
 
-### 8.3 Code generation system prompt
-
-```
-You are a Python and TypeScript developer working on a simulation dashboard framework.
-
-RULES:
-1. All Python event types must extend BaseEvent from framework_core.bus.
-2. All producers must be async functions that accept an EventBus instance and loop with asyncio.sleep.
-3. Channel names use slash-separated paths: e.g. "data/pressure", "logs/app", "params/control".
-4. Never import from examples/ — only from framework_core.
-5. Include a brief docstring on every function and class.
-6. Return only the code — no explanation text, no markdown fences.
-
-FRAMEWORK CONVENTIONS:
-<conventions_snippet>
-```
-
-### 8.4 Anti-hallucination enforcement
+### 8.3 Anti-hallucination enforcement
 
 The AI is told explicitly in the system prompt that it may only use widget names from the catalog. Additionally, the backend validates every `item.type` against the live registry after parsing the response. If an unregistered type is found, the backend:
 
@@ -705,6 +591,18 @@ def extract_json(text: str) -> dict[str, Any]:
         raise ValueError(f"Could not parse AI response as JSON: {e}") from e
 
 
+def serialise_catalog(registry: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Extract lightweight catalog (name + description only) for the initial prompt.
+
+    Args:
+        registry: Full widget registry list from the frontend (factory excluded).
+
+    Returns:
+        List of dicts with only "name" and "description" keys.
+    """
+    return [{"name": w["name"], "description": w["description"]} for w in registry]
+
+
 def build_layout_prompt(
     user_message: str,
     widget_catalog: list[dict[str, Any]],
@@ -715,7 +613,7 @@ def build_layout_prompt(
 
     Args:
         user_message: Current user prompt.
-        widget_catalog: List of serialised WidgetDefinition objects (factory excluded).
+        widget_catalog: Lightweight catalog (name + description only) from serialise_catalog().
         layout_schema: JSON Schema for ShellLayout.
         history: Prior conversation turns as [{"user": ..., "assistant": ...}].
 
@@ -738,76 +636,75 @@ def build_layout_prompt(
     return messages
 ````
 
-### 9.2 New FastAPI endpoints
+### 9.2 Framework helper: `mount_ai_routes(app)`
 
-Both endpoints are mounted in the example backend's `main.py`. They are NOT part of the core framework package (the `ai.py` helpers are; the endpoints are application-level).
+Following the `_mount_ws_bridge(app, bus)` pattern from `ws_bridge.py`, the framework provides `mount_ai_routes(app)` that hooks the AI endpoints onto any FastAPI app. The example backend calls it in one line after `create_app()` — no endpoint code lives in `main.py`.
 
 **`httpx` dependency note:** `httpx` must be added to `pypackages/framework-core/pyproject.toml` under `[project].dependencies` — NOT dev dependencies — because `ai.py` is a runtime module shipped with the package. Currently `httpx>=0.27` is only in the root `pyproject.toml` dev group, which is not installed in production environments.
 
 ```python
-# examples/backend/main.py (additions)
+# pypackages/framework-core/src/framework_core/ai.py (additions)
 
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from framework_core.ai import (
-    build_layout_prompt,
-    call_openrouter,
-    extract_json,
-)
+
 
 class LayoutRequest(BaseModel):
     prompt: str
     history: list[dict[str, str]] = []
-    registry: list[dict]        # serialised WidgetCatalog from the frontend
+    registry: list[dict]  # full WidgetDefinition list (factory excluded) from the frontend
+
 
 class LayoutResponse(BaseModel):
     layout: dict
     explanation: str
 
-class CodeRequest(BaseModel):
-    prompt: str
-    history: list[dict[str, str]] = []
-    target: str = "connector"   # "connector" | "widget" | "layout_json"
 
-class CodeResponse(BaseModel):
-    code: str
-    language: str               # "python" | "typescript" | "json"
+def mount_ai_routes(app: FastAPI) -> None:
+    """Mount AI layout generation endpoints onto the given FastAPI app.
 
+    Follows the same pattern as _mount_ws_bridge. Call after create_app():
 
-@app.post("/ai/layout", response_model=LayoutResponse)
-async def generate_layout(request: LayoutRequest) -> LayoutResponse:
-    messages = build_layout_prompt(
-        user_message=request.prompt,
-        widget_catalog=request.registry,
-        layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
-        history=request.history,
-    )
-    raw = await call_openrouter(messages)
-    data = extract_json(raw)
+        app = create_app(lifespan=lifespan)
+        mount_ai_routes(app)
 
-    layout = data.get("layout")
-    explanation = data.get("explanation", "")
+    Args:
+        app: FastAPI application instance to attach routes to.
+    """
 
-    errors = validate_layout(layout, registered_names={w["name"] for w in request.registry})
-    if errors:
-        raise HTTPException(status_code=422, detail={"errors": errors, "raw": raw})
+    @app.post("/ai/layout", response_model=LayoutResponse)
+    async def generate_layout(request: LayoutRequest) -> LayoutResponse:
+        catalog = serialise_catalog(request.registry)
+        messages = build_layout_prompt(
+            user_message=request.prompt,
+            widget_catalog=catalog,
+            layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
+            history=request.history,
+        )
+        raw = await call_openrouter(messages)
+        data = extract_json(raw)
 
-    return LayoutResponse(layout=layout, explanation=explanation)
+        layout = data.get("layout")
+        explanation = data.get("explanation", "")
 
+        errors = validate_layout(layout, registered_names={w["name"] for w in request.registry})
+        if errors:
+            raise HTTPException(status_code=422, detail={"errors": errors, "raw": raw})
 
-@app.post("/ai/code", response_model=CodeResponse)
-async def generate_code(request: CodeRequest) -> CodeResponse:
-    messages = build_code_prompt(
-        user_message=request.prompt,
-        target=request.target,
-        history=request.history,
-    )
-    code = await call_openrouter(messages, temperature=0.3)
-    language = "typescript" if request.target == "widget" else "python"
-    if request.target == "layout_json":
-        language = "json"
-    return CodeResponse(code=code, language=language)
+        return LayoutResponse(layout=layout, explanation=explanation)
 ```
+
+The example backend wires it in with a single call:
+
+```python
+# examples/backend/main.py (additions)
+from framework_core.ai import mount_ai_routes
+
+app = create_app(lifespan=lifespan)
+mount_ai_routes(app)
+```
+
+No endpoint code lives in `main.py` — all route logic is encapsulated in the framework helper.
 
 ### 9.3 Layout validation helper
 
@@ -885,7 +782,6 @@ interface AIChatPanelProps {
 **Internal state:**
 
 ```typescript
-type ChatMode = "layout" | "code";
 type MessageRole = "user" | "assistant" | "error";
 
 interface ChatMessage {
@@ -894,15 +790,13 @@ interface ChatMessage {
   text: string;
   /** Present on assistant messages that carry a layout proposal. */
   proposedLayout?: ShellLayout;
-  /** Present on assistant messages that carry generated code. */
-  code?: { content: string; language: string };
 }
 ```
 
 **Behaviour:**
 
 - Maintains a `messages: ChatMessage[]` array in local state.
-- On submit, appends the user message, calls `POST /ai/layout` or `POST /ai/code` depending on mode.
+- On submit, appends the user message and calls `POST /ai/layout`.
 - While waiting, shows a typing indicator.
 - On success, appends the assistant message. If a `proposedLayout` is present, renders `LayoutDiffViewer` inline within the assistant bubble.
 - On error, appends an `error` message with the detail.
@@ -919,7 +813,7 @@ npx shadcn@latest add sheet scroll-area textarea
 ```
 <Sheet> (right-side panel, width 420px)
   <SheetHeader>
-    "AI Layout Assistant" + mode toggle (Layout | Code)
+    "AI Layout Assistant"
   </SheetHeader>
   <ScrollArea className="chat-messages">
     {messages.map(msg => <ChatBubble ... />)}
@@ -951,19 +845,35 @@ interface LayoutDiffViewerProps {
 
 **Behaviour:**
 
-- Renders the AI's `explanation` text.
-- Shows a human-readable summary of the diff: which regions changed, which widgets were added/removed/modified.
+- Renders the AI's `explanation` text above the visual preview.
+- Shows a **side-by-side visual wireframe** of the current layout (left) and the proposed layout (right). Each wireframe is a miniaturised CSS grid representing the six shell regions (`header`, `sidebar-left`, `main`, `sidebar-right`, `bottom`, `status-bar`). Widget names are shown inside each region cell.
+- **Changed regions** are highlighted with a distinct border and background colour. A region is "changed" if its `items` array or `visible` flag differs between current and proposed.
+- Unchanged regions render in a muted style.
 - Does NOT show raw JSON by default. Provides a "Show JSON" toggle that expands a `<pre>` block with the proposed layout JSON for power users.
-- **Approve** button calls `onApprove`. **Reject** button (or "Try again") calls `onReject`.
+- **Approve** button calls `onApprove`. **Reject** button calls `onReject`.
 
-**Diff summary rendering:**
+**Visual wireframe layout:**
 
 ```
-Proposed changes:
-  sidebar-left  ✦ Added: ParameterController (sim-params)
-  main          ✦ Added: Chart (sine-chart)
-  bottom        — No change
+     Current layout               Proposed layout
+
+ ┌─────────────────────┐      ┌─────────────────────┐
+ │       header        │      │       header        │
+ ├───────────┬─────────┤      ├───────────┬─────────┤
+ │ sidebar-  │         │      │ sidebar-  │         │ ◄ changed
+ │   left    │  main   │      │   left    │  main   │
+ │           │         │      │[ParamCtrl]│ [Chart] │
+ ├───────────┴─────────┤      ├───────────┴─────────┤
+ │        bottom       │      │        bottom       │
+ ├─────────────────────┤      ├─────────────────────┤
+ │      status-bar     │      │      status-bar     │
+ └─────────────────────┘      └─────────────────────┘
 ```
+
+**Region diff legend:**
+
+- Highlighted border + accent background — region changed (items added, removed, or modified)
+- Muted/normal style — region unchanged
 
 ### 10.3 Integration in the example app
 
@@ -1015,7 +925,6 @@ OpenRouter provides a single OpenAI-compatible endpoint (`https://openrouter.ai/
 | ------------------------------ | ----------------------------- | ---------------------------------------------- |
 | Layout generation (default)    | `anthropic/claude-3.5-sonnet` | Best at structured JSON, instruction following |
 | Layout generation (fast/cheap) | `anthropic/claude-3-haiku`    | Test if prompt quality holds at lower cost     |
-| Code generation                | `openai/gpt-4o`               | Strong at code; compare with Sonnet            |
 | Evaluation / comparison        | `google/gemini-2.5-pro`       | Alternate provider                             |
 
 The model is controlled entirely by the `OPENROUTER_DEFAULT_MODEL` environment variable. No code change is needed to switch.
@@ -1066,20 +975,20 @@ Use `TestClient` with a patched `call_openrouter` that returns a canned valid la
 | `test_layout_endpoint_returns_layout`         | Valid prompt → 200 with layout + explanation |
 | `test_layout_endpoint_rejects_unknown_widget` | AI returns unregistered widget → 422         |
 | `test_layout_endpoint_missing_api_key`        | No env var → 500 with clear error message    |
-| `test_code_endpoint_returns_code`             | Valid code request → 200 with code string    |
 
 ### 12.3 Frontend unit tests
 
 | Test                                        | What it checks                                |
 | ------------------------------------------- | --------------------------------------------- |
-| `AIChatPanel` — renders empty state         | Shows placeholder before any messages         |
-| `AIChatPanel` — sends request on submit     | `fetch` called with correct body              |
-| `AIChatPanel` — shows loading indicator     | Spinner visible while awaiting response       |
-| `AIChatPanel` — renders assistant message   | Message appears after response                |
-| `AIChatPanel` — renders LayoutDiffViewer    | Diff viewer shown when proposedLayout present |
-| `LayoutDiffViewer` — approve calls callback | `onApprove` called on button click            |
-| `LayoutDiffViewer` — reject calls callback  | `onReject` called on button click             |
-| `LayoutDiffViewer` — shows added widgets    | Diff summary lists added items                |
+| `AIChatPanel` — renders empty state              | Shows placeholder before any messages              |
+| `AIChatPanel` — sends request on submit          | `fetch` called with correct body                   |
+| `AIChatPanel` — shows loading indicator          | Spinner visible while awaiting response            |
+| `AIChatPanel` — renders assistant message        | Message appears after response                     |
+| `AIChatPanel` — renders LayoutDiffViewer         | Diff viewer shown when proposedLayout present      |
+| `LayoutDiffViewer` — approve calls callback      | `onApprove` called on button click                 |
+| `LayoutDiffViewer` — reject calls callback       | `onReject` called on button click                  |
+| `LayoutDiffViewer` — highlights changed regions  | Changed regions rendered with accent style         |
+| `LayoutDiffViewer` — unchanged regions muted     | Unchanged regions render without accent style      |
 
 ### 12.4 Layout quality evaluation (manual / model comparison)
 
@@ -1103,15 +1012,15 @@ Scoring: 1 point per criterion met. Models scoring < 3/5 on average are unsuitab
 
 ```
 pypackages/framework-core/src/framework_core/
-  ai.py                                # call_openrouter, extract_json, build_layout_prompt,
-                                       # build_code_prompt, validate_layout
+  ai.py                                # call_openrouter, extract_json, serialise_catalog,
+                                       # build_layout_prompt, validate_layout, mount_ai_routes
 
 pypackages/framework-core/tests/
   test_ai.py                           # unit tests for ai.py helpers
-  test_ai_endpoints.py                 # integration tests for /ai/layout, /ai/code
+  test_ai_endpoints.py                 # integration tests for /ai/layout
 
 examples/backend/
-  main.py                              # add POST /ai/layout, POST /ai/code endpoints
+  main.py                              # add mount_ai_routes(app) call
 
 packages/framework-core-ui/src/
   components/
@@ -1142,23 +1051,26 @@ examples/frontend/src/
 - [ ] Task 1: Python ai.py module (framework-core)
       - [ ] call_openrouter() — httpx POST to OpenRouter, reads OPENROUTER_API_KEY env var
       - [ ] extract_json() — handles bare JSON and markdown-fenced responses
+      - [ ] serialise_catalog() — extracts name + description from full registry list
       - [ ] build_layout_prompt() — assembles messages array with system prompt + catalog + history
-      - [ ] build_code_prompt() — assembles messages array for code generation
       - [ ] validate_layout() — checks regions, widget types, unique IDs
-      - [ ] _LAYOUT_SYSTEM_PROMPT and _CODE_SYSTEM_PROMPT constants
+      - [ ] mount_ai_routes(app) — registers POST /ai/layout on the passed FastAPI app
+      - [ ] _LAYOUT_SYSTEM_PROMPT constant (references get_widget_details tool)
       - [ ] SHELL_LAYOUT_JSON_SCHEMA loaded from shell_layout_schema.json (see Task 0)
       - [ ] Unit tests: test_ai.py (all cases in Section 12.1)
 
-- [ ] Task 2: Backend endpoints (example app)
-      - [ ] POST /ai/layout — LayoutRequest → LayoutResponse
-      - [ ] POST /ai/code — CodeRequest → CodeResponse
+- [ ] Task 2: Backend endpoints (framework helper)
+      - [ ] mount_ai_routes(app) wires POST /ai/layout — LayoutRequest → LayoutResponse
       - [ ] One automatic retry on widget type validation failure
       - [ ] 422 with structured error on second failure
+      - [ ] examples/backend/main.py: add mount_ai_routes(app) call (one line)
       - [ ] Integration tests: test_ai_endpoints.py (all cases in Section 12.2)
 
 - [ ] Task 3: LayoutDiffViewer component
       - [ ] Props: current, proposed, explanation, onApprove, onReject
-      - [ ] Human-readable diff summary (added/removed/changed items per region)
+      - [ ] Side-by-side visual wireframe of 6 shell regions (current vs proposed)
+      - [ ] Changed regions highlighted with accent border + background
+      - [ ] Widget names rendered inside each region cell
       - [ ] "Show JSON" toggle with <pre> block
       - [ ] Approve button + Reject button
       - [ ] LayoutDiffViewer.css (sct-LayoutDiffViewer- prefix)
@@ -1166,12 +1078,10 @@ examples/frontend/src/
 
 - [ ] Task 4: AIChatPanel component
       - [ ] ChatMessage type (user, assistant, error roles)
-      - [ ] Mode toggle (Layout | Code)
       - [ ] Message list with scroll-to-bottom
       - [ ] Textarea + Send button
       - [ ] Loading / typing indicator while awaiting response
       - [ ] Renders LayoutDiffViewer inline in assistant bubble when proposedLayout present
-      - [ ] Renders syntax-highlighted code block when code present (copy button)
       - [ ] Error message bubble on fetch failure
       - [ ] Serialises registry.list() (excluding factory) into the /ai/layout request body
       - [ ] AIChatPanel.css (sct-AIChatPanel- prefix)
