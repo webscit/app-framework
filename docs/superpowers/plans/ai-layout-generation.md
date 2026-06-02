@@ -978,17 +978,17 @@ Use `TestClient` with a patched `call_openrouter` that returns a canned valid la
 
 ### 12.3 Frontend unit tests
 
-| Test                                        | What it checks                                |
-| ------------------------------------------- | --------------------------------------------- |
-| `AIChatPanel` — renders empty state              | Shows placeholder before any messages              |
-| `AIChatPanel` — sends request on submit          | `fetch` called with correct body                   |
-| `AIChatPanel` — shows loading indicator          | Spinner visible while awaiting response            |
-| `AIChatPanel` — renders assistant message        | Message appears after response                     |
-| `AIChatPanel` — renders LayoutDiffViewer         | Diff viewer shown when proposedLayout present      |
-| `LayoutDiffViewer` — approve calls callback      | `onApprove` called on button click                 |
-| `LayoutDiffViewer` — reject calls callback       | `onReject` called on button click                  |
-| `LayoutDiffViewer` — highlights changed regions  | Changed regions rendered with accent style         |
-| `LayoutDiffViewer` — unchanged regions muted     | Unchanged regions render without accent style      |
+| Test                                            | What it checks                                |
+| ----------------------------------------------- | --------------------------------------------- |
+| `AIChatPanel` — renders empty state             | Shows placeholder before any messages         |
+| `AIChatPanel` — sends request on submit         | `fetch` called with correct body              |
+| `AIChatPanel` — shows loading indicator         | Spinner visible while awaiting response       |
+| `AIChatPanel` — renders assistant message       | Message appears after response                |
+| `AIChatPanel` — renders LayoutDiffViewer        | Diff viewer shown when proposedLayout present |
+| `LayoutDiffViewer` — approve calls callback     | `onApprove` called on button click            |
+| `LayoutDiffViewer` — reject calls callback      | `onReject` called on button click             |
+| `LayoutDiffViewer` — highlights changed regions | Changed regions rendered with accent style    |
+| `LayoutDiffViewer` — unchanged regions muted    | Unchanged regions render without accent style |
 
 ### 12.4 Layout quality evaluation (manual / model comparison)
 
