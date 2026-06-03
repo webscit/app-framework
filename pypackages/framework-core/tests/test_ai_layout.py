@@ -7,7 +7,10 @@ from typing import Any
 import httpx
 import pytest
 from framework_core.ai_layout import (
+    _MAX_TOOL_ROUNDS,
+    GET_WIDGET_DETAILS_TOOL,
     SHELL_LAYOUT_JSON_SCHEMA,
+    _resolve_tool_calls,
     build_layout_prompt,
     call_openrouter,
     extract_json,
@@ -296,3 +299,200 @@ async def test_call_openrouter_http_error(monkeypatch: pytest.MonkeyPatch) -> No
             messages=[{"role": "user", "content": "hello"}],
             _transport=_MockAsyncTransport(handler),
         )
+
+
+# ─── GET_WIDGET_DETAILS_TOOL ───────────────────────────────────────────────────
+
+
+def test_get_widget_details_tool_definition() -> None:
+    assert GET_WIDGET_DETAILS_TOOL["type"] == "function"
+    fn = GET_WIDGET_DETAILS_TOOL["function"]
+    assert fn["name"] == "get_widget_details"
+    params = fn["parameters"]
+    assert params["type"] == "object"
+    assert "widget_name" in params["properties"]
+    assert params["required"] == ["widget_name"]
+
+
+# ─── _resolve_tool_calls ───────────────────────────────────────────────────────
+
+_FULL_REGISTRY: list[dict[str, Any]] = [
+    {
+        "name": "Chart",
+        "description": "A chart.",
+        "channelPattern": "data/*",
+        "consumes": ["application/x-scalar+json"],
+        "priority": 10,
+        "defaultRegion": "main",
+        "parameters": {"series": {"type": "string"}},
+    },
+    {
+        "name": "LogViewer",
+        "description": "Shows logs.",
+        "channelPattern": "logs/*",
+        "consumes": [],
+        "priority": 5,
+        "defaultRegion": "bottom",
+        "parameters": {},
+    },
+]
+
+
+def test_resolve_tool_calls_known_widget() -> None:
+    tool_calls = [
+        {
+            "id": "tc-1",
+            "function": {
+                "name": "get_widget_details",
+                "arguments": json.dumps({"widget_name": "Chart"}),
+            },
+        }
+    ]
+    results = _resolve_tool_calls(tool_calls, _FULL_REGISTRY)
+    assert len(results) == 1
+    assert results[0]["role"] == "tool"
+    assert results[0]["tool_call_id"] == "tc-1"
+    payload = json.loads(results[0]["content"])
+    assert payload["name"] == "Chart"
+    assert payload["defaultRegion"] == "main"
+    assert "parameters" in payload
+
+
+def test_resolve_tool_calls_unknown_widget() -> None:
+    tool_calls = [
+        {
+            "id": "tc-2",
+            "function": {
+                "name": "get_widget_details",
+                "arguments": json.dumps({"widget_name": "NonExistent"}),
+            },
+        }
+    ]
+    results = _resolve_tool_calls(tool_calls, _FULL_REGISTRY)
+    assert len(results) == 1
+    payload = json.loads(results[0]["content"])
+    assert "error" in payload
+    assert "NonExistent" in payload["error"]
+
+
+def test_resolve_tool_calls_unknown_tool_name() -> None:
+    tool_calls = [
+        {
+            "id": "tc-3",
+            "function": {
+                "name": "some_other_tool",
+                "arguments": "{}",
+            },
+        }
+    ]
+    results = _resolve_tool_calls(tool_calls, _FULL_REGISTRY)
+    assert len(results) == 1
+    payload = json.loads(results[0]["content"])
+    assert "error" in payload
+    assert "some_other_tool" in payload["error"]
+
+
+# ─── call_openrouter — tool-call loop ─────────────────────────────────────────
+
+
+def _tool_call_response(tool_call_id: str, widget_name: str) -> dict[str, Any]:
+    """Build an OpenRouter-format response with a get_widget_details tool call."""
+    return {
+        "choices": [
+            {
+                "finish_reason": "tool_calls",
+                "message": {
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call_id,
+                            "type": "function",
+                            "function": {
+                                "name": "get_widget_details",
+                                "arguments": json.dumps({"widget_name": widget_name}),
+                            },
+                        }
+                    ],
+                },
+            }
+        ]
+    }
+
+
+@pytest.mark.anyio
+async def test_call_openrouter_handles_tool_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+
+    captured: list[dict[str, Any]] = []
+    call_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        captured.append(json.loads(request.content))
+        if call_count == 1:
+            body = _tool_call_response("tc-loop-1", "Chart")
+        else:
+            body = {
+                "choices": [
+                    {"message": {"content": '{"explanation":"done","layout":{}}'}}
+                ]
+            }
+        return httpx.Response(200, content=json.dumps(body).encode())
+
+    result = await call_openrouter(
+        messages=[{"role": "user", "content": "build a dashboard"}],
+        tools=[GET_WIDGET_DETAILS_TOOL],
+        full_registry=_FULL_REGISTRY,
+        _transport=_MockAsyncTransport(handler),
+    )
+
+    assert result == '{"explanation":"done","layout":{}}'
+    assert call_count == 2
+
+    # Both requests must include tools (required by OpenRouter on every round).
+    assert "tools" in captured[0]
+    assert "tools" in captured[1]
+
+    # Second request must carry the assistant + tool-result messages.
+    second_messages = captured[1]["messages"]
+    roles = [m["role"] for m in second_messages]
+    assert "assistant" in roles
+    assert "tool" in roles
+
+    # The tool result message must reference the correct tool_call_id.
+    tool_result = next(m for m in second_messages if m["role"] == "tool")
+    assert tool_result["tool_call_id"] == "tc-loop-1"
+    payload = json.loads(tool_result["content"])
+    assert payload["name"] == "Chart"
+
+
+@pytest.mark.anyio
+async def test_call_openrouter_tool_loop_exceeded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+
+    call_count = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(
+            200,
+            content=json.dumps(
+                _tool_call_response(f"tc-{call_count}", "Chart")
+            ).encode(),
+        )
+
+    with pytest.raises(ValueError, match="Tool-call loop exceeded"):
+        await call_openrouter(
+            messages=[{"role": "user", "content": "build a dashboard"}],
+            tools=[GET_WIDGET_DETAILS_TOOL],
+            full_registry=_FULL_REGISTRY,
+            _transport=_MockAsyncTransport(handler),
+        )
+
+    assert call_count == _MAX_TOOL_ROUNDS

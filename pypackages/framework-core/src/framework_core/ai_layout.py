@@ -24,6 +24,9 @@ DEFAULT_MODEL = "anthropic/claude-sonnet-4.6"
 _SCHEMA_PATH = Path(__file__).parent / "shell_layout_schema.json"
 SHELL_LAYOUT_JSON_SCHEMA: dict[str, Any] = json.loads(_SCHEMA_PATH.read_text())
 
+# Maximum number of tool-call rounds before giving up, to prevent infinite loops.
+_MAX_TOOL_ROUNDS = 10
+
 _LAYOUT_SYSTEM_PROMPT = """\
 You are a dashboard layout generator for a simulation framework.
 Your ONLY job is to produce a valid ShellLayout JSON object.
@@ -53,18 +56,99 @@ LAYOUT SCHEMA:
 <schema_json>
 """
 
+# ─── Tool definition ──────────────────────────────────────────────────────────
+
+GET_WIDGET_DETAILS_TOOL: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "get_widget_details",
+        "description": (
+            "Returns full details for a registered widget: channelPattern, "
+            "consumes, priority, defaultRegion, and parameters schema."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "widget_name": {
+                    "type": "string",
+                    "description": (
+                        "The exact widget name from the catalog "
+                        '(e.g. "Chart", "ParameterController").'
+                    ),
+                }
+            },
+            "required": ["widget_name"],
+        },
+    },
+}
+
+
+def _resolve_tool_calls(
+    tool_calls: list[dict[str, Any]],
+    full_registry: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Execute tool calls against the widget registry and return tool result messages.
+
+    Currently handles ``get_widget_details`` only. Unknown tool names return an
+    error payload so the AI can self-correct rather than silently stalling.
+
+    Args:
+        tool_calls: Tool call objects from an OpenRouter assistant response.
+        full_registry: Full widget registry list (factory excluded) sent by the frontend.
+
+    Returns:
+        List of ``role: "tool"`` messages ready to append to the conversation.
+    """
+    registry_by_name = {w["name"]: w for w in full_registry}
+    results: list[dict[str, Any]] = []
+
+    for tc in tool_calls:
+        fn_name = tc.get("function", {}).get("name", "")
+        if fn_name == "get_widget_details":
+            args: dict[str, Any] = json.loads(tc["function"]["arguments"])
+            widget_name = args.get("widget_name", "")
+            widget = registry_by_name.get(widget_name)
+            content = (
+                json.dumps(widget)
+                if widget is not None
+                else json.dumps(
+                    {"error": f"Widget '{widget_name}' not found in registry"}
+                )
+            )
+        else:
+            content = json.dumps({"error": f"Unknown tool '{fn_name}'"})
+
+        results.append(
+            {
+                "role": "tool",
+                "tool_call_id": tc["id"],
+                "content": content,
+            }
+        )
+
+    return results
+
+
 # ─── OpenRouter client ────────────────────────────────────────────────────────
 
 
 async def call_openrouter(
-    messages: list[dict[str, str]],
+    messages: list[dict[str, Any]],
     model: str | None = None,
     temperature: float = 0.2,
     max_tokens: int = 2048,
     api_key: str | None = None,
+    tools: list[dict[str, Any]] | None = None,
+    full_registry: list[dict[str, Any]] | None = None,
     _transport: httpx.AsyncBaseTransport | None = None,
 ) -> str:
     """Send a chat completion request to OpenRouter and return the response text.
+
+    When ``tools`` are provided the function runs a tool-call loop: if the model
+    responds with ``finish_reason: "tool_calls"``, each call is executed via
+    :func:`_resolve_tool_calls`, the results are appended to the conversation,
+    and a new request is sent. The loop repeats until the model returns a plain
+    content response or :data:`_MAX_TOOL_ROUNDS` is exceeded.
 
     Args:
         messages: OpenAI-format messages array.
@@ -73,13 +157,16 @@ async def call_openrouter(
         temperature: Sampling temperature (0.0–1.0). Default 0.2 for structured output.
         max_tokens: Maximum tokens in the response.
         api_key: OpenRouter API key. Defaults to ``OPENROUTER_API_KEY`` env var.
+        tools: OpenAI-format tool definitions to include in the request.
+        full_registry: Full widget registry used to resolve ``get_widget_details``
+                       tool calls. Required when ``tools`` is non-empty.
         _transport: Optional async transport — used in tests to inject a mock.
 
     Returns:
         Response content string from the AI.
 
     Raises:
-        ValueError: If no API key is available.
+        ValueError: If no API key is available, or the tool-call loop is exceeded.
         httpx.HTTPStatusError: If OpenRouter returns a non-2xx status.
     """
     resolved_key = api_key or os.environ.get("OPENROUTER_API_KEY")
@@ -88,32 +175,58 @@ async def call_openrouter(
 
     resolved_model = model or os.environ.get("OPENROUTER_DEFAULT_MODEL", DEFAULT_MODEL)
 
-    payload: dict[str, Any] = {
-        "model": resolved_model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
+    headers = {
+        "Authorization": f"Bearer {resolved_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/app-framework",
+        "X-Title": "app-framework AI Layout",
     }
 
     client_kwargs: dict[str, Any] = {}
     if _transport is not None:
         client_kwargs["transport"] = _transport
 
+    loop_messages: list[dict[str, Any]] = list(messages)
+
     async with httpx.AsyncClient(**client_kwargs) as client:
-        response = await client.post(
-            f"{OPENROUTER_BASE_URL}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {resolved_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/app-framework",
-                "X-Title": "app-framework AI Layout",
-            },
-            json=payload,
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        data = response.json()
-        return str(data["choices"][0]["message"]["content"])
+        for _ in range(_MAX_TOOL_ROUNDS):
+            payload: dict[str, Any] = {
+                "model": resolved_model,
+                "messages": loop_messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if tools:
+                payload["tools"] = tools
+
+            response = await client.post(
+                f"{OPENROUTER_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            choice = data["choices"][0]
+            message = choice["message"]
+
+            if choice.get("finish_reason") != "tool_calls":
+                return str(message["content"])
+
+            # AI wants to call tools — execute them and continue the loop.
+            tool_calls: list[dict[str, Any]] = message.get("tool_calls", [])
+            loop_messages.append(
+                {
+                    "role": "assistant",
+                    "content": message.get("content"),
+                    "tool_calls": tool_calls,
+                }
+            )
+            loop_messages.extend(_resolve_tool_calls(tool_calls, full_registry or []))
+
+    raise ValueError(
+        f"Tool-call loop exceeded {_MAX_TOOL_ROUNDS} iterations without a final response"
+    )
 
 
 # ─── JSON extraction ──────────────────────────────────────────────────────────
@@ -171,7 +284,7 @@ def build_layout_prompt(
     widget_catalog: list[dict[str, Any]],
     layout_schema: dict[str, Any],
     history: list[dict[str, str]] | None = None,
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     """Assemble the messages array for a layout generation request.
 
     Args:
@@ -190,7 +303,7 @@ def build_layout_prompt(
         "<catalog_json>", json.dumps(widget_catalog, indent=2)
     ).replace("<schema_json>", json.dumps(layout_schema, indent=2))
 
-    messages: list[dict[str, str]] = [{"role": "system", "content": system_content}]
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system_content}]
 
     for turn in history or []:
         messages.append({"role": "user", "content": turn["user"]})
