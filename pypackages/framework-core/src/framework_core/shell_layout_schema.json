@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ShellLayout",
+  "type": "object",
+  "required": ["regions"],
+  "properties": {
+    "regions": {
+      "type": "object",
+      "required": [
+        "header",
+        "sidebar-left",
+        "main",
+        "sidebar-right",
+        "bottom",
+        "status-bar"
+      ],
+      "properties": {
+        "header": { "$ref": "#/definitions/RegionState" },
+        "sidebar-left": { "$ref": "#/definitions/RegionState" },
+        "main": { "$ref": "#/definitions/RegionState" },
+        "sidebar-right": { "$ref": "#/definitions/RegionState" },
+        "bottom": { "$ref": "#/definitions/RegionState" },
+        "status-bar": { "$ref": "#/definitions/RegionState" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "RegionState": {
+      "type": "object",
+      "required": ["visible", "items"],
+      "properties": {
+        "visible": { "type": "boolean" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RegionItem" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "RegionItem": {
+      "type": "object",
+      "required": ["id", "type", "props"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable unique identifier. Preserves identity across saves/reloads."
+        },
+        "type": {
+          "type": "string",
+          "description": "Widget type name — resolved via WidgetRegistry at render time."
+        },
+        "props": {
+          "type": "object",
+          "description": "User-configurable props. Must be JSON-serializable."
+        },
+        "order": {
+          "type": "integer",
+          "default": 0,
+          "description": "Render order within the region. Lower renders first."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
