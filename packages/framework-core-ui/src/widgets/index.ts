@@ -11,9 +11,13 @@ export {
   type ParameterWidget,
 } from "./ParameterController";
 
+export { DataTableComponent } from "./DataTable";
+export type { DataTableProps, ColumnDef } from "./DataTable";
+
 export {
   LOG_VIEWER,
   STATUS_INDICATOR,
   PARAMETER_CONTROLLER,
   CHART,
+  DATA_TABLE,
 } from "./defaultWidgets";

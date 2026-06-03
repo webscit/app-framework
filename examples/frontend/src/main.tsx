@@ -9,6 +9,7 @@ import {
   useWidgetLoader,
   PARAMETER_CONTROLLER,
   CHART,
+  DATA_TABLE,
   createDefaultShellLayout,
 } from "@app-framework/core-ui";
 import type { ShellLayout } from "@app-framework/core-ui";
@@ -19,6 +20,7 @@ import "@/globals.css";
 const registry = new WidgetRegistry();
 registry.register(PARAMETER_CONTROLLER);
 registry.register(CHART);
+registry.register(DATA_TABLE);
 
 const initialLayout: ShellLayout = {
   regions: {
@@ -45,6 +47,23 @@ const initialLayout: ShellLayout = {
             ],
           },
           order: 0,
+        },
+        {
+          id: "results-table",
+          type: "DataTable",
+          props: {
+            channel: "table/results",
+            title: "Solver Results",
+            pageSize: 20,
+            maxRows: 500,
+            columns: [
+              { key: "step", header: "Step", type: "number" },
+              { key: "time_s", header: "Time (s)", type: "number" },
+              { key: "residual", header: "Residual", type: "number" },
+              { key: "status", header: "Status", type: "string" },
+            ],
+          },
+          order: 1,
         },
       ],
     },

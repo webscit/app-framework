@@ -19,6 +19,7 @@ export {
   STATUS_INDICATOR,
   PARAMETER_CONTROLLER,
   CHART,
+  DATA_TABLE,
 } from "./widgets/defaultWidgets";
 export {
   ParameterControllerComponent,
@@ -29,6 +30,8 @@ export {
 } from "./widgets/ParameterController";
 export { ChartComponent, getFieldValue } from "./widgets/Chart";
 export type { ChartProps, SeriesConfig } from "./widgets/Chart";
+export { DataTableComponent } from "./widgets/DataTable";
+export type { DataTableProps, ColumnDef } from "./widgets/DataTable";
 export type { IDisposable } from "./disposable";
 export {
   type WidgetDefinition,

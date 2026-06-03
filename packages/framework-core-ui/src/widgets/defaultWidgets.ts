@@ -4,6 +4,7 @@ import { LogViewerComponent } from "./LogViewer/LogViewer";
 import type { WidgetDefinition } from "../widgetRegistry";
 import { ParameterControllerComponent } from "./ParameterController/ParameterController";
 import { ChartComponent } from "./Chart/Chart";
+import { DataTableComponent } from "./DataTable/DataTable";
 
 // Placeholder component — real implementation is in StatusIndicator.tsx.
 const StatusIndicatorPlaceholder: ComponentType = () => null;
@@ -126,4 +127,47 @@ export const CHART: WidgetDefinition = {
   // ChartComponent has typed props; cast to ComponentType so the registry
   // accepts it — props are injected by the widget loader at runtime.
   factory: () => ChartComponent as ComponentType,
+};
+
+/**
+ * Built-in widget that displays live tabular data streamed row-by-row from
+ * the EventBus, with client-side sorting, pagination, column visibility
+ * toggle, and search.
+ *
+ * Subscribes to channels matching `"table/*"` and accumulates incoming row
+ * objects into a paginated, sortable, searchable table. Suitable for solver
+ * iteration logs, parameter sweeps, and results grids.
+ */
+export const DATA_TABLE: WidgetDefinition = {
+  name: "DataTable",
+  description:
+    "Live tabular data viewer. Subscribes to an EventBus channel and appends " +
+    "incoming row objects into a paginated, sortable, searchable table. " +
+    "Suitable for solver iteration logs, parameter sweeps, and results grids.",
+  channelPattern: "table/*",
+  consumes: ["application/x-tabular+json"],
+  priority: 10,
+  defaultRegion: "main",
+  parameters: {
+    title: {
+      type: "string",
+      default: "",
+      description: "Title displayed above the toolbar.",
+    },
+    pageSize: {
+      type: "integer",
+      default: 20,
+      minimum: 5,
+      maximum: 100,
+      description: "Number of rows shown per page.",
+    },
+    maxRows: {
+      type: "integer",
+      default: 1000,
+      minimum: 100,
+      maximum: 10000,
+      description: "Maximum rows retained in the rolling buffer.",
+    },
+  },
+  factory: () => DataTableComponent as ComponentType,
 };
