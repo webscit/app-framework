@@ -29,6 +29,10 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# AI prompt strings contain intentionally long lines that must not be wrapped.
+"pypackages/framework-core/src/framework_core/ai_layout.py" = ["E501"]
+
 [tool.mypy]
 strict = true
 python_version = "3.11"
