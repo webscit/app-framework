@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from framework_core.bus import BaseEvent, EventBus
 
 
-class SineReading(BaseEvent):  # type: ignore[misc]
+class SineReading(BaseEvent):
     """Sine wave sample event for the demo channel."""
 
     value: float
 
 
-class LogEntry(BaseEvent):  # type: ignore[misc]
+class LogEntry(BaseEvent):
     """Application log event emitted by the demo producer."""
 
     level: str

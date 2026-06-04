@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from framework_core import create_app
+from framework_core.ai_layout import mount_ai_routes
 
 from .consumers import register_consumers
 from .producers import SineParams, start_log_producer, start_sine_wave_producer
@@ -31,3 +32,4 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = create_app(lifespan=lifespan)
+mount_ai_routes(app)

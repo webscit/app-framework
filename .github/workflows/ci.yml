@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/ai-layout]
   pull_request:
-    branches: [main]
+    branches: [main, feat/ai-layout]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
