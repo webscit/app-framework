@@ -403,7 +403,7 @@ class LayoutResponse(BaseModel):
 def mount_ai_routes(app: FastAPI) -> None:
     """Mount AI layout generation endpoints onto the given FastAPI app.
 
-    Follows the same pattern as ``_mount_ws_bridge``.  Call once after
+    Call once after
     ``create_app()``:
 
     .. code-block:: python
