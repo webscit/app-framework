@@ -45,6 +45,10 @@ export {
   type ShellClassNames,
 } from "./ApplicationShell";
 export {
+  LayoutDiffViewer,
+  type LayoutDiffViewerProps,
+} from "./components/LayoutDiffViewer";
+export {
   useShellLayoutStore,
   clearPersistedLayout,
   type ShellLayoutStore,

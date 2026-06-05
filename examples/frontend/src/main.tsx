@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
   ApplicationShell,
@@ -10,6 +10,7 @@ import {
   PARAMETER_CONTROLLER,
   CHART,
   createDefaultShellLayout,
+  LayoutDiffViewer,
 } from "@app-framework/core-ui";
 import type { ShellLayout } from "@app-framework/core-ui";
 import { useSimulation } from "./useSimulation";
@@ -143,12 +144,76 @@ function AppShell() {
   );
 }
 
+const demoProposed: ShellLayout = {
+  regions: {
+    ...createDefaultShellLayout().regions,
+    "sidebar-left": {
+      visible: true,
+      items: [{ id: "pc-1", type: "ParameterController", props: {} }],
+    },
+    main: {
+      visible: true,
+      items: [{ id: "chart-1", type: "Chart", props: {} }],
+    },
+    "sidebar-right": {
+      visible: true,
+      items: [{ id: "log-1", type: "LogViewer", props: {} }],
+    },
+  },
+};
+
 function App() {
+  const [showDemo, setShowDemo] = useState(false);
+
   return (
     <WidgetRegistryContext.Provider value={registry}>
       <EventBusProvider path="/ws">
         <WidgetLoaderProvider>
           <AppShell />
+          {/* ── LayoutDiffViewer demo overlay ── */}
+          <div
+            style={{
+              position: "fixed",
+              bottom: 16,
+              right: 16,
+              zIndex: 1000,
+            }}
+          >
+            <button
+              onClick={() => setShowDemo((v) => !v)}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 6,
+                border: "1px solid #555",
+                background: "#1e1e1e",
+                color: "#fff",
+                cursor: "pointer",
+                fontSize: 13,
+              }}
+            >
+              {showDemo ? "Hide" : "Show"} LayoutDiffViewer demo
+            </button>
+            {showDemo && (
+              <div
+                style={{
+                  marginTop: 8,
+                  width: 520,
+                  background: "var(--card, #fff)",
+                  border: "1px solid var(--border, #e5e7eb)",
+                  borderRadius: 10,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                }}
+              >
+                <LayoutDiffViewer
+                  current={initialLayout}
+                  proposed={demoProposed}
+                  explanation="Added a ParameterController to the left sidebar, a Chart to main, and a LogViewer to the right sidebar."
+                  onApprove={() => alert("Approved!")}
+                  onReject={() => setShowDemo(false)}
+                />
+              </div>
+            )}
+          </div>
         </WidgetLoaderProvider>
       </EventBusProvider>
     </WidgetRegistryContext.Provider>
