@@ -123,13 +123,12 @@ def test_layout_endpoint_rejects_unknown_widget(
 
 
 def test_layout_endpoint_missing_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Missing OPENROUTER_API_KEY causes a 500 with a descriptive error."""
+    """Missing OPENROUTER_API_KEY causes a 502 with a descriptive error."""
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
 
     app = create_app()
     mount_ai_routes(app)
-    # raise_server_exceptions=False so unhandled ValueError surfaces as 500
-    with TestClient(app, raise_server_exceptions=False) as c:
+    with TestClient(app) as c:
         response = c.post(
             "/ai/layout",
             json={
@@ -139,4 +138,5 @@ def test_layout_endpoint_missing_api_key(monkeypatch: pytest.MonkeyPatch) -> Non
             },
         )
 
-    assert response.status_code == 500
+    assert response.status_code == 502
+    assert "OPENROUTER_API_KEY" in response.json()["detail"]["errors"][0]

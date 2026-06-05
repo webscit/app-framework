@@ -282,7 +282,9 @@ async def test_call_openrouter_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert captured[0].headers["HTTP-Referer"] == "https://github.com/app-framework"
 
     body = json.loads(captured[0].content)
-    assert body["model"] == "anthropic/claude-sonnet-4.6"
+    from framework_core.ai_layout import DEFAULT_MODEL
+
+    assert body["model"] == DEFAULT_MODEL
     assert body["temperature"] == 0.2
     assert body["messages"] == [{"role": "user", "content": "hello"}]
 

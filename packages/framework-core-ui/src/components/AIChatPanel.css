@@ -1,0 +1,183 @@
+/* ─── Sheet sizing ────────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 90vw) !important;
+  max-width: 100vw;
+  padding: 0;
+  gap: 0;
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-header {
+  flex-shrink: 0;
+  padding: 16px 48px 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ─── Messages scroll area ────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-messages {
+  flex: 1;
+  min-height: 0;
+}
+
+.sct-AIChatPanel-messages-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+/* ─── Empty state ─────────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-empty {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  text-align: center;
+  padding: 32px 8px;
+}
+
+/* ─── Message rows ────────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-row {
+  display: flex;
+}
+
+.sct-AIChatPanel-row--user {
+  justify-content: flex-end;
+}
+
+.sct-AIChatPanel-row--assistant {
+  justify-content: flex-start;
+}
+
+/* ─── Bubbles ─────────────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-bubble {
+  max-width: 85%;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.sct-AIChatPanel-bubble--user {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-bottom-right-radius: 4px;
+}
+
+.sct-AIChatPanel-bubble--assistant {
+  background-color: var(--muted);
+  color: var(--foreground);
+  border-bottom-left-radius: 4px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.sct-AIChatPanel-bubble-text {
+  margin: 0;
+}
+
+/* ─── Inline diff viewer ──────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-diff {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+  /* Remove inner padding since LayoutDiffViewer has its own */
+  margin-left: -14px;
+  margin-right: -14px;
+}
+
+/* ─── Status badges ───────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-status {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.sct-AIChatPanel-status--approved {
+  color: oklch(0.5 0.18 150);
+}
+
+.sct-AIChatPanel-status--rejected {
+  color: var(--muted-foreground);
+}
+
+/* ─── Typing indicator ────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.sct-AIChatPanel-typing span {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--muted-foreground);
+  animation: sct-chat-dot-bounce 1.2s ease-in-out infinite;
+}
+
+.sct-AIChatPanel-typing span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.sct-AIChatPanel-typing span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes sct-chat-dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+/* ─── Error message ───────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-error {
+  margin: 0;
+  padding: 10px 14px;
+  background-color: oklch(0.97 0.03 25);
+  border: 1px solid oklch(0.75 0.12 25);
+  border-radius: 8px;
+  color: oklch(0.45 0.18 25);
+  font-size: 13px;
+}
+
+/* ─── Input row ───────────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-input-row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background-color: var(--background);
+}
+
+.sct-AIChatPanel-textarea {
+  flex: 1;
+  resize: none;
+  min-height: unset;
+  max-height: 120px;
+  overflow-y: auto;
+}

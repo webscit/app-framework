@@ -53,8 +53,8 @@ async def start_sine_wave_producer(bus: EventBus, params: SineParams) -> None:
 
 
 async def start_log_producer(bus: EventBus) -> None:
-    """Publish a heartbeat log entry to ``logs/app`` every second."""
+    """Publish a heartbeat log entry to ``log/app`` every second."""
 
     while True:
-        await bus.publish("logs/app", LogEntry(level="info", message="heartbeat"))
+        await bus.publish("log/app", LogEntry(level="info", message="heartbeat"))
         await asyncio.sleep(1.0)
