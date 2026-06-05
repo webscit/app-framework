@@ -36,7 +36,7 @@ const NON_TOGGLABLE: ReadonlySet<RegionId> = new Set<RegionId>([
  * @param layout - Layout to validate.
  * @returns Validated layout.
  */
-function applyNonTogglableCorrection(layout: ShellLayout): ShellLayout {
+export function applyNonTogglableCorrection(layout: ShellLayout): ShellLayout {
   let corrected = false;
   const regions = { ...layout.regions } as Record<RegionId, RegionState>;
 

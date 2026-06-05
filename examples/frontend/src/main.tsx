@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
   ApplicationShell,
+  applyNonTogglableCorrection,
   EventBusProvider,
   WidgetRegistry,
   WidgetRegistryContext,
@@ -99,7 +100,11 @@ const initialLayout: ShellLayout = {
   },
 };
 
-function Dashboard() {
+interface DashboardProps {
+  onOpenChat: () => void;
+}
+
+function Dashboard({ onOpenChat }: DashboardProps) {
   const { sine, log } = useSimulation();
 
   return (
@@ -125,11 +130,18 @@ function Dashboard() {
           {log ? `[${log.level}] ${log.message}` : "—"}
         </span>
       </span>
+      <button style={buttonStyle} onClick={onOpenChat} aria-label="Open AI layout chat">
+        AI Layout
+      </button>
     </div>
   );
 }
 
-function AppShell() {
+interface AppShellProps {
+  onOpenChat: () => void;
+}
+
+function AppShell({ onOpenChat }: AppShellProps) {
   const loaderStatus = useWidgetLoader("/sct-manifest.json");
 
   if (loaderStatus === "loading") return <p>Loading widgets…</p>;
@@ -140,7 +152,7 @@ function AppShell() {
       data-testid="shell-layout"
       style={{ display: "flex", flexDirection: "column", height: "100vh" }}
     >
-      <Dashboard />
+      <Dashboard onOpenChat={onOpenChat} />
       <div style={{ flex: 1, overflow: "hidden" }}>
         <ApplicationShell initialLayout={initialLayout} />
       </div>
@@ -185,9 +197,9 @@ function App() {
     <WidgetRegistryContext.Provider value={registry}>
       <EventBusProvider path="/ws">
         <WidgetLoaderProvider>
-          <AppShell />
+          <AppShell onOpenChat={() => setChatOpen(true)} />
 
-          {/* Floating controls — hidden while AI chat panel is open to avoid z-index overlap */}
+          {/* Floating LayoutDiffViewer demo — hidden while AI chat panel is open */}
           {!chatOpen && (
             <div
               style={{
@@ -201,9 +213,6 @@ function App() {
                 gap: 8,
               }}
             >
-              <button style={buttonStyle} onClick={() => setChatOpen(true)}>
-                AI Layout
-              </button>
               <button style={buttonStyle} onClick={() => setShowDemo((v) => !v)}>
                 {showDemo ? "Hide" : "Show"} LayoutDiffViewer demo
               </button>
@@ -233,7 +242,9 @@ function App() {
             open={chatOpen}
             onOpenChange={setChatOpen}
             currentLayout={layout}
-            onApplyLayout={(proposed) => setLayout(() => proposed)}
+            onApplyLayout={(proposed) =>
+              setLayout(() => applyNonTogglableCorrection(proposed))
+            }
             registry={registry}
             apiUrl="/ai/layout"
           />
