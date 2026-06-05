@@ -49,6 +49,11 @@ export {
   type LayoutDiffViewerProps,
 } from "./components/LayoutDiffViewer";
 export {
+  AIChatPanel,
+  type AIChatPanelProps,
+  type ChatMessage,
+} from "./components/AIChatPanel";
+export {
   useShellLayoutStore,
   clearPersistedLayout,
   type ShellLayoutStore,

@@ -12,6 +12,8 @@ export default mergeConfig(
         "@base-ui/react/field",
         "@base-ui/react/select",
         "@base-ui/react/slider",
+        "@base-ui/react/dialog",
+        "@base-ui/react/scroll-area",
       ],
     },
     test: {

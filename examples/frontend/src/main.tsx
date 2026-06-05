@@ -9,8 +9,11 @@ import {
   useWidgetLoader,
   PARAMETER_CONTROLLER,
   CHART,
+  LOG_VIEWER,
   createDefaultShellLayout,
   LayoutDiffViewer,
+  AIChatPanel,
+  useShellLayoutStore,
 } from "@app-framework/core-ui";
 import type { ShellLayout } from "@app-framework/core-ui";
 import { useSimulation } from "./useSimulation";
@@ -20,6 +23,7 @@ import "@/globals.css";
 const registry = new WidgetRegistry();
 registry.register(PARAMETER_CONTROLLER);
 registry.register(CHART);
+registry.register(LOG_VIEWER);
 
 const initialLayout: ShellLayout = {
   regions: {
@@ -162,58 +166,77 @@ const demoProposed: ShellLayout = {
   },
 };
 
+const buttonStyle: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 6,
+  border: "1px solid #555",
+  background: "#1e1e1e",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: 13,
+};
+
 function App() {
+  const [chatOpen, setChatOpen] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
+  const { layout, setLayout } = useShellLayoutStore();
 
   return (
     <WidgetRegistryContext.Provider value={registry}>
       <EventBusProvider path="/ws">
         <WidgetLoaderProvider>
           <AppShell />
-          {/* ── LayoutDiffViewer demo overlay ── */}
-          <div
-            style={{
-              position: "fixed",
-              bottom: 16,
-              right: 16,
-              zIndex: 1000,
-            }}
-          >
-            <button
-              onClick={() => setShowDemo((v) => !v)}
+
+          {/* Floating controls — hidden while AI chat panel is open to avoid z-index overlap */}
+          {!chatOpen && (
+            <div
               style={{
-                padding: "6px 14px",
-                borderRadius: 6,
-                border: "1px solid #555",
-                background: "#1e1e1e",
-                color: "#fff",
-                cursor: "pointer",
-                fontSize: 13,
+                position: "fixed",
+                bottom: 16,
+                right: 16,
+                zIndex: 40,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                gap: 8,
               }}
             >
-              {showDemo ? "Hide" : "Show"} LayoutDiffViewer demo
-            </button>
-            {showDemo && (
-              <div
-                style={{
-                  marginTop: 8,
-                  width: 520,
-                  background: "var(--card, #fff)",
-                  border: "1px solid var(--border, #e5e7eb)",
-                  borderRadius: 10,
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-                }}
-              >
-                <LayoutDiffViewer
-                  current={initialLayout}
-                  proposed={demoProposed}
-                  explanation="Added a ParameterController to the left sidebar, a Chart to main, and a LogViewer to the right sidebar."
-                  onApprove={() => alert("Approved!")}
-                  onReject={() => setShowDemo(false)}
-                />
-              </div>
-            )}
-          </div>
+              <button style={buttonStyle} onClick={() => setChatOpen(true)}>
+                AI Layout
+              </button>
+              <button style={buttonStyle} onClick={() => setShowDemo((v) => !v)}>
+                {showDemo ? "Hide" : "Show"} LayoutDiffViewer demo
+              </button>
+              {showDemo && (
+                <div
+                  style={{
+                    width: 520,
+                    background: "var(--card, #fff)",
+                    border: "1px solid var(--border, #e5e7eb)",
+                    borderRadius: 10,
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                  }}
+                >
+                  <LayoutDiffViewer
+                    current={initialLayout}
+                    proposed={demoProposed}
+                    explanation="Added a ParameterController to the left sidebar, a Chart to main, and a LogViewer to the right sidebar."
+                    onApprove={() => alert("Approved!")}
+                    onReject={() => setShowDemo(false)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <AIChatPanel
+            open={chatOpen}
+            onOpenChange={setChatOpen}
+            currentLayout={layout}
+            onApplyLayout={(proposed) => setLayout(() => proposed)}
+            registry={registry}
+            apiUrl="/ai/layout"
+          />
         </WidgetLoaderProvider>
       </EventBusProvider>
     </WidgetRegistryContext.Provider>

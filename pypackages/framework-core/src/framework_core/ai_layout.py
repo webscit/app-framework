@@ -18,7 +18,7 @@ from pydantic import BaseModel
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "anthropic/claude-sonnet-4.6"
+DEFAULT_MODEL = "google/gemma-4-31b-it:free"
 
 # JSON Schema for ShellLayout — loaded from the bundled copy of
 # shell_layout_schema.json. The canonical source lives at the repo root;
@@ -42,20 +42,24 @@ RULES — you must follow all of them:
 3. Do not wrap the JSON in markdown code fences.
 4. Do not add any text outside the JSON object.
 5. Every RegionItem must have a unique "id" string.
-6. Call get_widget_details(widget_name) BEFORE setting any props on a widget — the catalog
-   only provides names and descriptions. Full parameter schemas are only available via the tool.
-7. Use the widget's "defaultRegion" (returned by get_widget_details) as a guide for placement
+6. Use the widget's "defaultRegion" field from the catalog as a guide for placement
    unless the user specifies otherwise.
-8. For ParameterController, populate the "parameters" prop from the user's description of
+7. For ParameterController, populate the "parameters" prop from the user's description of
    their simulation inputs. Infer reasonable min/max/default values from context.
-9. For Chart, set the "series" prop to subscribe to the channel the backend publishes data on.
+8. For Chart, set the "series" prop to subscribe to the channel the backend publishes data on.
    Default to "data/<signal_name>" if the user does not specify a channel.
+9. IMPORTANT: When a CURRENT LAYOUT is provided, start from it and apply only the changes the
+   user requests. Preserve the "visible" flag and items of regions the user did not mention.
+   Never set a region to visible:false unless the user explicitly asks to hide it.
 
-WIDGET CATALOG (name and description only — call get_widget_details for full schema):
+WIDGET CATALOG (full details — use defaultRegion, channelPattern, and parameters schema):
 <catalog_json>
 
 LAYOUT SCHEMA:
 <schema_json>
+
+CURRENT LAYOUT (start from this and make only the requested changes):
+<current_layout_json>
 """
 
 # ─── Tool definition ──────────────────────────────────────────────────────────
@@ -213,7 +217,21 @@ async def call_openrouter(
             message = choice["message"]
 
             if choice.get("finish_reason") != "tool_calls":
-                return str(message["content"])
+                content = message.get("content")
+                if content:
+                    return str(content)
+                # Claude sometimes returns finish_reason="stop" with null content
+                # after tool calls. Nudge once more for the final JSON output.
+                loop_messages.append({"role": "assistant", "content": None})
+                loop_messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Provide the final JSON object with 'layout' and 'explanation' keys."
+                        ),
+                    }
+                )
+                continue
 
             # AI wants to call tools — execute them and continue the loop.
             tool_calls: list[dict[str, Any]] = message.get("tool_calls", [])
@@ -286,24 +304,38 @@ def build_layout_prompt(
     widget_catalog: list[dict[str, Any]],
     layout_schema: dict[str, Any],
     history: list[dict[str, str]] | None = None,
+    current_layout: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Assemble the messages array for a layout generation request.
 
     Args:
         user_message: Current user prompt.
-        widget_catalog: Lightweight catalog (name + description only) from
-            :func:`serialise_catalog`.
+        widget_catalog: Full widget registry (factory excluded) — includes
+            ``defaultRegion``, ``channelPattern``, and ``parameters`` schema
+            so the model can configure widget props without tool calls.
         layout_schema: JSON Schema for ShellLayout.
         history: Prior approved conversation turns as
             ``[{"user": ..., "assistant": ...}]``. Rejected turns must be
             excluded by the caller so they do not pollute the AI context.
+        current_layout: The live ShellLayout currently displayed. When
+            provided, the AI starts from it and applies only the requested
+            changes instead of generating from scratch.
 
     Returns:
         Messages array ready to pass to :func:`call_openrouter`.
     """
-    system_content = _LAYOUT_SYSTEM_PROMPT.replace(
-        "<catalog_json>", json.dumps(widget_catalog, indent=2)
-    ).replace("<schema_json>", json.dumps(layout_schema, indent=2))
+    current_layout_text = (
+        json.dumps(current_layout, indent=2)
+        if current_layout is not None
+        else "None provided — generate a sensible default layout."
+    )
+    system_content = (
+        _LAYOUT_SYSTEM_PROMPT.replace(
+            "<catalog_json>", json.dumps(widget_catalog, indent=2)
+        )
+        .replace("<schema_json>", json.dumps(layout_schema, indent=2))
+        .replace("<current_layout_json>", current_layout_text)
+    )
 
     messages: list[dict[str, Any]] = [{"role": "system", "content": system_content}]
 
@@ -376,13 +408,15 @@ class LayoutRequest(BaseModel):
             ``[{"user": ..., "assistant": ...}]``. Rejected turns must be
             excluded by the caller so they do not pollute the AI context.
         registry: Full widget registry list sent by the frontend (factory
-            field excluded). Used both to build the lightweight catalog for
-            the system prompt and to resolve ``get_widget_details`` tool calls.
+            field excluded).
+        current_layout: The live ShellLayout currently displayed. The AI uses
+            this to preserve existing regions when making partial changes.
     """
 
     prompt: str
     history: list[dict[str, str]] = []
     registry: list[dict[str, Any]]
+    current_layout: dict[str, Any] | None = None
 
 
 class LayoutResponse(BaseModel):
@@ -436,20 +470,20 @@ def mount_ai_routes(app: FastAPI) -> None:
                 automatic retry with a correction hint.
         """
         registered_names = {w["name"] for w in request.registry}
-        catalog = serialise_catalog(request.registry)
         messages = build_layout_prompt(
             user_message=request.prompt,
-            widget_catalog=catalog,
+            widget_catalog=request.registry,
             layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
             history=request.history,
+            current_layout=request.current_layout,
         )
 
-        raw = await call_openrouter(
-            messages=messages,
-            tools=[GET_WIDGET_DETAILS_TOOL],
-            full_registry=request.registry,
-        )
-        data = extract_json(raw)
+        try:
+            raw = await call_openrouter(messages=messages)
+            data = extract_json(raw)
+        except (ValueError, httpx.HTTPStatusError) as exc:
+            raise HTTPException(status_code=502, detail={"errors": [str(exc)]}) from exc
+
         layout: dict[str, Any] = data.get("layout", {})
         explanation: str = data.get("explanation", "")
 
@@ -465,12 +499,14 @@ def mount_ai_routes(app: FastAPI) -> None:
                 {"role": "assistant", "content": raw},
                 {"role": "user", "content": correction},
             ]
-            raw = await call_openrouter(
-                messages=retry_messages,
-                tools=[GET_WIDGET_DETAILS_TOOL],
-                full_registry=request.registry,
-            )
-            data = extract_json(raw)
+            try:
+                raw = await call_openrouter(messages=retry_messages)
+                data = extract_json(raw)
+            except (ValueError, httpx.HTTPStatusError) as exc:
+                raise HTTPException(
+                    status_code=502, detail={"errors": [str(exc)]}
+                ) from exc
+
             layout = data.get("layout", {})
             explanation = data.get("explanation", "")
             errors = validate_layout(layout, registered_names=registered_names)
