@@ -192,13 +192,14 @@ export function LayoutDiffViewer({
         />
       </div>
 
-      <button
+      <Button
+        variant="link"
         className="sct-LayoutDiffViewer-json-toggle"
         onClick={() => setShowJson((prev) => !prev)}
         aria-expanded={showJson}
       >
         {showJson ? "Hide JSON" : "Show JSON"}
-      </button>
+      </Button>
 
       {showJson && (
         <pre className="sct-LayoutDiffViewer-json">
