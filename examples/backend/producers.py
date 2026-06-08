@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from framework_core.bus import BaseEvent, EventBus
 
@@ -65,6 +65,30 @@ class TableRowEvent(BaseEvent):  # type: ignore[misc]
     """Single row of tabular simulation results published to a ``table/*`` channel."""
 
     row: dict[str, Any]
+
+
+class ControlEvent(BaseEvent):  # type: ignore[misc]
+    """Heartbeat event published to the control channel."""
+
+    status: Literal["running", "paused", "converged", "failed"]
+    message: str | None = None
+
+
+async def start_heartbeat_producer(bus: EventBus) -> None:
+    """Publish a running heartbeat on ``control/sim`` every second.
+
+    Args:
+        bus: The shared EventBus to publish events on.
+    """
+
+    iteration = 0
+    while True:
+        await bus.publish(
+            "control/sim",
+            ControlEvent(status="running", message=f"Iteration {iteration}"),
+        )
+        iteration += 1
+        await asyncio.sleep(1.0)
 
 
 async def start_table_producer(bus: EventBus) -> None:

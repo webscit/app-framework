@@ -32,6 +32,8 @@ export { ChartComponent, getFieldValue } from "./widgets/Chart";
 export type { ChartProps, SeriesConfig } from "./widgets/Chart";
 export { DataTableComponent } from "./widgets/DataTable";
 export type { DataTableProps, ColumnDef } from "./widgets/DataTable";
+export { StatusIndicatorComponent } from "./widgets/StatusIndicator";
+export type { StatusIndicatorProps, SimulationStatus } from "./widgets/StatusIndicator";
 export type { IDisposable } from "./disposable";
 export {
   type WidgetDefinition,

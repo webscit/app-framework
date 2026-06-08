@@ -1,0 +1,62 @@
+.sct-StatusIndicator-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.sct-StatusIndicator-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sct-StatusIndicator-label {
+  color: var(--muted-foreground, #6b7280);
+  white-space: nowrap;
+}
+
+.sct-StatusIndicator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.sct-StatusIndicator-badge--running {
+  background-color: #22c55e;
+}
+
+.sct-StatusIndicator-badge--paused {
+  background-color: #f59e0b;
+}
+
+.sct-StatusIndicator-badge--converged {
+  background-color: #3b82f6;
+}
+
+.sct-StatusIndicator-badge--failed {
+  background-color: #ef4444;
+}
+
+.sct-StatusIndicator-badge--unknown {
+  background-color: #6b7280;
+}
+
+.sct-StatusIndicator-message {
+  font-size: 0.7rem;
+  color: var(--muted-foreground, #6b7280);
+  padding-left: 2px;
+}
+
+.sct-StatusIndicator-last-seen {
+  font-size: 0.7rem;
+  color: var(--muted-foreground, #6b7280);
+  padding-left: 2px;
+}
