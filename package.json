@@ -29,8 +29,5 @@
   },
   "optionalDependencies": {
     "@tailwindcss/oxide-darwin-arm64": "^4.3.0"
-  },
-  "overrides": {
-    "vite": "^6.3.0"
   }
 }

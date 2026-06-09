@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AppFramework — Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #1e1e1e;
+      --surface:    #252526;
+      --surface2:   #2d2d2d;
+      --surface3:   #333333;
+      --accent:     #f97316;
+      --accent-dim: rgba(249,115,22,0.12);
+      --text:       #f0f0f0;
+      --muted:      #999999;
+      --border:     #3e3e42;
+      --green:      #4ade80;
+      --blue:       #60a5fa;
+      --blue-dim:   rgba(96,165,250,0.12);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Slide system ────────────────────────────────────────────────────────── */
+
+    .deck { position: relative; width: 100vw; height: 100vh; }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 52px 40px 68px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+
+    .slide.active { opacity: 1; pointer-events: auto; }
+
+    .content { width: 100%; max-width: 900px; }
+
+    #counter {
+      position: fixed;
+      bottom: 22px;
+      right: 28px;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      user-select: none;
+      z-index: 200;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .slide-title {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 28px;
+    }
+
+    .mermaid { display: flex; justify-content: center; }
+    .mermaid svg { max-width: 100%; }
+
+
+    /* ═══════════════════════════════════════════════════════ SLIDE 1 — TITLE */
+
+    .s1-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 56px;
+      align-items: center;
+    }
+
+    .s1-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      margin-bottom: 20px;
+      letter-spacing: 0.04em;
+    }
+
+    .s1-badge span { color: var(--accent); font-weight: 600; }
+
+    .s1-title {
+      font-size: 58px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.0;
+      margin-bottom: 18px;
+    }
+
+    .s1-title em { color: var(--accent); font-style: normal; }
+
+    .s1-sub {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-weight: 400;
+      max-width: 420px;
+      margin-bottom: 32px;
+    }
+
+    .s1-meta { font-size: 13px; color: var(--muted); }
+
+    .app-mockup {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 248px;
+      background: var(--surface2);
+      box-shadow: 0 0 0 1px rgba(249,115,22,0.18), 0 24px 64px rgba(0,0,0,0.55);
+    }
+
+    .mockup-titlebar {
+      height: 36px;
+      background: #2a2a2a;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .dot { width: 11px; height: 11px; border-radius: 50%; }
+    .dot-r { background: #ef4444; }
+    .dot-y { background: #eab308; }
+    .dot-g { background: #22c55e; }
+
+    .mockup-app-title { font-size: 11px; color: var(--muted); flex: 1; margin-left: 10px; }
+
+    .mockup-ai-btn {
+      font-size: 11px; font-family: inherit; font-weight: 600;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 4px; padding: 3px 10px; cursor: default;
+    }
+
+    .mockup-body { display: flex; flex: 1; overflow: hidden; }
+
+    .mockup-sidebar {
+      width: 155px; flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 10px 12px;
+    }
+
+    .mockup-section-label {
+      font-size: 9px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--muted); margin-bottom: 10px;
+    }
+
+    .slider-row { margin-bottom: 11px; }
+    .slider-name { font-size: 10px; color: #bbb; margin-bottom: 5px; }
+
+    .slider-track {
+      height: 4px; background: var(--surface3);
+      border-radius: 2px; position: relative;
+    }
+
+    .slider-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+    .slider-thumb {
+      position: absolute; top: -5px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; border: 2px solid var(--accent);
+      transform: translateX(-50%);
+    }
+
+    .mockup-main {
+      flex: 1; background: var(--surface2);
+      padding: 10px 12px; overflow: hidden;
+    }
+
+    .chart-title { font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+    .chart-area { height: calc(100% - 22px); }
+
+    .mockup-statusbar {
+      height: 22px; background: #007acc;
+      display: flex; align-items: center;
+      padding: 0 10px; gap: 14px;
+      font-size: 10px; color: rgba(255,255,255,0.9); flex-shrink: 0;
+    }
+
+
+    /* ══════════════════════════════════════════════ SLIDE 2 — PROBLEM & SOLUTION */
+
+    .s2-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    .col-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .col-label.problem { color: #ef4444; }
+
+    .prob-list { list-style: none; display: flex; flex-direction: column; gap: 18px; }
+
+    .prob-list li {
+      display: flex; gap: 12px;
+      font-size: 14px; line-height: 1.55; color: #d4d4d4;
+    }
+
+    .prob-list li::before {
+      content: '→';
+      color: var(--accent);
+      flex-shrink: 0; font-weight: 700; margin-top: 1px;
+    }
+
+    /* ── Architecture diagram ── */
+
+    .arch-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* Layered blocks */
+    .arch-block {
+      border-radius: 10px;
+      border: 1px solid;
+      padding: 10px 14px 13px;
+      position: relative;
+    }
+
+    .arch-block--python { border-color: rgba(249,115,22,0.35); background: rgba(249,115,22,0.04); }
+    .arch-block--react  { border-color: rgba(96,165,250,0.35);  background: rgba(96,165,250,0.04);  }
+
+    .arch-block-tag {
+      position: absolute;
+      top: -10px; left: 12px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 1px 10px;
+      border-radius: 20px;
+    }
+
+    .python-tag {
+      background: rgba(249,115,22,0.14);
+      color: var(--accent);
+      border: 1px solid rgba(249,115,22,0.35);
+    }
+
+    .react-tag {
+      background: rgba(96,165,250,0.14);
+      color: var(--blue);
+      border: 1px solid rgba(96,165,250,0.35);
+    }
+
+    .arch-block-body {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .arch-block-body--col {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    /* Producers */
+    .arch-producers { display: flex; flex-direction: column; gap: 5px; }
+
+    .arch-small-node {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 9px;
+      white-space: nowrap;
+    }
+
+    /* EventBus node */
+    .arch-eventbus {
+      flex: 1;
+      background: rgba(249,115,22,0.08);
+      border: 1px solid rgba(249,115,22,0.4);
+      border-radius: 7px;
+      padding: 8px 10px;
+    }
+
+    .arch-eventbus-title {
+      font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 6px;
+    }
+
+    .arch-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .arch-tag {
+      font-size: 10px; color: var(--muted);
+      background: rgba(249,115,22,0.06);
+      border: 1px solid rgba(249,115,22,0.2);
+      border-radius: 3px; padding: 1px 7px;
+    }
+
+    /* Horizontal arrow */
+    .arch-h-arrow {
+      font-size: 18px; color: var(--muted); line-height: 1;
+      flex-shrink: 0;
+    }
+
+    /* WebSocket bridge */
+    .arch-ws-bridge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+    }
+
+    .arch-ws-vert {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .arch-ws-arrowhead { font-size: 9px; color: var(--accent); line-height: 1; }
+
+    .arch-ws-line {
+      width: 2px;
+      height: 11px;
+      background: var(--accent);
+    }
+
+    .arch-ws-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      background: rgba(249,115,22,0.08);
+      border: 1px solid rgba(249,115,22,0.45);
+      border-radius: 24px;
+      padding: 6px 20px;
+    }
+
+    .arch-ws-name {
+      font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.02em;
+    }
+
+    .arch-ws-sub { font-size: 10px; color: var(--muted); }
+
+    /* React block internals */
+    .arch-client {
+      width: 100%;
+      background: rgba(96,165,250,0.1);
+      border: 1px solid rgba(96,165,250,0.35);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px; font-weight: 600; color: var(--blue);
+      text-align: center;
+      margin-bottom: 9px;
+    }
+
+    .arch-hooks { display: flex; flex-direction: column; gap: 5px; }
+
+    .arch-hook-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .arch-hook-box {
+      font-size: 11px; font-weight: 500;
+      background: var(--surface2);
+      border: 1px solid rgba(96,165,250,0.25);
+      border-radius: 4px; padding: 3px 8px;
+      color: var(--blue); white-space: nowrap;
+    }
+
+    .arch-hook-box--pub {
+      color: var(--accent);
+      border-color: rgba(249,115,22,0.3);
+    }
+
+    .arch-flow-arrow { font-size: 14px; color: var(--muted); }
+    .arch-flow-arrow--left { color: var(--accent); }
+
+    .arch-widget-box {
+      font-size: 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px; padding: 3px 8px;
+      color: var(--text); white-space: nowrap;
+    }
+
+    .arch-widget-box--pub { border-color: rgba(249,115,22,0.3); }
+
+    .arch-pub-note {
+      margin-left: auto;
+      font-size: 9px; color: var(--accent);
+      font-style: italic; opacity: 0.85;
+      white-space: nowrap;
+    }
+
+
+    /* ═══════════════════════════════════════════════════ SLIDE 3 — HOW IT WORKS */
+
+    .s3-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    .s3-wireframe-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    /* Shell wireframe grid */
+    .shell-wireframe {
+      display: grid;
+      grid-template-areas:
+        "header         header       header"
+        "sidebar-left   main         sidebar-right"
+        "bottom         bottom       bottom"
+        "status         status       status";
+      grid-template-columns: 108px 1fr 76px;
+      grid-template-rows: 34px 140px 46px 22px;
+      gap: 3px;
+      background: #181818;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      padding: 3px;
+    }
+
+    .sw-region {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      cursor: default;
+      padding: 4px;
+    }
+
+    .sw-region:hover {
+      background: rgba(249,115,22,0.1);
+      border-color: rgba(249,115,22,0.55);
+    }
+
+    .sw-region[data-area="header"]     { grid-area: header; }
+    .sw-region[data-area="sidebar-left"]  { grid-area: sidebar-left; }
+    .sw-region[data-area="main"]       { grid-area: main; }
+    .sw-region[data-area="sidebar-right"] { grid-area: sidebar-right; }
+    .sw-region[data-area="bottom"]     { grid-area: bottom; }
+    .sw-region[data-area="status"]     { grid-area: status; }
+
+    .sw-region[data-area="main"] { background: rgba(249,115,22,0.05); }
+
+    .sw-dimmed { opacity: 0.38; }
+
+    .sw-region-name {
+      font-size: 9px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    .sw-region-widget {
+      font-size: 10px; font-weight: 500;
+      color: var(--accent);
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .sw-region-widget.muted { color: var(--muted); opacity: 0.5; }
+
+    .sw-hover-hint {
+      font-size: 9px; color: var(--muted); opacity: 0.55;
+      margin-top: 6px;
+    }
+
+    /* Stacked wow-cards */
+    .wow-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .wow-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .wow-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+
+    .wow-icon { font-size: 16px; line-height: 1; }
+
+    .wow-card-title {
+      font-size: 13px; font-weight: 600; color: var(--text);
+    }
+
+    .wow-card-body {
+      font-size: 12px; color: var(--muted); line-height: 1.55;
+    }
+
+
+    /* ═══════════════════════════════════════════════════════ SLIDE 4 — AI CHAT */
+
+    #slide-4 { padding-top: 36px; padding-bottom: 44px; }
+    #slide-4 .slide-title { font-size: 32px; margin-bottom: 18px; }
+
+    #slide-4 .mermaid { width: 100%; }
+    #slide-4 .mermaid svg { width: 100%; }
+
+    .callout-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .callout {
+      border-radius: 8px;
+      padding: 18px 20px;
+      border: 1px solid;
+    }
+
+    .callout.orange {
+      background: var(--accent-dim);
+      border-color: rgba(249,115,22,0.35);
+    }
+
+    .callout.blue {
+      background: var(--blue-dim);
+      border-color: rgba(96,165,250,0.35);
+    }
+
+    .callout-title {
+      font-size: 13px; font-weight: 600; margin-bottom: 6px;
+    }
+
+    .callout.orange .callout-title { color: var(--accent); }
+    .callout.blue   .callout-title { color: var(--blue); }
+
+    .callout-body { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+
+    /* ═══════════════════════════════════════════════════════ SLIDE 5 — DEMO */
+
+    .demo-word {
+      font-size: 116px; font-weight: 800; letter-spacing: -0.05em; line-height: 1;
+      background: linear-gradient(140deg, var(--accent) 10%, #fb923c 50%, #fbbf24 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 36px;
+    }
+
+    .cue-list {
+      list-style: none;
+      display: inline-flex; flex-direction: column;
+      gap: 12px; margin-bottom: 44px;
+    }
+
+    .cue-list li {
+      display: flex; align-items: center;
+      gap: 14px; font-size: 16px; color: var(--muted);
+    }
+
+    .cue-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--surface); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; color: var(--accent); flex-shrink: 0;
+    }
+
+    .repo-note { font-size: 13px; color: var(--muted); opacity: 0.5; }
+  </style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- ══════════════════════════════════════════════════════════ SLIDE 1: TITLE -->
+  <div class="slide active" id="slide-1">
+    <div class="content">
+      <div class="s1-grid">
+        <div>
+          <div class="s1-badge">FastAPI · React · <span>OpenRouter</span></div>
+          <h1 class="s1-title">App<em>Framework</em></h1>
+          <p class="s1-sub">Real-time simulation dashboard framework with AI-powered layout generation.</p>
+          <div class="s1-meta">Mehak Jain &nbsp;·&nbsp; June 2026</div>
+        </div>
+
+        <div class="app-mockup">
+          <div class="mockup-titlebar">
+            <div class="dot dot-r"></div>
+            <div class="dot dot-y"></div>
+            <div class="dot dot-g"></div>
+            <span class="mockup-app-title">Simulation Dashboard</span>
+            <button class="mockup-ai-btn">AI Layout</button>
+          </div>
+          <div class="mockup-body">
+            <div class="mockup-sidebar">
+              <div class="mockup-section-label">Parameters</div>
+              <div class="slider-row">
+                <div class="slider-name">Frequency (Hz)</div>
+                <div class="slider-track">
+                  <div class="slider-fill" style="width:30%"></div>
+                  <div class="slider-thumb" style="left:30%"></div>
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-name">Amplitude</div>
+                <div class="slider-track">
+                  <div class="slider-fill" style="width:58%"></div>
+                  <div class="slider-thumb" style="left:58%"></div>
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-name">Time Step</div>
+                <div class="slider-track">
+                  <div class="slider-fill" style="width:22%"></div>
+                  <div class="slider-thumb" style="left:22%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="mockup-main">
+              <div class="chart-title">Sine Wave — data/sine</div>
+              <div class="chart-area">
+                <svg width="100%" height="100%" viewBox="0 0 400 110" preserveAspectRatio="none">
+                  <line x1="0" y1="55" x2="400" y2="55" stroke="#3e3e42" stroke-width="0.8"/>
+                  <line x1="0" y1="18" x2="400" y2="18" stroke="#2d2d2d" stroke-width="0.5"/>
+                  <line x1="0" y1="92" x2="400" y2="92" stroke="#2d2d2d" stroke-width="0.5"/>
+                  <path d="M0,55 C13,55 13,18 26,18 C39,18 39,92 52,92 C65,92 65,18 78,18 C91,18 91,92 104,92 C117,92 117,18 130,18 C143,18 143,92 156,92 C169,92 169,18 182,18 C195,18 195,92 208,92 C221,92 221,18 234,18 C247,18 247,92 260,92 C273,92 273,18 286,18 C299,18 299,92 312,92 C325,92 325,18 338,18 C351,18 351,92 364,92 C377,92 377,18 400,18"
+                        fill="none" stroke="#f97316" stroke-width="2.2" stroke-linecap="round"/>
+                  <circle cx="390" cy="22" r="4" fill="#f97316" opacity="0.9"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-statusbar">
+            <span>● connected</span>
+            <span>data/sine · 10 Hz</span>
+            <span>params/control · ready</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ SLIDE 2: PROBLEM & SOLUTION -->
+  <div class="slide" id="slide-2">
+    <div class="content">
+      <div class="eyebrow">The problem &amp; solution</div>
+      <h2 class="slide-title">Built for simulation engineers,<br/>not frontend engineers.</h2>
+
+      <div class="s2-grid">
+
+        <!-- Left: problem bullets -->
+        <div>
+          <div class="col-label problem">The Problem</div>
+          <ul class="prob-list">
+            <li>Wiring widgets into a layout requires hand-editing JSON schema and memorising region names</li>
+            <li>Every new simulation needs the same boilerplate: WebSocket setup, subscriptions, state management</li>
+            <li>Describing a simulation takes seconds — building its dashboard takes hours</li>
+          </ul>
+        </div>
+
+        <!-- Right: hand-crafted architecture diagram -->
+        <div class="arch-diagram">
+
+          <!-- Python Backend block -->
+          <div class="arch-block arch-block--python">
+            <div class="arch-block-tag python-tag">🐍 Python Backend</div>
+            <div class="arch-block-body">
+              <div class="arch-producers">
+                <div class="arch-small-node">SineProducer</div>
+                <div class="arch-small-node">LogProducer</div>
+              </div>
+              <div class="arch-h-arrow">→</div>
+              <div class="arch-eventbus">
+                <div class="arch-eventbus-title">EventBus</div>
+                <div class="arch-tags">
+                  <span class="arch-tag">pub/sub</span>
+                  <span class="arch-tag">fnmatch glob</span>
+                  <span class="arch-tag">last-msg replay</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WebSocket bridge connector -->
+          <div class="arch-ws-bridge">
+            <div class="arch-ws-vert">
+              <div class="arch-ws-line"></div>
+              <div class="arch-ws-arrowhead">▼</div>
+            </div>
+            <div class="arch-ws-pill">
+              <div class="arch-ws-name">⚡ WebSocket /ws</div>
+              <div class="arch-ws-sub">multiplexed · 1 connection/tab · ~100ms round-trip</div>
+            </div>
+            <div class="arch-ws-vert">
+              <div class="arch-ws-arrowhead">▲</div>
+              <div class="arch-ws-line"></div>
+            </div>
+          </div>
+
+          <!-- React Frontend block -->
+          <div class="arch-block arch-block--react">
+            <div class="arch-block-tag react-tag">⚛ React Frontend</div>
+            <div class="arch-block-body arch-block-body--col">
+              <div class="arch-client">RealtimeEventBusClient</div>
+              <div class="arch-hooks">
+                <div class="arch-hook-row">
+                  <div class="arch-hook-box">useChannel&lt;T&gt;</div>
+                  <div class="arch-flow-arrow">→</div>
+                  <div class="arch-widget-box">Chart</div>
+                </div>
+                <div class="arch-hook-row">
+                  <div class="arch-hook-box">useChannel&lt;T&gt;</div>
+                  <div class="arch-flow-arrow">→</div>
+                  <div class="arch-widget-box">LogViewer</div>
+                </div>
+                <div class="arch-hook-row">
+                  <div class="arch-hook-box arch-hook-box--pub">usePublish</div>
+                  <div class="arch-flow-arrow arch-flow-arrow--left">←</div>
+                  <div class="arch-widget-box arch-widget-box--pub">ParameterController</div>
+                  <div class="arch-pub-note">↑ params/control</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.arch-diagram -->
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════ SLIDE 3: HOW IT WORKS -->
+  <div class="slide" id="slide-3">
+    <div class="content">
+      <div class="eyebrow">Architecture</div>
+      <h2 class="slide-title">The widget &amp; shell system.</h2>
+
+      <div class="s3-grid">
+
+        <!-- Left: shell wireframe -->
+        <div>
+          <div class="s3-wireframe-label">ApplicationShell — 6 regions (hover to highlight)</div>
+          <div class="shell-wireframe">
+            <div class="sw-region" data-area="header">
+              <span class="sw-region-name">Header</span>
+            </div>
+            <div class="sw-region" data-area="sidebar-left">
+              <span class="sw-region-name">sidebar-left</span>
+              <span class="sw-region-widget">ParameterController</span>
+            </div>
+            <div class="sw-region" data-area="main">
+              <span class="sw-region-name">Main</span>
+              <span class="sw-region-widget">Chart<br/>(data/sine)</span>
+            </div>
+            <div class="sw-region sw-dimmed" data-area="sidebar-right">
+              <span class="sw-region-name">sidebar-right</span>
+              <span class="sw-region-widget muted">hidden</span>
+            </div>
+            <div class="sw-region sw-dimmed" data-area="bottom">
+              <span class="sw-region-name">Bottom</span>
+              <span class="sw-region-widget muted">hidden</span>
+            </div>
+            <div class="sw-region" data-area="status">
+              <span class="sw-region-name">Status Bar</span>
+            </div>
+          </div>
+          <p class="sw-hover-hint">header · main · status-bar are non-togglable</p>
+        </div>
+
+        <!-- Right: stacked wow-cards -->
+        <div class="wow-stack">
+          <div class="wow-card">
+            <div class="wow-card-header">
+              <span class="wow-icon">↩</span>
+              <span class="wow-card-title">Last-message replay</span>
+            </div>
+            <div class="wow-card-body">Both the Python bus and the TS client cache the latest event per channel. New subscribers render the last value instantly — no polling, no blank state on mount.</div>
+          </div>
+          <div class="wow-card">
+            <div class="wow-card-header">
+              <span class="wow-icon">⌖</span>
+              <span class="wow-card-title">Channel-first resolution</span>
+            </div>
+            <div class="wow-card-body">WidgetRegistry matches channelPattern glob → MIME type refinement → priority sort. Same model as VS Code editor resolution.</div>
+          </div>
+          <div class="wow-card">
+            <div class="wow-card-header">
+              <span class="wow-icon">⏺</span>
+              <span class="wow-card-title">Persisted layout</span>
+            </div>
+            <div class="wow-card-body">Zustand + localStorage with schema version migration. The layout is a serialisable document, not ephemeral React state.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════ SLIDE 4: AI LAYOUT -->
+  <div class="slide" id="slide-4">
+    <div class="content">
+      <div class="eyebrow">The star feature</div>
+      <h2 class="slide-title">AI layout assistant.</h2>
+      <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant C as AIChatPanel
+    participant B as POST /ai/layout
+    participant AI as OpenRouter LLM
+    participant S as ApplicationShell
+
+    U->>C: "Show sine chart with frequency sliders"
+    C->>B: POST {prompt, registry, current_layout}
+    B->>AI: system prompt + widget catalog
+    AI-->>B: tool_call: get_widget_details("Chart")
+    B-->>AI: {channelPattern, parameters schema}
+    AI->>B: {layout: ShellLayout, explanation}
+    B->>B: validate widget types &amp; IDs
+    B->>C: 200 {layout, explanation}
+    C->>U: LayoutDiffViewer — current vs proposed
+    U->>C: Approve ✓
+    C->>S: setLayout(applyNonTogglableCorrection)
+      </div>
+      <div class="callout-row">
+        <div class="callout orange">
+          <div class="callout-title">Approved-only history</div>
+          <div class="callout-body">Rejected proposals are never included in subsequent requests. The AI's context stays clean — only turns the user actually accepted flow back to the model.</div>
+        </div>
+        <div class="callout blue">
+          <div class="callout-title">Auto-retry with correction hint</div>
+          <div class="callout-body">If the AI hallucinates an unregistered widget type, the backend retries once with a correction message listing valid widget names. Falls back to 422 on second failure.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════ SLIDE 5: DEMO -->
+  <div class="slide" id="slide-5">
+    <div class="content" style="text-align:center;">
+      <div class="demo-word">Demo</div>
+      <ul class="cue-list">
+        <li>
+          <span class="cue-num">1</span>
+          Show resizable panels and live sine wave updating in real time
+        </li>
+        <li>
+          <span class="cue-num">2</span>
+          Open AI chat → describe a layout change → show LayoutDiffViewer diff
+        </li>
+        <li>
+          <span class="cue-num">3</span>
+          Approve → watch the shell re-render with the new layout instantly
+        </li>
+      </ul>
+      <p class="repo-note">Repo will be available after the meeting.</p>
+    </div>
+  </div>
+
+</div><!-- /.deck -->
+
+<div id="counter">1 / 5</div>
+
+<script>
+  // ─── Mermaid (only slide 4 sequence diagram remains) ─────────────────────────
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    sequence: {
+      actorMargin:    90,
+      messageMargin:  38,
+      mirrorActors:   false,
+      diagramMarginX: 10,
+      diagramMarginY: 10,
+    },
+    themeVariables: {
+      background:            '#1e1e1e',
+      mainBkg:               '#252526',
+      primaryColor:          '#252526',
+      primaryTextColor:      '#f0f0f0',
+      primaryBorderColor:    '#f97316',
+      lineColor:             '#888888',
+      secondaryColor:        '#2d2d2d',
+      tertiaryColor:         '#333333',
+      actorBkg:              '#252526',
+      actorBorder:           '#f97316',
+      actorTextColor:        '#f0f0f0',
+      actorLineColor:        '#3e3e42',
+      signalColor:           '#f97316',
+      signalTextColor:       '#f0f0f0',
+      activationBkgColor:    '#2d2d2d',
+      activationBorderColor: '#f97316',
+      labelBoxBkgColor:      '#252526',
+      labelBoxBorderColor:   '#3e3e42',
+      labelTextColor:        '#f0f0f0',
+      loopTextColor:         '#f0f0f0',
+      noteBkgColor:          '#2d2d2d',
+      noteBorderColor:       '#3e3e42',
+      noteTextColor:         '#f0f0f0',
+      fontFamily:            'Inter, sans-serif',
+      fontSize:              '13px',
+    }
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => mermaid.run());
+  } else {
+    setTimeout(() => mermaid.run(), 200);
+  }
+
+  // ─── Navigation ──────────────────────────────────────────────────────────────
+  const slides  = Array.from(document.querySelectorAll('.slide'));
+  const counter = document.getElementById('counter');
+  const total   = slides.length;
+  let   current = 0;
+
+  function go(n) {
+    slides[current].classList.remove('active');
+    current = Math.max(0, Math.min(n, total - 1));
+    slides[current].classList.add('active');
+    counter.textContent = `${current + 1} / ${total}`;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    const fwd = e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ';
+    const bwd = e.key === 'ArrowLeft'  || e.key === 'ArrowUp';
+    if (fwd) { e.preventDefault(); go(current + 1); }
+    if (bwd) { e.preventDefault(); go(current - 1); }
+  });
+
+  document.getElementById('deck').addEventListener('click', (e) => {
+    if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+    go(current + 1);
+  });
+</script>
+</body>
+</html>

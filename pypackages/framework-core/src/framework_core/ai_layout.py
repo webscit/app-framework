@@ -19,14 +19,7 @@ from pydantic import BaseModel
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-
-# Free models tried in order when the primary model returns 429.
-_FALLBACK_MODELS = [
-    "google/gemma-4-31b-it:free",
-    "meta-llama/llama-3.1-8b-instruct:free",
-    "qwen/qwen-2.5-7b-instruct:free",
-    "microsoft/phi-3-mini-128k-instruct:free",
-]
+DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
 
 # JSON Schema for ShellLayout — loaded from the bundled copy of
 # shell_layout_schema.json. The canonical source lives at the repo root;
@@ -166,8 +159,8 @@ async def call_openrouter(
 
     Args:
         messages: OpenAI-format messages array.
-        model: OpenRouter model identifier. Must be set here or via the
-               ``OPENROUTER_DEFAULT_MODEL`` env var — see https://openrouter.ai/models.
+        model: OpenRouter model identifier. Falls back to the
+               ``OPENROUTER_DEFAULT_MODEL`` env var, then :data:`DEFAULT_MODEL`.
         temperature: Sampling temperature (0.0–1.0). Default 0.2 for structured output.
         max_tokens: Maximum tokens in the response.
         api_key: OpenRouter API key. Defaults to ``OPENROUTER_API_KEY`` env var.
@@ -187,14 +180,9 @@ async def call_openrouter(
     if not resolved_key:
         raise ValueError("OPENROUTER_API_KEY must be set")
 
-    primary_model = model or os.environ.get("OPENROUTER_DEFAULT_MODEL")
-    if not primary_model:
-        raise ValueError(
-            "OPENROUTER_DEFAULT_MODEL must be set. "
-            "Browse current models at https://openrouter.ai/models"
-        )
-    # Build candidate list: primary first, then any fallbacks that differ from it.
-    candidates = [primary_model] + [m for m in _FALLBACK_MODELS if m != primary_model]
+    resolved_model = (
+        model or os.environ.get("OPENROUTER_DEFAULT_MODEL") or DEFAULT_MODEL
+    )
 
     headers = {
         "Authorization": f"Bearer {resolved_key}",
@@ -207,85 +195,61 @@ async def call_openrouter(
     if _transport is not None:
         client_kwargs["transport"] = _transport
 
-    last_exc: Exception = ValueError("No models available")
-
     async with httpx.AsyncClient(**client_kwargs) as client:
-        for resolved_model in candidates:
-            loop_messages: list[dict[str, Any]] = list(messages)
+        loop_messages: list[dict[str, Any]] = list(messages)
 
-            try:
-                for _ in range(_MAX_TOOL_ROUNDS):
-                    payload: dict[str, Any] = {
-                        "model": resolved_model,
-                        "messages": loop_messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
+        for _ in range(_MAX_TOOL_ROUNDS):
+            payload: dict[str, Any] = {
+                "model": resolved_model,
+                "messages": loop_messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if tools:
+                payload["tools"] = tools
+
+            response = await client.post(
+                f"{OPENROUTER_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            choice = data["choices"][0]
+            message = choice["message"]
+
+            if choice.get("finish_reason") != "tool_calls":
+                content = message.get("content")
+                if content:
+                    return str(content)
+                # Claude sometimes returns finish_reason="stop" with null content
+                # after tool calls. Nudge once more for the final JSON output.
+                loop_messages.append({"role": "assistant", "content": None})
+                loop_messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Provide the final JSON object with 'layout' and 'explanation' keys."
+                        ),
                     }
-                    if tools:
-                        payload["tools"] = tools
+                )
+                continue
 
-                    response = await client.post(
-                        f"{OPENROUTER_BASE_URL}/chat/completions",
-                        headers=headers,
-                        json=payload,
-                        timeout=30.0,
-                    )
-
-                    # On rate-limit try next candidate model.
-                    if response.status_code == 429:
-                        last_exc = httpx.HTTPStatusError(
-                            f"429 Too Many Requests for model '{resolved_model}'",
-                            request=response.request,
-                            response=response,
-                        )
-                        break
-
-                    response.raise_for_status()
-                    data = response.json()
-                    choice = data["choices"][0]
-                    message = choice["message"]
-
-                    if choice.get("finish_reason") != "tool_calls":
-                        content = message.get("content")
-                        if content:
-                            return str(content)
-                        # Claude sometimes returns finish_reason="stop" with null content
-                        # after tool calls. Nudge once more for the final JSON output.
-                        loop_messages.append({"role": "assistant", "content": None})
-                        loop_messages.append(
-                            {
-                                "role": "user",
-                                "content": (
-                                    "Provide the final JSON object with 'layout' and 'explanation' keys."
-                                ),
-                            }
-                        )
-                        continue
-
-                    # AI wants to call tools — execute them and continue the loop.
-                    tool_calls: list[dict[str, Any]] = message.get("tool_calls", [])
-                    loop_messages.append(
-                        {
-                            "role": "assistant",
-                            "content": message.get("content"),
-                            "tool_calls": tool_calls,
-                        }
-                    )
-                    loop_messages.extend(
-                        _resolve_tool_calls(tool_calls, full_registry or [])
-                    )
-                else:
-                    # Exhausted tool-call rounds for this model — not a 429, raise.
-                    raise ValueError(
-                        f"Tool-call loop exceeded {_MAX_TOOL_ROUNDS} iterations without a final response"
-                    )
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 429:
-                    last_exc = exc
-                    continue
-                raise
-
-    raise last_exc
+            # AI wants to call tools — execute them and continue the loop.
+            tool_calls: list[dict[str, Any]] = message.get("tool_calls", [])
+            loop_messages.append(
+                {
+                    "role": "assistant",
+                    "content": message.get("content"),
+                    "tool_calls": tool_calls,
+                }
+            )
+            loop_messages.extend(_resolve_tool_calls(tool_calls, full_registry or []))
+        else:
+            raise ValueError(
+                f"Tool-call loop exceeded {_MAX_TOOL_ROUNDS} iterations without a final response"
+            )
 
 
 # ─── JSON extraction ──────────────────────────────────────────────────────────
