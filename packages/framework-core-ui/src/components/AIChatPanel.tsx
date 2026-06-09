@@ -348,16 +348,17 @@ export function AIChatPanel({
 
         <div className="sct-AIChatPanel-input-row">
           <Textarea
+            className="sct-AIChatPanel-textarea"
             placeholder="Ask AI to build or modify your layout…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={loading}
-            rows={2}
-            className="sct-AIChatPanel-textarea"
             aria-label="Chat input"
           />
           <Button
+            className="sct-AIChatPanel-send-btn"
+            size="default"
             onClick={() => void handleSend()}
             disabled={loading || input.trim() === ""}
             aria-label="Send message"

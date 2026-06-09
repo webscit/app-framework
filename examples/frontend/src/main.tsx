@@ -129,7 +129,11 @@ function Dashboard({ onOpenChat }: DashboardProps) {
           {log ? `[${log.level}] ${log.message}` : "—"}
         </span>
       </span>
-      <button style={buttonStyle} onClick={onOpenChat} aria-label="Open AI layout chat">
+      <button
+        style={{ ...buttonStyle, marginLeft: "auto" }}
+        onClick={onOpenChat}
+        aria-label="Open AI layout chat"
+      >
         AI Layout
       </button>
     </div>

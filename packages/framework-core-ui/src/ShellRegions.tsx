@@ -139,6 +139,7 @@ export function ShellSidebar({
       aria-label={`${side} sidebar`}
       className={mergeClassNames("sct-ShellSidebar", className)}
       data-testid={`shell-sidebar-${side}`}
+      style={region.visible ? undefined : { width: "32px", overflow: "hidden" }}
     >
       <button
         data-testid={`shell-sidebar-${side}-toggle`}
@@ -254,6 +255,7 @@ export function ShellBottom({
       aria-label="bottom panel"
       className={mergeClassNames("sct-ShellBottom", className)}
       data-testid="shell-bottom"
+      style={region.visible ? undefined : { display: "none" }}
     >
       <button
         data-testid="shell-bottom-toggle"
