@@ -260,7 +260,6 @@ async def test_call_openrouter_missing_key(monkeypatch: pytest.MonkeyPatch) -> N
 @pytest.mark.anyio
 async def test_call_openrouter_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.setenv("OPENROUTER_DEFAULT_MODEL", "test-model")
 
     captured: list[httpx.Request] = []
     response_body = json.dumps(
