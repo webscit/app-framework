@@ -18,13 +18,13 @@ The frontend dev server proxies `/ai/*` to this backend, so `npm run dev` works 
 
 Copy `.env.example` to `.env` at the repo root and edit as needed.
 
-| Variable                   | Required | Default                       | Description                                                                                                                              |
-| -------------------------- | -------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `OPENROUTER_API_KEY`       | **Yes**  | —                             | OpenRouter API key. Get one at [openrouter.ai](https://openrouter.ai).                                                                   |
-| `OPENROUTER_DEFAULT_MODEL` | No       | `anthropic/claude-3.5-sonnet` | Model identifier. Swap to any OpenRouter-supported model without code changes (e.g. `anthropic/claude-3-haiku` for faster/cheaper runs). |
-| `OPENROUTER_MAX_TOKENS`    | No       | `2048`                        | Hard cap on tokens per AI response. Increase if the model truncates large layouts.                                                       |
-| `OPENROUTER_TEMPERATURE`   | No       | `0.2`                         | Sampling temperature. Keep low (0.0–0.3) for deterministic JSON output.                                                                  |
+| Variable                   | Required | Default                       | Description                                                                                                                                                                       |
+| -------------------------- | -------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENROUTER_API_KEY`       | **Yes**  | —                             | OpenRouter API key. Get one at [openrouter.ai](https://openrouter.ai).                                                                                                            |
+| `OPENROUTER_DEFAULT_MODEL` | **Yes**  | `anthropic/claude-sonnet-4.6` | Model identifier. See `.env.example` for alternatives (`anthropic/claude-haiku-4.5-20251001` for faster/cheaper, `meta-llama/llama-3.3-70b-instruct:free` for zero-cost testing). |
+| `OPENROUTER_MAX_TOKENS`    | No       | `2048`                        | Hard cap on tokens per AI response. Increase if the model truncates large layouts.                                                                                                |
+| `OPENROUTER_TEMPERATURE`   | No       | `0.2`                         | Sampling temperature. Keep low (0.0–0.3) for deterministic JSON output.                                                                                                           |
 
 ## Obtaining an API key
 
-Sign up at [openrouter.ai](https://openrouter.ai), go to **Keys**, and create a new key. Free-tier models (e.g. `mistralai/mistral-7b-instruct:free`) work for smoke-testing without spending credits.
+Sign up at [openrouter.ai](https://openrouter.ai), go to **Keys**, and create a new key. Model names evolve quickly — see `.env.example` for recommended options, or browse [openrouter.ai/models](https://openrouter.ai/models) for the full current list.

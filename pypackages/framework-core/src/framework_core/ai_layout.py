@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +19,6 @@ from pydantic import BaseModel
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "google/gemma-4-31b-it:free"
 
 # JSON Schema for ShellLayout — loaded from the bundled copy of
 # shell_layout_schema.json. The canonical source lives at the repo root;
@@ -158,8 +158,8 @@ async def call_openrouter(
 
     Args:
         messages: OpenAI-format messages array.
-        model: OpenRouter model identifier. Defaults to ``OPENROUTER_DEFAULT_MODEL``
-               env var or ``"anthropic/claude-sonnet-4.6"``.
+        model: OpenRouter model identifier. Must be set here or via the
+               ``OPENROUTER_DEFAULT_MODEL`` env var — see https://openrouter.ai/models.
         temperature: Sampling temperature (0.0–1.0). Default 0.2 for structured output.
         max_tokens: Maximum tokens in the response.
         api_key: OpenRouter API key. Defaults to ``OPENROUTER_API_KEY`` env var.
@@ -179,7 +179,12 @@ async def call_openrouter(
     if not resolved_key:
         raise ValueError("OPENROUTER_API_KEY must be set")
 
-    resolved_model = model or os.environ.get("OPENROUTER_DEFAULT_MODEL", DEFAULT_MODEL)
+    resolved_model = model or os.environ.get("OPENROUTER_DEFAULT_MODEL")
+    if not resolved_model:
+        raise ValueError(
+            "OPENROUTER_DEFAULT_MODEL must be set. "
+            "Browse current models at https://openrouter.ai/models"
+        )
 
     headers = {
         "Authorization": f"Bearer {resolved_key}",
@@ -255,7 +260,8 @@ async def call_openrouter(
 def extract_json(text: str) -> dict[str, Any]:
     """Extract a JSON object from an AI response string.
 
-    Handles both bare JSON and JSON wrapped in markdown code fences.
+    Handles bare JSON, JSON wrapped in markdown code fences, and JSON
+    embedded anywhere inside a larger text response.
 
     Args:
         text: Raw AI response text.
@@ -267,15 +273,33 @@ def extract_json(text: str) -> dict[str, Any]:
         ValueError: If no valid JSON object can be extracted.
     """
     text = text.strip()
+    if not text:
+        raise ValueError("AI returned an empty response")
+
+    # Strip markdown code fences (```json ... ``` or ``` ... ```)
     if text.startswith("```"):
         lines = text.splitlines()
-        # Drop opening fence line; drop closing fence if present.
         inner = lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
-        text = "\n".join(inner)
+        text = "\n".join(inner).strip()
+
+    # Try direct parse first (fast path for well-behaved models)
     try:
         return dict(json.loads(text))
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Could not parse AI response as JSON: {e}") from e
+    except json.JSONDecodeError:
+        pass
+
+    # Fall back: find the first {...} block anywhere in the response.
+    # Some models wrap their JSON in prose before/after it.
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        try:
+            return dict(json.loads(match.group()))
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(
+        f"Could not parse AI response as JSON. Response preview: {text[:300]!r}"
+    )
 
 
 # ─── Catalog serialisation ────────────────────────────────────────────────────

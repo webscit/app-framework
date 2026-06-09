@@ -1,4 +1,5 @@
 import React, { lazy, Suspense } from "react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { mergeClassNames } from "./helpers";
 
 import type { RegionItem, RegionSetter, RegionState } from "./shellTypes";
@@ -51,23 +52,6 @@ function RegionItemRenderer({ item }: { item: RegionItem }): React.ReactElement 
   );
 }
 
-// ─── SortedItems ──────────────────────────────────────────────────────────────
-
-/** Renders region items sorted by ascending `order`, then registration order. */
-function SortedItems({ items }: { items: RegionItem[] }): React.ReactElement | null {
-  if (items.length === 0) return null;
-  return (
-    <>
-      {items
-        .slice()
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map((item) => (
-          <RegionItemRenderer key={item.id} item={item} />
-        ))}
-    </>
-  );
-}
-
 // ─── ShellPartProps ───────────────────────────────────────────────────────────
 
 /** Base props shared by all shell region components. */
@@ -104,12 +88,15 @@ export function ShellHeader({
   setRegion: _setRegion,
   className,
 }: ShellHeaderProps): React.ReactElement {
+  const sorted = region.items.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   return (
     <header
       className={mergeClassNames("sct-ShellHeader", className)}
       data-testid="shell-header"
     >
-      <SortedItems items={region.items} />
+      {sorted.map((item) => (
+        <RegionItemRenderer key={item.id} item={item} />
+      ))}
     </header>
   );
 }
@@ -129,8 +116,9 @@ export interface ShellSidebarProps extends ShellPartProps {
 /**
  * Renders a collapsible sidebar shell region (`sidebar-left` or `sidebar-right`).
  *
- * Collapses to a thin strip (32px) showing only the toggle button when `visible` is `false`.
- * Never fully hidden — the toggle button is always accessible.
+ * Sizing is controlled by the parent `Panel` from `react-resizable-panels`.
+ * The toggle button updates `region.visible`; the parent `ApplicationShell`
+ * watches that flag and imperatively collapses or expands the panel.
  *
  * @param props - {@link ShellSidebarProps}
  * @returns An aside with `data-testid="shell-sidebar-{side}"` containing sorted region items.
@@ -145,21 +133,29 @@ export function ShellSidebar({
   setRegion,
   className,
 }: ShellSidebarProps): React.ReactElement {
+  const sorted = region.items.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   return (
     <aside
       aria-label={`${side} sidebar`}
       className={mergeClassNames("sct-ShellSidebar", className)}
       data-testid={`shell-sidebar-${side}`}
-      style={{ width: region.visible ? "220px" : "32px", overflow: "hidden" }}
     >
       <button
         data-testid={`shell-sidebar-${side}-toggle`}
         onClick={() => setRegion((prev) => ({ ...prev, visible: !prev.visible }))}
         style={{ width: "100%", cursor: "pointer" }}
       >
-        {region.visible ? "<<" : ">>"}
+        {region.visible
+          ? side === "left"
+            ? "<<"
+            : ">>"
+          : side === "left"
+            ? ">>"
+            : "<<"}
       </button>
-      {region.visible && <SortedItems items={region.items} />}
+      {sorted.map((item) => (
+        <RegionItemRenderer key={item.id} item={item} />
+      ))}
     </aside>
   );
 }
@@ -176,7 +172,9 @@ export type ShellMainProps = ShellPartProps;
 /**
  * Renders the `main` shell region. Always visible (non-togglable).
  *
- * Shows a `data-testid="shell-main-empty"` fallback when no items are placed.
+ * When the region contains multiple items, they are placed in a vertical
+ * `PanelGroup` from `react-resizable-panels` so each item can be resized
+ * by dragging the handle between them — just like VS Code panes.
  *
  * @param props - {@link ShellMainProps}
  * @returns A main element with `data-testid="shell-main"` containing sorted region items or an empty placeholder.
@@ -190,15 +188,34 @@ export function ShellMain({
   setRegion: _setRegion,
   className,
 }: ShellMainProps): React.ReactElement {
+  const sorted = region.items.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
   return (
     <main
       className={mergeClassNames("sct-ShellMain", className)}
       data-testid="shell-main"
     >
-      {region.items.length === 0 ? (
+      {sorted.length === 0 ? (
         <div data-testid="shell-main-empty">No widgets placed</div>
+      ) : sorted.length === 1 ? (
+        <div className="sct-ShellMain-item">
+          <RegionItemRenderer item={sorted[0]} />
+        </div>
       ) : (
-        <SortedItems items={region.items} />
+        <Group orientation="vertical" style={{ height: "100%" }}>
+          {sorted.map((item, idx) => (
+            <React.Fragment key={item.id}>
+              {idx > 0 && (
+                <Separator className="sct-PanelHandle sct-PanelHandle--horizontal" />
+              )}
+              <Panel minSize={10} defaultSize={100 / sorted.length}>
+                <div className="sct-ShellMain-item">
+                  <RegionItemRenderer item={item} />
+                </div>
+              </Panel>
+            </React.Fragment>
+          ))}
+        </Group>
       )}
     </main>
   );
@@ -216,7 +233,7 @@ export type ShellBottomProps = ShellPartProps;
 /**
  * Renders the `bottom` shell region. Collapsible.
  *
- * Hidden via `display: none` when the region's `visible` flag is `false`.
+ * Sizing is controlled by the parent `Panel` from `react-resizable-panels`.
  *
  * @param props - {@link ShellBottomProps}
  * @returns A div with `data-testid="shell-bottom"` containing sorted region items.
@@ -230,13 +247,13 @@ export function ShellBottom({
   setRegion,
   className,
 }: ShellBottomProps): React.ReactElement {
+  const sorted = region.items.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   return (
     <div
       role="region"
       aria-label="bottom panel"
       className={mergeClassNames("sct-ShellBottom", className)}
       data-testid="shell-bottom"
-      style={{ display: region.visible ? undefined : "none" }}
     >
       <button
         data-testid="shell-bottom-toggle"
@@ -244,7 +261,9 @@ export function ShellBottom({
       >
         {region.visible ? "Hide" : "Show"}
       </button>
-      <SortedItems items={region.items} />
+      {sorted.map((item) => (
+        <RegionItemRenderer key={item.id} item={item} />
+      ))}
     </div>
   );
 }
@@ -273,12 +292,15 @@ export function ShellStatusBar({
   setRegion: _setRegion,
   className,
 }: ShellStatusBarProps): React.ReactElement {
+  const sorted = region.items.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   return (
     <footer
       className={mergeClassNames("sct-ShellStatusBar", className)}
       data-testid="shell-status-bar"
     >
-      <SortedItems items={region.items} />
+      {sorted.map((item) => (
+        <RegionItemRenderer key={item.id} item={item} />
+      ))}
     </footer>
   );
 }

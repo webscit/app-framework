@@ -260,6 +260,7 @@ async def test_call_openrouter_missing_key(monkeypatch: pytest.MonkeyPatch) -> N
 @pytest.mark.anyio
 async def test_call_openrouter_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_DEFAULT_MODEL", "test-model")
 
     captured: list[httpx.Request] = []
     response_body = json.dumps(
@@ -282,9 +283,7 @@ async def test_call_openrouter_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert captured[0].headers["HTTP-Referer"] == "https://github.com/app-framework"
 
     body = json.loads(captured[0].content)
-    from framework_core.ai_layout import DEFAULT_MODEL
-
-    assert body["model"] == DEFAULT_MODEL
+    assert body["model"] == "test-model"
     assert body["temperature"] == 0.2
     assert body["messages"] == [{"role": "user", "content": "hello"}]
 
@@ -292,6 +291,7 @@ async def test_call_openrouter_success(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.anyio
 async def test_call_openrouter_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_DEFAULT_MODEL", "test-model")
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, content=b'{"error":"Unauthorized"}')
@@ -426,6 +426,7 @@ async def test_call_openrouter_handles_tool_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_DEFAULT_MODEL", "test-model")
 
     captured: list[dict[str, Any]] = []
     call_count = 0
@@ -476,6 +477,7 @@ async def test_call_openrouter_tool_loop_exceeded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_DEFAULT_MODEL", "test-model")
 
     call_count = 0
 

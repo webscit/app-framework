@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 import { mergeClassNames } from "./helpers";
 
 import { useShellLayoutStore } from "./stores/shellStore";
@@ -200,6 +201,41 @@ export function ApplicationShell({
     return () => handle.dispose();
   }, [registry, isControlled, setLayout]);
 
+  const leftPanelRef = usePanelRef();
+  const rightPanelRef = usePanelRef();
+  const bottomPanelRef = usePanelRef();
+
+  // Sync panel collapse/expand with region.visible toggled by the sidebar buttons.
+  useEffect(() => {
+    const p = leftPanelRef.current;
+    if (!p) return;
+    if (layout.regions["sidebar-left"].visible) {
+      p.expand();
+    } else {
+      p.collapse();
+    }
+  }, [layout.regions["sidebar-left"].visible]);
+
+  useEffect(() => {
+    const p = rightPanelRef.current;
+    if (!p) return;
+    if (layout.regions["sidebar-right"].visible) {
+      p.expand();
+    } else {
+      p.collapse();
+    }
+  }, [layout.regions["sidebar-right"].visible]);
+
+  useEffect(() => {
+    const p = bottomPanelRef.current;
+    if (!p) return;
+    if (layout.regions.bottom.visible) {
+      p.expand();
+    } else {
+      p.collapse();
+    }
+  }, [layout.regions.bottom.visible]);
+
   const regionSetters = useMemo(() => {
     const ids: RegionId[] = [
       "header",
@@ -230,32 +266,72 @@ export function ApplicationShell({
         setRegion={regionSetters["header"]}
         className={classNames?.header}
       />
-      <div
-        className={mergeClassNames("sct-ApplicationShell-Content", classNames?.content)}
+
+      {/* Vertical split: content row above, bottom panel below */}
+      <Group
+        orientation="vertical"
+        className={mergeClassNames("sct-ApplicationShell-Body", classNames?.content)}
       >
-        <ShellSidebar
-          side="left"
-          region={layout.regions["sidebar-left"]}
-          setRegion={regionSetters["sidebar-left"]}
-          className={classNames?.leftSidebar}
-        />
-        <ShellMain
-          region={layout.regions.main}
-          setRegion={regionSetters["main"]}
-          className={classNames?.main}
-        />
-        <ShellSidebar
-          side="right"
-          region={layout.regions["sidebar-right"]}
-          setRegion={regionSetters["sidebar-right"]}
-          className={classNames?.rightSidebar}
-        />
-      </div>
-      <ShellBottom
-        region={layout.regions.bottom}
-        setRegion={regionSetters["bottom"]}
-        className={classNames?.bottom}
-      />
+        <Panel minSize={20} defaultSize={80}>
+          {/* Horizontal split: left sidebar | main | right sidebar */}
+          <Group orientation="horizontal" style={{ height: "100%" }}>
+            <Panel
+              panelRef={leftPanelRef}
+              defaultSize={18}
+              minSize={5}
+              collapsible
+              collapsedSize={0}
+            >
+              <ShellSidebar
+                side="left"
+                region={layout.regions["sidebar-left"]}
+                setRegion={regionSetters["sidebar-left"]}
+                className={classNames?.leftSidebar}
+              />
+            </Panel>
+            <Separator className="sct-PanelHandle sct-PanelHandle--vertical" />
+            <Panel minSize={20}>
+              <ShellMain
+                region={layout.regions.main}
+                setRegion={regionSetters["main"]}
+                className={classNames?.main}
+              />
+            </Panel>
+            <Separator className="sct-PanelHandle sct-PanelHandle--vertical" />
+            <Panel
+              panelRef={rightPanelRef}
+              defaultSize={18}
+              minSize={5}
+              collapsible
+              collapsedSize={0}
+            >
+              <ShellSidebar
+                side="right"
+                region={layout.regions["sidebar-right"]}
+                setRegion={regionSetters["sidebar-right"]}
+                className={classNames?.rightSidebar}
+              />
+            </Panel>
+          </Group>
+        </Panel>
+
+        <Separator className="sct-PanelHandle sct-PanelHandle--horizontal" />
+
+        <Panel
+          panelRef={bottomPanelRef}
+          defaultSize={20}
+          minSize={5}
+          collapsible
+          collapsedSize={0}
+        >
+          <ShellBottom
+            region={layout.regions.bottom}
+            setRegion={regionSetters["bottom"]}
+            className={classNames?.bottom}
+          />
+        </Panel>
+      </Group>
+
       <ShellStatusBar
         region={layout.regions["status-bar"]}
         setRegion={regionSetters["status-bar"]}
