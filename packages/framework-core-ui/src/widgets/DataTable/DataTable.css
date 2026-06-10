@@ -1,0 +1,73 @@
+.sct-DataTable-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  gap: 8px;
+}
+
+.sct-DataTable-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.sct-DataTable-empty {
+  padding: 8px;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  font-style: italic;
+}
+
+.sct-DataTable-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.sct-DataTable-search {
+  max-width: 220px;
+}
+
+.sct-DataTable-col-toggles {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.sct-DataTable-table-wrapper {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.sct-DataTable-th {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sct-DataTable-th:hover {
+  background-color: var(--muted);
+}
+
+.sct-DataTable-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.sct-DataTable-page-info {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}

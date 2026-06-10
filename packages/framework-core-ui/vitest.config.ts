@@ -8,6 +8,7 @@ export default mergeConfig(
     optimizeDeps: {
       include: [
         "zustand/middleware",
+        "@base-ui/react/button",
         "@base-ui/react/input",
         "@base-ui/react/field",
         "@base-ui/react/select",
