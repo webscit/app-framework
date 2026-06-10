@@ -8,6 +8,7 @@ import httpx
 import pytest
 from framework_core.ai_layout import (
     _MAX_TOOL_ROUNDS,
+    DEFAULT_MODEL,
     GET_WIDGET_DETAILS_TOOL,
     SHELL_LAYOUT_JSON_SCHEMA,
     _resolve_tool_calls,
@@ -282,8 +283,6 @@ async def test_call_openrouter_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert captured[0].headers["HTTP-Referer"] == "https://github.com/app-framework"
 
     body = json.loads(captured[0].content)
-    from framework_core.ai_layout import DEFAULT_MODEL
-
     assert body["model"] == DEFAULT_MODEL
     assert body["temperature"] == 0.2
     assert body["messages"] == [{"role": "user", "content": "hello"}]

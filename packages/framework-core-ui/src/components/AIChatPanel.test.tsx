@@ -191,7 +191,7 @@ describe("AIChatPanel", () => {
 
     await fillAndSend("Add a chart");
 
-    // EXPLANATION appears in both the bubble text and the LayoutDiffViewer; first() is sufficient
+    // EXPLANATION is rendered inside LayoutDiffViewer (bubble text is hidden while diff is showing)
     await expect.element(page.getByText(EXPLANATION).first()).toBeInTheDocument();
   });
 
@@ -323,5 +323,14 @@ describe("AIChatPanel", () => {
     expect(body.registry[0]).toMatchObject({ name: "Chart" });
     // factory must be stripped from the serialized registry
     expect((body.registry[0] as Record<string, unknown>).factory).toBeUndefined();
+  });
+
+  it("collapse button calls onOpenChange(false) when clicked", async () => {
+    const onOpenChange = vi.fn();
+    await render(<AIChatPanel {...defaultProps({ onOpenChange })} />);
+
+    domClick("Collapse chat panel");
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

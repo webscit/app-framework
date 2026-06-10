@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
@@ -123,7 +124,9 @@ function MessageBubble({
   return (
     <div className={`sct-AIChatPanel-row sct-AIChatPanel-row--${message.role}`}>
       <div className={bubbleClass}>
-        <p className="sct-AIChatPanel-bubble-text">{message.content}</p>
+        {/* Hide bubble text while the diff viewer is showing — the explanation
+            is already rendered inside LayoutDiffViewer to avoid duplication. */}
+        {!showDiff && <p className="sct-AIChatPanel-bubble-text">{message.content}</p>}
 
         {showDiff && message.proposedLayout && message.layoutExplanation && (
           <div className="sct-AIChatPanel-diff">
@@ -292,10 +295,19 @@ export function AIChatPanel({
       <SheetContent
         side="right"
         className="sct-AIChatPanel-sheet"
-        showCloseButton={true}
+        showCloseButton={false}
       >
         <SheetHeader className="sct-AIChatPanel-header">
           <SheetTitle>AI Layout Assistant</SheetTitle>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="sct-AIChatPanel-collapse"
+            onClick={() => onOpenChange(false)}
+            aria-label="Collapse chat panel"
+          >
+            <ChevronRight size={18} aria-hidden />
+          </Button>
         </SheetHeader>
 
         <ScrollArea className="sct-AIChatPanel-messages">
@@ -336,16 +348,17 @@ export function AIChatPanel({
 
         <div className="sct-AIChatPanel-input-row">
           <Textarea
+            className="sct-AIChatPanel-textarea"
             placeholder="Ask AI to build or modify your layout…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={loading}
-            rows={2}
-            className="sct-AIChatPanel-textarea"
             aria-label="Chat input"
           />
           <Button
+            className="sct-AIChatPanel-send-btn"
+            size="default"
             onClick={() => void handleSend()}
             disabled={loading || input.trim() === ""}
             aria-label="Send message"

@@ -44,6 +44,7 @@ export { WidgetLoader, type SctManifest, type SctWidgetEntry } from "./widgetLoa
 export { useWidgetLoader } from "./useWidgetLoader";
 export {
   ApplicationShell,
+  applyNonTogglableCorrection,
   type ApplicationShellProps,
   type ShellClassNames,
 } from "./ApplicationShell";

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
   ApplicationShell,
+  applyNonTogglableCorrection,
   EventBusProvider,
   WidgetRegistry,
   WidgetRegistryContext,
@@ -11,7 +12,6 @@ import {
   CHART,
   LOG_VIEWER,
   createDefaultShellLayout,
-  LayoutDiffViewer,
   AIChatPanel,
   useShellLayoutStore,
 } from "@app-framework/core-ui";
@@ -116,7 +116,11 @@ const initialLayout: ShellLayout = {
   },
 };
 
-function Dashboard() {
+interface DashboardProps {
+  onOpenChat: () => void;
+}
+
+function Dashboard({ onOpenChat }: DashboardProps) {
   const { sine, log } = useSimulation();
 
   return (
@@ -142,11 +146,22 @@ function Dashboard() {
           {log ? `[${log.level}] ${log.message}` : "—"}
         </span>
       </span>
+      <button
+        style={{ ...buttonStyle, marginLeft: "auto" }}
+        onClick={onOpenChat}
+        aria-label="Open AI layout chat"
+      >
+        AI Layout
+      </button>
     </div>
   );
 }
 
-function AppShell() {
+interface AppShellProps {
+  onOpenChat: () => void;
+}
+
+function AppShell({ onOpenChat }: AppShellProps) {
   const loaderStatus = useWidgetLoader("/sct-manifest.json");
 
   if (loaderStatus === "loading") return <p>Loading widgets…</p>;
@@ -157,31 +172,13 @@ function AppShell() {
       data-testid="shell-layout"
       style={{ display: "flex", flexDirection: "column", height: "100vh" }}
     >
-      <Dashboard />
+      <Dashboard onOpenChat={onOpenChat} />
       <div style={{ flex: 1, overflow: "hidden" }}>
         <ApplicationShell initialLayout={initialLayout} />
       </div>
     </div>
   );
 }
-
-const demoProposed: ShellLayout = {
-  regions: {
-    ...createDefaultShellLayout().regions,
-    "sidebar-left": {
-      visible: true,
-      items: [{ id: "pc-1", type: "ParameterController", props: {} }],
-    },
-    main: {
-      visible: true,
-      items: [{ id: "chart-1", type: "Chart", props: {} }],
-    },
-    "sidebar-right": {
-      visible: true,
-      items: [{ id: "log-1", type: "LogViewer", props: {} }],
-    },
-  },
-};
 
 const buttonStyle: React.CSSProperties = {
   padding: "6px 14px",
@@ -193,64 +190,53 @@ const buttonStyle: React.CSSProperties = {
   fontSize: 13,
 };
 
+const expandTabStyle: React.CSSProperties = {
+  position: "fixed",
+  right: 0,
+  top: "50%",
+  transform: "translateY(-50%)",
+  padding: "14px 6px",
+  background: "#1e1e1e",
+  color: "#fff",
+  border: "1px solid #555",
+  borderRight: "none",
+  borderRadius: "6px 0 0 6px",
+  cursor: "pointer",
+  writingMode: "vertical-rl",
+  fontSize: 12,
+  letterSpacing: "0.06em",
+  zIndex: 40,
+};
+
 function App() {
   const [chatOpen, setChatOpen] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
   const { layout, setLayout } = useShellLayoutStore();
 
   return (
     <WidgetRegistryContext.Provider value={registry}>
       <EventBusProvider path="/ws">
         <WidgetLoaderProvider>
-          <AppShell />
+          <AppShell onOpenChat={() => setChatOpen((v) => !v)} />
 
-          {/* Floating controls — hidden while AI chat panel is open to avoid z-index overlap */}
+          {/* Right-edge tab — stays visible when the panel is collapsed so the
+              user can expand it again without navigating back to the Dashboard bar */}
           {!chatOpen && (
-            <div
-              style={{
-                position: "fixed",
-                bottom: 16,
-                right: 16,
-                zIndex: 40,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-end",
-                gap: 8,
-              }}
+            <button
+              style={expandTabStyle}
+              onClick={() => setChatOpen(true)}
+              aria-label="Open AI layout chat"
             >
-              <button style={buttonStyle} onClick={() => setChatOpen(true)}>
-                AI Layout
-              </button>
-              <button style={buttonStyle} onClick={() => setShowDemo((v) => !v)}>
-                {showDemo ? "Hide" : "Show"} LayoutDiffViewer demo
-              </button>
-              {showDemo && (
-                <div
-                  style={{
-                    width: 520,
-                    background: "var(--card, #fff)",
-                    border: "1px solid var(--border, #e5e7eb)",
-                    borderRadius: 10,
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-                  }}
-                >
-                  <LayoutDiffViewer
-                    current={initialLayout}
-                    proposed={demoProposed}
-                    explanation="Added a ParameterController to the left sidebar, a Chart to main, and a LogViewer to the right sidebar."
-                    onApprove={() => alert("Approved!")}
-                    onReject={() => setShowDemo(false)}
-                  />
-                </div>
-              )}
-            </div>
+              AI Layout
+            </button>
           )}
 
           <AIChatPanel
             open={chatOpen}
             onOpenChange={setChatOpen}
             currentLayout={layout}
-            onApplyLayout={(proposed) => setLayout(() => proposed)}
+            onApplyLayout={(proposed) =>
+              setLayout(() => applyNonTogglableCorrection(proposed))
+            }
             registry={registry}
             apiUrl="/ai/layout"
           />

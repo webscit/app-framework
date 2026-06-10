@@ -208,10 +208,21 @@ export function LayoutDiffViewer({
       )}
 
       <div className="sct-LayoutDiffViewer-actions">
-        <Button variant="outline" onClick={onReject}>
+        <Button
+          className="sct-LayoutDiffViewer-reject-btn"
+          variant="outline"
+          size="default"
+          onClick={onReject}
+        >
           Reject
         </Button>
-        <Button onClick={onApprove}>Approve</Button>
+        <Button
+          className="sct-LayoutDiffViewer-approve-btn"
+          size="default"
+          onClick={onApprove}
+        >
+          Approve
+        </Button>
       </div>
     </div>
   );
