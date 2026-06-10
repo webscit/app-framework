@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import math
 from dataclasses import dataclass
+from typing import Any
 
 from framework_core.bus import BaseEvent, EventBus
 
@@ -58,3 +59,34 @@ async def start_log_producer(bus: EventBus) -> None:
     while True:
         await bus.publish("log/app", LogEntry(level="info", message="heartbeat"))
         await asyncio.sleep(1.0)
+
+
+class TableRowEvent(BaseEvent):  # type: ignore[misc]
+    """Single row of tabular simulation results published to a ``table/*`` channel."""
+
+    row: dict[str, Any]
+
+
+async def start_table_producer(bus: EventBus) -> None:
+    """Publish mock solver iteration rows to ``table/results`` every 500 ms.
+
+    Args:
+        bus: The shared EventBus to publish events on.
+    """
+
+    step = 0
+    while True:
+        residual = round(1.0 / (step + 1), 6)
+        await bus.publish(
+            "table/results",
+            TableRowEvent(
+                row={
+                    "step": step,
+                    "time_s": round(step * 0.5, 1),
+                    "residual": residual,
+                    "status": "converged" if residual < 0.01 else "converging",
+                }
+            ),
+        )
+        step += 1
+        await asyncio.sleep(0.5)
