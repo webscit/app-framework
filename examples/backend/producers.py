@@ -8,13 +8,13 @@ from typing import Any
 from framework_core.bus import BaseEvent, EventBus
 
 
-class SineReading(BaseEvent):  # type: ignore[misc]
+class SineReading(BaseEvent):
     """Sine wave sample event for the demo channel."""
 
     value: float
 
 
-class LogEntry(BaseEvent):  # type: ignore[misc]
+class LogEntry(BaseEvent):
     """Application log event emitted by the demo producer."""
 
     level: str
@@ -54,10 +54,10 @@ async def start_sine_wave_producer(bus: EventBus, params: SineParams) -> None:
 
 
 async def start_log_producer(bus: EventBus) -> None:
-    """Publish a heartbeat log entry to ``logs/app`` every second."""
+    """Publish a heartbeat log entry to ``log/app`` every second."""
 
     while True:
-        await bus.publish("logs/app", LogEntry(level="info", message="heartbeat"))
+        await bus.publish("log/app", LogEntry(level="info", message="heartbeat"))
         await asyncio.sleep(1.0)
 
 

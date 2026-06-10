@@ -44,9 +44,19 @@ export { WidgetLoader, type SctManifest, type SctWidgetEntry } from "./widgetLoa
 export { useWidgetLoader } from "./useWidgetLoader";
 export {
   ApplicationShell,
+  applyNonTogglableCorrection,
   type ApplicationShellProps,
   type ShellClassNames,
 } from "./ApplicationShell";
+export {
+  LayoutDiffViewer,
+  type LayoutDiffViewerProps,
+} from "./components/LayoutDiffViewer";
+export {
+  AIChatPanel,
+  type AIChatPanelProps,
+  type ChatMessage,
+} from "./components/AIChatPanel";
 export {
   useShellLayoutStore,
   clearPersistedLayout,
