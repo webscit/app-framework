@@ -1,0 +1,135 @@
+.sct-LayoutDiffViewer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 13px;
+}
+
+/* ─── Explanation ──────────────────────────────────────────────────────────── */
+
+.sct-LayoutDiffViewer-explanation {
+  margin: 0;
+  color: var(--foreground);
+  line-height: 1.5;
+}
+
+/* ─── Side-by-side wireframes ─────────────────────────────────────────────── */
+
+.sct-LayoutDiffViewer-side-by-side {
+  display: flex;
+  gap: 16px;
+}
+
+.sct-LayoutDiffViewer-wireframe {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sct-LayoutDiffViewer-wireframe-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+}
+
+/* ─── Wireframe grid ──────────────────────────────────────────────────────── */
+
+.sct-LayoutDiffViewer-grid {
+  display: grid;
+  grid-template-areas:
+    "header          header          header"
+    "sidebar-left    main            sidebar-right"
+    "bottom          bottom          bottom"
+    "status-bar      status-bar      status-bar";
+  grid-template-rows: auto 1fr auto auto;
+  grid-template-columns: 28% 1fr 28%;
+  gap: 2px;
+  background-color: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  height: 140px;
+}
+
+/* ─── Region cells ────────────────────────────────────────────────────────── */
+
+.sct-LayoutDiffViewer-cell {
+  background-color: var(--card);
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.sct-LayoutDiffViewer-cell--changed {
+  background-color: oklch(0.97 0.05 150);
+  border: 1px solid oklch(0.65 0.18 150);
+}
+
+.sct-LayoutDiffViewer-cell-label {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sct-LayoutDiffViewer-cell-widgets {
+  font-size: 10px;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── JSON toggle ─────────────────────────────────────────────────────────── */
+
+.sct-LayoutDiffViewer-json-toggle {
+  align-self: flex-start;
+}
+
+/* ─── JSON block ──────────────────────────────────────────────────────────── */
+
+.sct-LayoutDiffViewer-json {
+  margin: 0;
+  padding: 10px 12px;
+  background-color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--foreground);
+  overflow-x: auto;
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre;
+}
+
+/* ─── Actions ─────────────────────────────────────────────────────────────── */
+
+.sct-LayoutDiffViewer-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.sct-LayoutDiffViewer-actions .sct-LayoutDiffViewer-reject-btn,
+.sct-LayoutDiffViewer-actions .sct-LayoutDiffViewer-approve-btn {
+  flex-shrink: 0;
+  padding-left: 16px;
+  padding-right: 16px;
+  height: 36px;
+  border-radius: 8px;
+}

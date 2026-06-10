@@ -27,6 +27,11 @@ pypackages/framework-core/dist/
 playwright-report/
 test-results/
 
+# Environment files — never commit real secrets
+.env
+.env.local
+examples/**/.env
+
 # Tooling caches
 .cache/
 .e2e-venv/
