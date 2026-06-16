@@ -274,6 +274,10 @@ def extract_json(text: str) -> dict[str, Any]:
     if not text:
         raise ValueError("AI returned an empty response")
 
+    # Fix a common AI mistake: \' is not a valid JSON escape sequence.
+    # Single quotes never need escaping in JSON strings, so replace them.
+    text = text.replace("\\'", "'")
+
     # Strip markdown code fences (```json ... ``` or ``` ... ```)
     if text.startswith("```"):
         lines = text.splitlines()
