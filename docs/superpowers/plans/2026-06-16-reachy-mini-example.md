@@ -2,7 +2,7 @@
 
 **Goal:** Add a real engineering example alongside the existing sine-wave demo, built on the Reachy Mini MuJoCo simulation. An engineer designs a head movement sequence ("greeting dance"), runs it in simulation, and verifies it is safe to deploy on the physical robot — with the AI assistant helping diagnose problems and optimise parameters when the engineer asks it to.
 
-**Architecture:** A Python backend drives the Reachy Mini simulation via the official SDK (`reachy-mini`), publishing live telemetry, safety margins, and simulation state to the EventBus. The frontend visualises the motion in real time using the existing widget set (Chart, LogViewer, ParameterController, DataTable) plus two new widgets (StatusIndicator for simulation phase, a planned Gauge for safety margins). When a violation is detected, a new AI endpoint (`POST /ai/analyze`) sends a data snapshot to OpenRouter and returns a plain-English diagnosis and concrete parameter fix suggestions that the user can approve.
+**Architecture:** A Python backend drives the Reachy Mini simulation via the official SDK (`reachy-mini`), publishing live telemetry, safety margins, and simulation state to the EventBus. The frontend visualises the motion in real time using the existing widget set (Chart, LogViewer, ParameterController, DataTable). The existing `POST /ai/layout` endpoint is extended — not replaced with a new endpoint — so the single AI chat panel can handle both layout changes and simulation analysis in one conversation. The AI can respond to a diagnosis question with a plain-English explanation, corrected parameters, a layout suggestion (e.g. add a Gauge widget), or any combination of these.
 
 **Tech Stack:**
 
@@ -65,8 +65,8 @@ These are not permanent exclusions — they are the planned follow-on work once 
 - Backend choreography runner with configurable parameters and safety checking.
 - Five EventBus channels (`reachy/telemetry`, `reachy/safety`, `reachy/state`, `reachy/log`, `reachy/control`).
 - Frontend dashboard wired to those channels using existing widgets.
-- New AI endpoint `POST /ai/analyze` in `framework_core/ai_layout.py` (reusing `call_openrouter`).
-- User-initiated two-level AI interaction: Level 1 — engineer asks "what's wrong?" → diagnosis; Level 2 — engineer asks "how to fix it?" → parameter suggestion with approve/reject.
+- Extended `POST /ai/layout` endpoint — request gains optional telemetry/safety snapshot fields; response gains optional `suggested_params` field. No new endpoint.
+- Single AI chat panel handles both layout changes and simulation analysis in one conversation. The AI can return a diagnosis, corrected parameters, a layout suggestion, or all three in one response.
 - Two presets (Safe, Aggressive) selectable from the frontend.
 - Unit tests for the producer and the new AI endpoint helper.
 
@@ -96,9 +96,11 @@ Browser (React)                           Backend (FastAPI / framework-core)
 │  StatusIndicator (reachy/state)     │◄──│  - publishes reachy/state transitions     │
 │                                     │   └───────────────────────────────────────────┘
 │  AIChatPanel                        │   ┌───────────────────────────────────────────┐
-│  (POST /ai/analyze)                 │──►│  POST /ai/analyze (new endpoint)          │
-│  (POST /ai/layout)                  │──►│  POST /ai/layout  (existing endpoint)     │
-└─────────────────────────────────────┘   └───────────────────────────────────────────┘
+│  (single endpoint for all AI chat)  │──►│  POST /ai/layout  (extended endpoint)     │
+│  attaches telemetry snapshot        │   │  - existing layout generation             │
+│  automatically on every request     │   │  - + diagnosis when snapshot present      │
+└─────────────────────────────────────┘   │  - + suggested_params in response         │
+                                          └───────────────────────────────────────────┘
                                                          │
                                                          ▼
                                                OpenRouter API
@@ -124,21 +126,23 @@ Browser (React)                           Backend (FastAPI / framework-core)
 1. Run completes with FAIL verdict (or engineer notices chart looks wrong)
 2. Engineer opens AIChatPanel and types freely, e.g.:
    "Something seems off with this run — can you look at the data and tell me what's going wrong?"
-3. Frontend attaches a snapshot of recent telemetry + safety events to the request automatically
-4. POST /ai/analyze { snapshot: last N events, params: current, history: [] }
-5. Backend builds prompt (system + snapshot + current params) → call_openrouter()
-6. AI returns Level 1: plain-English diagnosis
-   e.g. "The head roll reached 38° on step 1, which exceeds the 35 mm violation threshold.
-         The step duration of 0.3 s is also below the safe minimum of 0.5 s."
-7. Frontend displays diagnosis in chat bubble
-8. Engineer follows up: "What parameter values would fix this?"
-   (or: "Can you optimise the parameters so the robot moves correctly?")
-9. POST /ai/analyze → AI returns Level 2: { suggested_params: { roll_amplitude_deg: 18, step_duration_s: 0.7 } }
-10. Frontend shows parameter diff in ParameterController (same approve/reject UX as layout diff)
-11. Engineer approves → params published to reachy/control → next run uses safe values → PASS
+3. Frontend attaches a snapshot automatically to every /ai/layout request:
+   { telemetry_snapshot: last 20 events, safety_snapshot: last 20 events, current_params: {...} }
+4. POST /ai/layout { prompt, registry, history, telemetry_snapshot, safety_snapshot, current_params }
+5. Backend builds prompt (system + widget catalog + snapshot + current params) → call_openrouter()
+6. AI returns a combined response — may include:
+   - explanation: "The head roll reached 38° on step 1, exceeding the 40° limit.
+                   Step duration of 0.3 s is also below the safe minimum of 0.5 s."
+   - suggested_params: { roll_amplitude_deg: 18, step_duration_s: 0.7 }
+   - layout: (optional) e.g. add a Gauge widget to visualise the safety margin in real time
+7. Frontend displays explanation in chat bubble
+8. If suggested_params present: renders parameter diff in ParameterController (approve/reject)
+9. If layout change present: renders layout diff (existing approve/reject UX)
+10. Engineer approves params → published to reachy/control → next run uses safe values → PASS
+11. Engineer approves layout → dashboard gains Gauge widget showing roll margin live
 ```
 
-The snapshot is attached automatically by the frontend on every `/ai/analyze` call — the engineer does not need to manually copy data into the chat. The AI has all the context it needs from the first message.
+The snapshot is attached automatically on every `/ai/layout` call — the engineer does not pick a mode or a different endpoint. The AI has full context (widget catalog + simulation data) and can respond with layout changes, parameter fixes, or both in one message.
 
 ---
 
@@ -345,80 +349,96 @@ mount_analyze_route(app)  # new analyze endpoint (see Section 7)
 
 ---
 
-## 7. New AI Endpoint — `POST /ai/analyze`
+## 7. Extended `POST /ai/layout` Endpoint
 
-This endpoint lives in `framework_core/ai_layout.py` alongside the existing `mount_ai_routes`. It reuses `call_openrouter` and `extract_json` from `ai.py`.
+The existing `/ai/layout` endpoint is extended rather than a new endpoint being created. This keeps a single AI chat panel for everything — layout generation, simulation diagnosis, and parameter optimisation — without the engineer needing to pick a mode or switch panels.
 
-### 7.1 Request / Response models
+### 7.1 Why one endpoint, not two
+
+| Concern             | Two endpoints                                       | One extended endpoint                                              |
+| ------------------- | --------------------------------------------------- | ------------------------------------------------------------------ |
+| UX                  | Engineer must know which panel/mode to use          | Engineer just talks — AI decides what to return                    |
+| Combined response   | Impossible — layout and analysis are separate calls | AI can return diagnosis + param fix + layout change in one message |
+| Frontend complexity | Two request paths, two response handlers            | One request path, response fields are optional                     |
+| Backend complexity  | Two routes, two prompts, two test suites            | One route, one richer prompt, one test suite                       |
+
+### 7.2 Extended request / response models
 
 ```python
-class AnalyzeRequest(BaseModel):
-    """Telemetry snapshot + current params sent to the AI for diagnosis."""
+class LayoutRequest(BaseModel):
+    """Extended layout request — existing fields plus optional simulation snapshot."""
 
-    telemetry_snapshot: list[dict]   # last N ReachyTelemetryEvent dicts
-    safety_snapshot: list[dict]      # last N ReachySafetyEvent dicts
-    current_params: dict             # current ChoreographyParams as dict
-    history: list[dict[str, str]] = []  # prior chat turns
+    prompt: str
+    history: list[dict[str, str]] = []
+    registry: list[dict]  # full WidgetDefinition list (factory excluded)
+
+    # New optional fields — present when the chat panel has simulation data buffered
+    telemetry_snapshot: list[dict] = []   # last N ReachyTelemetryEvent dicts
+    safety_snapshot: list[dict] = []      # last N ReachySafetyEvent dicts
+    current_params: dict = {}             # current ChoreographyParams as dict
 
 
-class AnalyzeResponse(BaseModel):
-    """AI diagnosis + optional parameter suggestions."""
+class LayoutResponse(BaseModel):
+    """Extended layout response — existing fields plus optional simulation fields."""
 
-    explanation: str             # plain-English Level 1 diagnosis
-    suggested_params: dict | None = None  # Level 2: parameter values, if requested
+    layout: dict
+    explanation: str
+
+    # New optional fields — present when AI responds to a simulation question
+    suggested_params: dict | None = None  # parameter values to approve/reject
 ```
 
-### 7.2 System prompt strategy
+The new fields are all optional with safe defaults — the existing sine-wave example and any other app that uses `/ai/layout` without sending a snapshot continue to work without any changes.
+
+### 7.3 Extended system prompt
+
+The system prompt gains a second section that is included when a snapshot is present in the request:
 
 ```
-You are a robotics safety advisor for a Reachy Mini robot simulation.
-You are given:
-1. A snapshot of recent joint telemetry (head roll, z height, antenna positions, step durations).
-2. Safety margin data (how close each step came to the limits).
-3. The current choreography parameters.
+[existing layout generation section — unchanged]
 
-SAFETY LIMITS:
+---
+
+SIMULATION DATA (present when the user is asking about a running simulation):
+You may also receive:
+- telemetry_snapshot: recent head pose readings (roll_deg, z_mm, step durations)
+- safety_snapshot: safety margin per step (how close each axis came to its limit)
+- current_params: the choreography parameters currently in use
+
+SAFETY LIMITS for Reachy Mini:
 - Head roll: safe ≤ ±20°, warning ≤ ±30°, violation > ±40°
 - Head height (z): safe 0–25 mm, warning 25–35 mm, violation > 35 mm
 - Step duration: safe ≥ 0.5 s, warning 0.3–0.5 s, violation < 0.3 s
 
-TASK:
-If asked to diagnose, return:
-{
-  "explanation": "1-3 sentence plain-English summary of what went wrong and which axis/step caused it"
-}
+When simulation data is present and the user asks about the run, you may return:
+- "explanation": a 1-3 sentence plain-English summary of what went wrong and which axis/step
+- "suggested_params": corrected parameter values (only include axes that need changing)
+- "layout": a dashboard layout change to help visualise the problem
+  e.g. add a Gauge widget showing roll margin, or add a Chart series for safety margin over time
 
-If asked for a parameter fix, return:
-{
-  "explanation": "...",
-  "suggested_params": {
-    "roll_amplitude_deg": <value>,
-    "z_amplitude_mm": <value>,
-    "step_duration_s": <value>
-  }
-}
-
-Only suggest parameters that are needed — do not change parameters that are already within safe limits.
-Keep suggested values within the safe zone, not just below the violation threshold.
+You may return any combination of these — or all three in one response.
+Only suggest parameters within the safe zone, not just below the violation threshold.
 ```
 
-### 7.3 Frontend — how the AI chat is triggered
+### 7.4 Frontend — snapshot attachment
 
-The AI panel is **not** auto-opened. The engineer opens it manually via the "AI" button (same as the existing layout chat button). The panel is always available; there is no automatic trigger.
+The AI panel is **not** auto-opened. The engineer opens it manually via the "AI" button.
 
-When the engineer sends any message, the frontend **automatically attaches** a data snapshot to the request body:
+When the engineer sends any message, the frontend **automatically attaches** the snapshot fields to every `/ai/layout` request:
 
-- Last 20 `reachy/telemetry` events (buffered in frontend state from the `reachy/telemetry` channel).
-- Last 20 `reachy/safety` events (same pattern).
-- Current parameter values from the `ParameterController` state.
+- `telemetry_snapshot`: last 20 `reachy/telemetry` events (buffered in frontend state).
+- `safety_snapshot`: last 20 `reachy/safety` events (same pattern).
+- `current_params`: current parameter values from the `ParameterController` state.
 
-The engineer does not need to ask for the data to be included — it is always there. This means any free-form question ("what's wrong?", "why did it fail?", "optimise the parameters") automatically gives the AI full context.
+If no simulation has run yet, these fields are empty arrays/objects — the backend ignores them and behaves exactly as before.
 
-On Level 2 response (when `suggested_params` is present), the frontend:
+When the AI response includes `suggested_params`, the frontend:
 
-1. Renders the suggested values as a diff in the ParameterController (same visual diff as layout approval).
+1. Renders the suggested values as a diff in the ParameterController (same approve/reject UX as layout diff).
 2. Approve → publishes new params to `reachy/control` + resets the simulation to idle.
 3. Reject → discards, engineer can rephrase.
+
+When the response includes both `suggested_params` and a `layout` change, both diffs are shown — the engineer can approve or reject each independently.
 
 ---
 
@@ -553,23 +573,28 @@ The `usePublish` hook from `@app-framework/core-ui` is used for this.
 | `test_control_consumer_updates_params` | `reachy/control` event → params mutated correctly                      |
 | `test_control_consumer_preset`         | `{ preset: "safe" }` → params match SAFE_PRESET                        |
 
-### 9.2 Python unit tests (`pypackages/framework-core/tests/test_ai_analyze.py`)
+### 9.2 Python unit tests — extended `/ai/layout` (`pypackages/framework-core/tests/test_ai_layout.py`)
 
-| Test                                             | What it checks                                             |
-| ------------------------------------------------ | ---------------------------------------------------------- |
-| `test_analyze_endpoint_returns_explanation`      | Valid snapshot → 200 with explanation                      |
-| `test_analyze_endpoint_returns_suggested_params` | Snapshot with violations → suggested_params present        |
-| `test_analyze_endpoint_missing_api_key`          | No env var → 500 with clear message                        |
-| `test_build_analyze_prompt_structure`            | Messages array has correct role sequence and snapshot JSON |
+New test cases added to the existing `test_ai_layout.py`:
+
+| Test                                                | What it checks                                                              |
+| --------------------------------------------------- | --------------------------------------------------------------------------- |
+| `test_layout_endpoint_with_empty_snapshot`          | Empty snapshot fields → behaves identically to existing layout-only request |
+| `test_layout_endpoint_with_snapshot_returns_params` | Snapshot with violations present → response includes `suggested_params`     |
+| `test_layout_endpoint_combined_response`            | AI returns layout + suggested_params + explanation → all fields parsed      |
+| `test_build_layout_prompt_includes_snapshot`        | Snapshot data appears in the assembled messages when provided               |
+| `test_build_layout_prompt_omits_snapshot_section`   | Snapshot section absent from prompt when snapshot fields are empty          |
 
 ### 9.3 Frontend unit tests
 
-| Test                                   | What it checks                                                                                         |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Snapshot attached on every AI request  | `/ai/analyze` request body always contains `telemetry_snapshot` + `safety_snapshot` + `current_params` |
-| Param diff renders on suggested_params | Diff viewer shows parameter changes when AI returns `suggested_params`                                 |
-| Approve applies params                 | `reachy/control` published with suggested values on approve                                            |
-| Reject discards suggestion             | No `reachy/control` publish on reject                                                                  |
+| Test                                     | What it checks                                                                                        |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Snapshot attached on every AI request    | `/ai/layout` request body always contains `telemetry_snapshot` + `safety_snapshot` + `current_params` |
+| Empty snapshot when no run yet           | Fields present but empty before first run — no errors                                                 |
+| Param diff renders on `suggested_params` | Diff viewer shown in chat bubble when AI returns `suggested_params`                                   |
+| Layout diff renders alongside param diff | Both diffs shown independently when AI returns both `layout` and `suggested_params`                   |
+| Approve params applies params            | `reachy/control` published with suggested values on approve                                           |
+| Reject params discards suggestion        | No `reachy/control` publish on reject                                                                 |
 
 ---
 
@@ -596,11 +621,13 @@ examples/reachy_mini/
   README.md                    # how to install reachy-mini[mujoco] + run the daemon
 
 pypackages/framework-core/src/framework_core/
-  ai_layout.py                 # add mount_analyze_route(), AnalyzeRequest, AnalyzeResponse,
-                               # build_analyze_prompt()
+  ai_layout.py                 # extend LayoutRequest (add snapshot fields),
+                               # extend LayoutResponse (add suggested_params),
+                               # extend build_layout_prompt() to include snapshot section,
+                               # extend system prompt constant
 
 pypackages/framework-core/tests/
-  test_ai_analyze.py
+  test_ai_layout.py            # extend existing test file with snapshot test cases (Section 9.2)
 ```
 
 ---
@@ -670,27 +697,28 @@ The Reachy Mini example frontend uses the same `@app-framework/core-ui` package 
 - [ ] Task 4: Backend wiring (main.py)
       - [ ] lifespan sets up ChoreographyParams with AGGRESSIVE_PRESET (demo starts broken)
       - [ ] register_consumers() called with params
-      - [ ] mount_ai_routes(app) (existing)
-      - [ ] mount_analyze_route(app) (new — Task 5)
+      - [ ] mount_ai_routes(app) (existing — no new route needed)
       - [ ] No background tasks at startup — runner starts on "start" command only
 
-- [ ] Task 5: POST /ai/analyze endpoint (framework_core/ai_layout.py)
-      - [ ] AnalyzeRequest model
-      - [ ] AnalyzeResponse model
-      - [ ] build_analyze_prompt() — system prompt + snapshot + history
-      - [ ] mount_analyze_route(app) function
-      - [ ] POST /ai/analyze handler — calls call_openrouter, extracts JSON, returns AnalyzeResponse
-      - [ ] Unit tests: test_ai_analyze.py (all cases in Section 9.2)
+- [ ] Task 5: Extend /ai/layout endpoint (framework_core/ai_layout.py)
+      - [ ] Add optional fields to LayoutRequest: telemetry_snapshot, safety_snapshot, current_params
+      - [ ] Add optional suggested_params field to LayoutResponse
+      - [ ] Extend build_layout_prompt() to append snapshot section when snapshot fields are non-empty
+      - [ ] Extend system prompt constant with simulation diagnosis section (Section 7.3)
+      - [ ] Extract and return suggested_params from AI response JSON alongside layout
+      - [ ] Unit tests: new cases in test_ai_layout.py (all cases in Section 9.2)
+      - [ ] Verify existing layout-only tests still pass (no regression)
 
 - [ ] Task 6: Frontend — main.tsx
       - [ ] Widget registry: PARAMETER_CONTROLLER, CHART, LOG_VIEWER, DATA_TABLE
       - [ ] Initial layout matching Section 8.1 diagram
       - [ ] Preset buttons (Safe / Aggressive) publishing to reachy/control
       - [ ] Start / Stop / Reset buttons publishing to reachy/control
-      - [ ] Auto-open AI chat on reachy/state violation (useChannel hook)
-      - [ ] Pre-fill AI input with diagnosis prompt on violation
-      - [ ] Level 2: render suggested_params as ParameterController diff
-      - [ ] Approve → publish to reachy/control + reset simulation
+      - [ ] Buffer last 20 reachy/telemetry + reachy/safety events in frontend state
+      - [ ] Attach snapshot fields to every /ai/layout request automatically
+      - [ ] Render suggested_params diff in ParameterController when present in AI response
+      - [ ] Render layout diff and param diff independently when AI returns both
+      - [ ] Approve params → publish to reachy/control + reset simulation
       - [ ] vite.config.ts: proxy /ws and /ai to backend
       - [ ] Unit tests: Section 9.3 cases
 
@@ -717,7 +745,7 @@ The Reachy Mini example frontend uses the same `@app-framework/core-ui` package 
 | 2   | Does `goto_target()` block until the move is complete, or is it fire-and-forget?                  | Telemetry timing — when to publish after each step | Assume blocking (duration-based) until tested; add `await asyncio.sleep(duration)` fallback |
 | 3   | Should the AI chat pre-fill auto-send, or require the user to press Send?                         | UX surprise factor                                 | Require user to press Send — Frederic's demo story needs a human beat at this moment        |
 | 4   | Where do preset buttons live — in `ParameterController` props or as standalone UI in `Dashboard`? | Layout complexity                                  | Standalone buttons in Dashboard (simpler, same pattern as AI Layout button)                 |
-| 5   | Should `POST /ai/analyze` share the conversation history with `POST /ai/layout`?                  | Context coherence                                  | Separate histories for v1 — layout and analysis are different tasks                         |
+| 5   | Should the param diff and layout diff be approvable independently or as one atomic action?        | UX when AI returns both in one response            | Independently — engineer may want the param fix but not the suggested widget, or vice versa |
 
 ---
 
