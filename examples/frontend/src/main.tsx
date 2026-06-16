@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
   ApplicationShell,
+  applyNonTogglableCorrection,
   EventBusProvider,
   WidgetRegistry,
   WidgetRegistryContext,
@@ -9,8 +10,11 @@ import {
   useWidgetLoader,
   PARAMETER_CONTROLLER,
   CHART,
+  LOG_VIEWER,
   DATA_TABLE,
   createDefaultShellLayout,
+  AIChatPanel,
+  useShellLayoutStore,
 } from "@app-framework/core-ui";
 import type { ShellLayout } from "@app-framework/core-ui";
 import { useSimulation } from "./useSimulation";
@@ -20,6 +24,7 @@ import "@/globals.css";
 const registry = new WidgetRegistry();
 registry.register(PARAMETER_CONTROLLER);
 registry.register(CHART);
+registry.register(LOG_VIEWER);
 registry.register(DATA_TABLE);
 
 const initialLayout: ShellLayout = {
@@ -113,7 +118,11 @@ const initialLayout: ShellLayout = {
   },
 };
 
-function Dashboard() {
+interface DashboardProps {
+  onOpenChat: () => void;
+}
+
+function Dashboard({ onOpenChat }: DashboardProps) {
   const { sine, log } = useSimulation();
 
   return (
@@ -139,11 +148,22 @@ function Dashboard() {
           {log ? `[${log.level}] ${log.message}` : "—"}
         </span>
       </span>
+      <button
+        style={{ ...buttonStyle, marginLeft: "auto" }}
+        onClick={onOpenChat}
+        aria-label="Open AI layout chat"
+      >
+        AI Layout
+      </button>
     </div>
   );
 }
 
-function AppShell() {
+interface AppShellProps {
+  onOpenChat: () => void;
+}
+
+function AppShell({ onOpenChat }: AppShellProps) {
   const loaderStatus = useWidgetLoader("/sct-manifest.json");
 
   if (loaderStatus === "loading") return <p>Loading widgets…</p>;
@@ -154,7 +174,7 @@ function AppShell() {
       data-testid="shell-layout"
       style={{ display: "flex", flexDirection: "column", height: "100vh" }}
     >
-      <Dashboard />
+      <Dashboard onOpenChat={onOpenChat} />
       <div style={{ flex: 1, overflow: "hidden" }}>
         <ApplicationShell initialLayout={initialLayout} />
       </div>
@@ -162,12 +182,66 @@ function AppShell() {
   );
 }
 
+const buttonStyle: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 6,
+  border: "1px solid #555",
+  background: "#1e1e1e",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: 13,
+};
+
+const expandTabStyle: React.CSSProperties = {
+  position: "fixed",
+  right: 0,
+  top: "50%",
+  transform: "translateY(-50%)",
+  padding: "14px 6px",
+  background: "#1e1e1e",
+  color: "#fff",
+  border: "1px solid #555",
+  borderRight: "none",
+  borderRadius: "6px 0 0 6px",
+  cursor: "pointer",
+  writingMode: "vertical-rl",
+  fontSize: 12,
+  letterSpacing: "0.06em",
+  zIndex: 40,
+};
+
 function App() {
+  const [chatOpen, setChatOpen] = useState(false);
+  const { layout, setLayout } = useShellLayoutStore();
+
   return (
     <WidgetRegistryContext.Provider value={registry}>
       <EventBusProvider path="/ws">
         <WidgetLoaderProvider>
-          <AppShell />
+          <AppShell onOpenChat={() => setChatOpen((v) => !v)} />
+
+          {/* Right-edge tab — stays visible when the panel is collapsed so the
+              user can expand it again without navigating back to the Dashboard bar */}
+          {!chatOpen && (
+            <button
+              style={expandTabStyle}
+              onClick={() => setChatOpen(true)}
+              aria-label="Open AI layout chat"
+            >
+              AI Layout
+            </button>
+          )}
+
+          <AIChatPanel
+            open={chatOpen}
+            onOpenChange={setChatOpen}
+            currentLayout={layout}
+            onApplyLayout={(proposed) =>
+              setLayout(() => applyNonTogglableCorrection(proposed))
+            }
+            registry={registry}
+            apiUrl="/ai/layout"
+          />
         </WidgetLoaderProvider>
       </EventBusProvider>
     </WidgetRegistryContext.Provider>

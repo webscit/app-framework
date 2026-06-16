@@ -25,11 +25,9 @@ body {
   align-items: center;
 }
 
-.sct-ApplicationShell-Content {
-  display: flex;
+.sct-ApplicationShell-Body {
   flex: 1;
-  overflow: hidden;
-  position: relative;
+  min-height: 0;
 }
 
 .sct-ShellSidebar {
@@ -38,38 +36,58 @@ body {
   padding: 8px;
   border-right: 1px solid #444;
   overflow-y: auto;
-  transition: width 0.2s ease;
+  height: 100%;
+  box-sizing: border-box;
 }
 
-/* Show button sits outside the sidebar — in the content area */
-.sct-ShellSidebar-toggle {
-  position: absolute;
-  left: 0;
-  top: 8px;
-  z-index: 10;
+/* ─── Panel resize handles (react-resizable-panels) ─── */
+
+.sct-PanelHandle {
+  background: transparent;
+  transition: background 0.15s;
+  z-index: 5;
+  flex-shrink: 0;
+}
+
+.sct-PanelHandle--vertical {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.sct-PanelHandle--horizontal {
+  height: 4px;
+  cursor: row-resize;
+}
+
+.sct-PanelHandle:hover,
+.sct-PanelHandle[data-resize-handle-active] {
   background: #007acc;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  cursor: pointer;
-  font-size: 11px;
 }
 
 .sct-ShellMain {
-  flex: 1;
   background: #2d2d2d;
   color: white;
   padding: 16px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.sct-ShellMain-item {
+  height: 100%;
+  overflow: hidden;
 }
 
 .sct-ShellBottom {
   background: #1e1e1e;
   color: white;
-  height: 150px;
   padding: 8px;
   border-top: 1px solid #444;
   overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .sct-ShellStatusBar {
