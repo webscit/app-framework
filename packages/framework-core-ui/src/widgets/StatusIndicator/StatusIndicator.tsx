@@ -9,10 +9,15 @@ import "./StatusIndicator.css";
 // Types
 // ---------------------------------------------------------------------------
 
+// Source - https://stackoverflow.com/a/62900613
+// Posted by Guido Dizioli
+// Retrieved 2026-06-09, License - CC BY-SA 4.0
+const VALID_STATUSES = ["running", "paused", "converged", "failed"] as const;
+
 /**
  * The four valid statuses the backend can publish to a control channel.
  */
-export type SimulationStatus = "running" | "paused" | "converged" | "failed";
+export type SimulationStatus = (typeof VALID_STATUSES)[number];
 
 /** Internal display state, extending {@link SimulationStatus} with `"unknown"`. */
 type DisplayStatus = SimulationStatus | "unknown";
@@ -24,8 +29,6 @@ interface ControlPayload {
   /** Optional free-form message, e.g. `"Iteration 42"`. */
   message?: string;
 }
-
-const VALID_STATUSES: readonly string[] = ["running", "paused", "converged", "failed"];
 
 /**
  * Props for the {@link StatusIndicatorComponent}.
@@ -63,7 +66,9 @@ const STATUS_INDICATOR_PREFIX = "sct-StatusIndicator";
 // ---------------------------------------------------------------------------
 
 function isValidStatus(value: unknown): value is SimulationStatus {
-  return typeof value === "string" && VALID_STATUSES.includes(value);
+  return (
+    typeof value === "string" && (VALID_STATUSES as readonly string[]).includes(value)
+  );
 }
 
 function formatRelativeTime(elapsedMs: number): string {
