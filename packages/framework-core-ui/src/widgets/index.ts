@@ -14,6 +14,9 @@ export {
 export { DataTableComponent } from "./DataTable";
 export type { DataTableProps, ColumnDef } from "./DataTable";
 
+export { StatusIndicatorComponent } from "./StatusIndicator";
+export type { StatusIndicatorProps, SimulationStatus } from "./StatusIndicator";
+
 export {
   LOG_VIEWER,
   STATUS_INDICATOR,

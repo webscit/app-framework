@@ -11,6 +11,7 @@ from framework_core.ai_layout import mount_ai_routes
 from .consumers import register_consumers
 from .producers import (
     SineParams,
+    start_heartbeat_producer,
     start_log_producer,
     start_sine_wave_producer,
     start_table_producer,
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         asyncio.create_task(start_sine_wave_producer(app.state.bus, params)),
         asyncio.create_task(start_log_producer(app.state.bus)),
         asyncio.create_task(start_table_producer(app.state.bus)),
+        asyncio.create_task(start_heartbeat_producer(app.state.bus)),
     ]
     try:
         yield

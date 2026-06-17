@@ -11,6 +11,7 @@ import {
   PARAMETER_CONTROLLER,
   CHART,
   LOG_VIEWER,
+  DATA_TABLE,
   createDefaultShellLayout,
   AIChatPanel,
   useShellLayoutStore,
@@ -24,6 +25,7 @@ const registry = new WidgetRegistry();
 registry.register(PARAMETER_CONTROLLER);
 registry.register(CHART);
 registry.register(LOG_VIEWER);
+registry.register(DATA_TABLE);
 
 const initialLayout: ShellLayout = {
   regions: {

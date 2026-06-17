@@ -30,6 +30,7 @@ test-results/
 # Environment files — never commit real secrets
 .env
 .env.local
+.env.*
 examples/**/.env
 
 # Tooling caches

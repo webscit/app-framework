@@ -5,9 +5,7 @@ import type { WidgetDefinition } from "../widgetRegistry";
 import { ParameterControllerComponent } from "./ParameterController/ParameterController";
 import { ChartComponent } from "./Chart/Chart";
 import { DataTableComponent } from "./DataTable/DataTable";
-
-// Placeholder component — real implementation is in StatusIndicator.tsx.
-const StatusIndicatorPlaceholder: ComponentType = () => null;
+import { StatusIndicatorComponent } from "./StatusIndicator/StatusIndicator";
 
 /**
  * Built-in widget that displays live log entries arriving on log channels.
@@ -49,10 +47,12 @@ export const STATUS_INDICATOR: WidgetDefinition = {
   priority: 10,
   defaultRegion: "status-bar",
   parameters: {
+    channel: { type: "string", default: "control/*" },
     label: { type: "string", default: "Simulation Status" },
     showLastSeen: { type: "boolean", default: true },
+    staleAfterMs: { type: "integer", default: 5000, minimum: 0, maximum: 60000 },
   },
-  factory: () => StatusIndicatorPlaceholder,
+  factory: () => StatusIndicatorComponent as ComponentType,
 };
 
 /**
