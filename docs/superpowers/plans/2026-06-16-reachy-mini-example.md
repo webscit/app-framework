@@ -261,6 +261,7 @@ class ReachyControlEvent(BaseEvent):
     step_duration_s: float | None = None
     antenna_amplitude: float | None = None
     num_loops: int | None = None
+    sequence: list[dict] | None = None  # custom StepSpec factor dicts, or None
     preset: str | None = None   # "safe" | "aggressive" | None
 
     # Lifecycle command (optional)
@@ -318,18 +319,56 @@ AGGRESSIVE_PRESET = ChoreographyParams(
 
 
 @dataclass
+class StepSpec:
+    """One step expressed as amplitude factors, not absolute values."""
+    label: str
+    roll_factor: float = 0.0
+    z_factor: float = 0.0
+    antenna_factor: float = 0.0
+
+
+DEFAULT_SEQUENCE: list[StepSpec] = [
+    StepSpec(label="tilt_right", roll_factor=1.0),
+    StepSpec(label="tilt_left", roll_factor=-1.0),
+    StepSpec(label="raise_tilt_wiggle", roll_factor=0.5, z_factor=1.0, antenna_factor=1.0),
+    StepSpec(label="home"),
+]
+
+
+@dataclass
 class ChoreographyParams:
     roll_amplitude_deg: float = 15.0
     z_amplitude_mm: float = 15.0
     step_duration_s: float = 1.0
     antenna_amplitude: float = 0.4
     num_loops: int = 2
+    sequence: list[StepSpec] = field(default_factory=lambda: list(DEFAULT_SEQUENCE))
+
+
+def build_steps(params: ChoreographyParams) -> list[ChoreographyStep]:
+    """Resolve params.sequence into executable steps by multiplying each
+    StepSpec's factors against the live amplitude/duration params. This is
+    the seam a frontend-authored choreography widget (or an AI-suggested
+    fix) plugs into: replacing `params.sequence` changes the choreography
+    without touching this function."""
+    ...
 
 
 async def run_choreography(bus: EventBus, params: ChoreographyParams) -> None:
     """Connect to the Reachy Mini simulation, execute the sequence, publish telemetry."""
     ...
 ```
+
+**Design note (data-driven sequence):** the choreography is not a hardcoded
+4-step routine inside `build_steps` — it is `params.sequence`, a list of
+`StepSpec` factor records, defaulting to `DEFAULT_SEQUENCE`. `ChoreographyControlEvent`
+gains an optional `sequence` field so the frontend (or an AI-suggested fix)
+can replace the sequence wholesale via `reachy/control`, not just the
+amplitude/duration params. This was raised as a follow-up by @fcollonval in
+PR review and implemented directly rather than deferred, since it only
+required generalizing `build_steps`/`ChoreographyParams` — no new endpoint
+or schema. The frontend widget for _authoring_ a sequence visually is still
+future work (see Next Steps).
 
 ### 6.3 `main.py` — wiring
 

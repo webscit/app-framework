@@ -9,6 +9,7 @@ from framework_core.bus import EventBus
 
 from examples.reachy_mini.backend.producers import (
     AGGRESSIVE_PRESET,
+    DEFAULT_SEQUENCE,
     DURATION_VIOLATION_S,
     ROLL_VIOLATION_DEG,
     ROLL_WARN_DEG,
@@ -19,6 +20,7 @@ from examples.reachy_mini.backend.producers import (
     ReachySafetyEvent,
     ReachyStateEvent,
     ReachyTelemetryEvent,
+    StepSpec,
     build_steps,
     compute_safety,
     run_choreography,
@@ -165,6 +167,40 @@ def test_build_steps_duration_applied_to_all() -> None:
     params = ChoreographyParams(step_duration_s=0.8)
     steps = build_steps(params)
     assert all(s.duration_s == pytest.approx(0.8) for s in steps)
+
+
+def test_build_steps_default_params_use_default_sequence() -> None:
+    """Default ChoreographyParams resolves to the standard 4-step sequence."""
+    params = ChoreographyParams()
+    assert params.sequence == DEFAULT_SEQUENCE
+    steps = build_steps(params)
+    assert [s.label for s in steps] == [spec.label for spec in DEFAULT_SEQUENCE]
+
+
+def test_build_steps_custom_sequence_overrides_default() -> None:
+    """A custom sequence on params produces steps matching only that sequence."""
+    custom_sequence = [
+        StepSpec(label="nod", roll_factor=0.3),
+        StepSpec(label="rise", z_factor=0.5),
+    ]
+    params = ChoreographyParams(
+        roll_amplitude_deg=10.0, z_amplitude_mm=20.0, sequence=custom_sequence
+    )
+    steps = build_steps(params)
+    assert len(steps) == 2
+    assert steps[0].label == "nod"
+    assert steps[0].roll_deg == pytest.approx(3.0)
+    assert steps[1].label == "rise"
+    assert steps[1].z_mm == pytest.approx(10.0)
+
+
+def test_choreography_params_default_sequence_is_not_shared_mutable_state() -> None:
+    """Each ChoreographyParams instance gets its own sequence list."""
+    params_a = ChoreographyParams()
+    params_b = ChoreographyParams()
+    assert params_a.sequence is not params_b.sequence
+    params_a.sequence.append(StepSpec(label="extra"))
+    assert len(params_b.sequence) == len(DEFAULT_SEQUENCE)
 
 
 # ─── Presets ─────────────────────────────────────────────────────────────────

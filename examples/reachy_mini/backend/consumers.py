@@ -21,6 +21,7 @@ from .producers import (
     ChoreographyParams,
     ReachyLogEvent,
     ReachyStateEvent,
+    StepSpec,
     run_choreography,
 )
 
@@ -89,6 +90,7 @@ class ControlConsumer:
         _set_float(self._params, "step_duration_s", payload.get("step_duration_s"))
         _set_float(self._params, "antenna_amplitude", payload.get("antenna_amplitude"))
         _set_int(self._params, "num_loops", payload.get("num_loops"))
+        _set_sequence(self._params, payload.get("sequence"))
 
     def _copy_preset(self, preset: ChoreographyParams) -> None:
         """Overwrite all params from *preset* in-place."""
@@ -97,6 +99,7 @@ class ControlConsumer:
         self._params.step_duration_s = preset.step_duration_s
         self._params.antenna_amplitude = preset.antenna_amplitude
         self._params.num_loops = preset.num_loops
+        self._params.sequence = list(preset.sequence)
 
     async def _handle_command(self, command: str | None) -> None:
         """Execute a lifecycle command.
@@ -183,6 +186,42 @@ def _set_int(params: ChoreographyParams, field: str, value: object) -> None:
         setattr(params, field, int(value))
     except (TypeError, ValueError):
         logger.warning("Invalid value for %s: %r", field, value)
+
+
+def _set_sequence(params: ChoreographyParams, value: object) -> None:
+    """Replace ``params.sequence`` from a list of step-factor dicts, if valid.
+
+    This is the hook a frontend-authored choreography widget (or an
+    AI-suggested fix) uses to redefine the sequence itself, not just the
+    amplitude/duration params. Invalid or empty input is logged and ignored
+    so a malformed payload can never leave ``params`` with no steps.
+
+    Args:
+        params: The params object to mutate.
+        value: Expected to be a list of dicts with keys ``label`` (str) and
+            optional ``roll_factor``, ``z_factor``, ``antenna_factor``
+            (floats, default 0.0), or ``None`` if unchanged.
+    """
+    if value is None:
+        return
+    if not isinstance(value, list) or not value:
+        logger.warning("Invalid sequence value: %r", value)
+        return
+    try:
+        new_sequence = [
+            StepSpec(
+                label=str(step.get("label", f"step_{idx}")),
+                roll_factor=float(step.get("roll_factor", 0.0)),
+                z_factor=float(step.get("z_factor", 0.0)),
+                antenna_factor=float(step.get("antenna_factor", 0.0)),
+            )
+            for idx, step in enumerate(value)
+        ]
+    except (AttributeError, TypeError, ValueError):
+        logger.warning("Invalid sequence entries: %r", value)
+        return
+    params.sequence = new_sequence
+    logger.info("Applied custom sequence with %d step(s)", len(new_sequence))
 
 
 # ── Registration ──────────────────────────────────────────────────────────────

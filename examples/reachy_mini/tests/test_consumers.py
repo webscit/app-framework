@@ -11,6 +11,7 @@ from examples.reachy_mini.backend.consumers import (
     ControlConsumer,
     _set_float,
     _set_int,
+    _set_sequence,
     register_consumers,
 )
 from examples.reachy_mini.backend.producers import (
@@ -77,6 +78,61 @@ def test_set_int_skips_none() -> None:
     assert params.num_loops == original
 
 
+# ── _set_sequence ──────────────────────────────────────────────────────────────
+
+
+def test_set_sequence_replaces_steps() -> None:
+    params = ChoreographyParams()
+    _set_sequence(
+        params,
+        [
+            {"label": "nod", "roll_factor": 0.3},
+            {"label": "rise", "z_factor": 0.5},
+        ],
+    )
+    assert [s.label for s in params.sequence] == ["nod", "rise"]
+    assert params.sequence[0].roll_factor == pytest.approx(0.3)
+    assert params.sequence[1].z_factor == pytest.approx(0.5)
+
+
+def test_set_sequence_defaults_missing_factors_to_zero() -> None:
+    params = ChoreographyParams()
+    _set_sequence(params, [{"label": "bare"}])
+    step = params.sequence[0]
+    assert step.roll_factor == 0.0
+    assert step.z_factor == 0.0
+    assert step.antenna_factor == 0.0
+
+
+def test_set_sequence_skips_none() -> None:
+    params = ChoreographyParams()
+    original = params.sequence
+    _set_sequence(params, None)
+    assert params.sequence is original
+
+
+def test_set_sequence_ignores_non_list() -> None:
+    params = ChoreographyParams()
+    original = params.sequence
+    _set_sequence(params, "not_a_list")
+    assert params.sequence is original
+
+
+def test_set_sequence_ignores_empty_list() -> None:
+    """An empty sequence is rejected so params is never left without steps."""
+    params = ChoreographyParams()
+    original = params.sequence
+    _set_sequence(params, [])
+    assert params.sequence is original
+
+
+def test_set_sequence_ignores_invalid_factor_type() -> None:
+    params = ChoreographyParams()
+    original = params.sequence
+    _set_sequence(params, [{"label": "bad", "roll_factor": "not_a_number"}])
+    assert params.sequence is original
+
+
 # ── _apply_params via __call__ ────────────────────────────────────────────────
 
 
@@ -103,6 +159,37 @@ async def test_apply_aggressive_preset() -> None:
     expected_roll = AGGRESSIVE_PRESET.roll_amplitude_deg
     assert params.roll_amplitude_deg == pytest.approx(expected_roll)
     assert params.step_duration_s == pytest.approx(AGGRESSIVE_PRESET.step_duration_s)
+
+
+@pytest.mark.anyio
+async def test_apply_preset_copies_sequence_defensively() -> None:
+    """Applying a preset copies its sequence list, not a shared reference."""
+    bus = EventBus()
+    params = _make_params()
+    consumer = ControlConsumer(bus, params)
+
+    await consumer("reachy/control", _make_control_event({"preset": "safe"}))
+
+    assert params.sequence == SAFE_PRESET.sequence
+    assert params.sequence is not SAFE_PRESET.sequence
+
+
+@pytest.mark.anyio
+async def test_control_event_replaces_sequence() -> None:
+    """A frontend-authored sequence in the control payload replaces the default."""
+    bus = EventBus()
+    params = ChoreographyParams()
+    consumer = ControlConsumer(bus, params)
+
+    await consumer(
+        "reachy/control",
+        _make_control_event(
+            {"sequence": [{"label": "custom_nod", "roll_factor": 0.2}]}
+        ),
+    )
+
+    assert len(params.sequence) == 1
+    assert params.sequence[0].label == "custom_nod"
 
 
 @pytest.mark.anyio

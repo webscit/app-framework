@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from framework_core.bus import BaseEvent, EventBus
 
@@ -135,11 +135,54 @@ class ReachyControlEvent(BaseEvent):
     num_loops: int | None = None
     """New loop count, or ``None`` if unchanged."""
 
+    sequence: list[dict[str, str | float]] | None = None
+    """New choreography sequence as a list of step-factor dicts (``label``,
+    ``roll_factor``, ``z_factor``, ``antenna_factor``), or ``None`` if unchanged."""
+
     preset: str | None = None
     """Apply a named preset: ``"safe"`` | ``"aggressive"`` | ``None``."""
 
     command: str | None = None
     """Lifecycle command: ``"start"`` | ``"stop"`` | ``"reset"`` | ``None``."""
+
+
+# ─── Choreography sequence definition ─────────────────────────────────────────
+
+
+@dataclass
+class StepSpec:
+    """One step in a choreography sequence, expressed as amplitude factors.
+
+    A step is resolved into an executable :class:`ChoreographyStep` by
+    multiplying these factors against the live amplitude/duration params at
+    build time (see :func:`build_steps`). This indirection is what lets the
+    sequence itself be replaced — e.g. from a frontend-authored widget, or an
+    AI-suggested fix — without changing how amplitudes are interpreted.
+    """
+
+    label: str
+    """Human-readable name for this step, e.g. ``"tilt_right"``."""
+
+    roll_factor: float = 0.0
+    """Multiplier applied to ``roll_amplitude_deg``."""
+
+    z_factor: float = 0.0
+    """Multiplier applied to ``z_amplitude_mm``."""
+
+    antenna_factor: float = 0.0
+    """Multiplier applied to ``antenna_amplitude``; the right antenna gets
+    the negated value, so a positive factor wiggles the antennas apart."""
+
+
+DEFAULT_SEQUENCE: list[StepSpec] = [
+    StepSpec(label="tilt_right", roll_factor=1.0),
+    StepSpec(label="tilt_left", roll_factor=-1.0),
+    StepSpec(
+        label="raise_tilt_wiggle", roll_factor=0.5, z_factor=1.0, antenna_factor=1.0
+    ),
+    StepSpec(label="home"),
+]
+"""Default 4-step greeting sequence: tilt right, tilt left, raise+tilt+wiggle, home."""
 
 
 # ─── Parameters and presets ───────────────────────────────────────────────────
@@ -165,7 +208,13 @@ class ChoreographyParams:
     """Antenna wiggle amplitude (0.0–0.6)."""
 
     num_loops: int = 2
-    """Number of times to repeat the 4-step sequence."""
+    """Number of times to repeat the sequence."""
+
+    sequence: list[StepSpec] = field(default_factory=lambda: list(DEFAULT_SEQUENCE))
+    """The choreography sequence as step factors. Defaults to the 4-step
+    greeting routine; can be replaced wholesale to define a custom
+    choreography (e.g. from a frontend-authored widget) without touching
+    :func:`build_steps`."""
 
 
 SAFE_PRESET = ChoreographyParams(
@@ -194,7 +243,10 @@ class ChoreographyStep:
     """A single commanded pose within the choreography sequence."""
 
     step_idx: int
-    """Index within the 4-step sequence (0–3)."""
+    """Index within the sequence."""
+
+    label: str
+    """Human-readable name carried over from the originating :class:`StepSpec`."""
 
     roll_deg: float
     """Head roll angle for this step (degrees)."""
@@ -216,55 +268,32 @@ class ChoreographyStep:
 
 
 def build_steps(params: ChoreographyParams) -> list[ChoreographyStep]:
-    """Return the 4-step choreography sequence for the given parameters.
+    """Resolve ``params.sequence`` into an executable list of steps.
 
-    The sequence is:
-    0. Tilt right (roll = +amplitude)
-    1. Tilt left  (roll = -amplitude)
-    2. Raise and tilt right + wiggle antennas
-    3. Return to home position
+    Each :class:`StepSpec` factor is multiplied against the live amplitude
+    and duration params to produce a concrete :class:`ChoreographyStep`.
+    Swapping ``params.sequence`` (e.g. from a frontend-authored widget, or an
+    AI-suggested fix) changes the resulting choreography without any change
+    here.
 
     Args:
-        params: Current choreography parameters.
+        params: Current choreography parameters, including the sequence.
 
     Returns:
-        List of four :class:`ChoreographyStep` objects.
+        List of :class:`ChoreographyStep` objects, one per entry in
+        ``params.sequence``.
     """
-    a = params.antenna_amplitude
-    d = params.step_duration_s
     return [
         ChoreographyStep(
-            step_idx=0,
-            roll_deg=params.roll_amplitude_deg,
-            z_mm=0.0,
-            antenna_l=0.0,
-            antenna_r=0.0,
-            duration_s=d,
-        ),
-        ChoreographyStep(
-            step_idx=1,
-            roll_deg=-params.roll_amplitude_deg,
-            z_mm=0.0,
-            antenna_l=0.0,
-            antenna_r=0.0,
-            duration_s=d,
-        ),
-        ChoreographyStep(
-            step_idx=2,
-            roll_deg=params.roll_amplitude_deg * 0.5,
-            z_mm=params.z_amplitude_mm,
-            antenna_l=a,
-            antenna_r=-a,
-            duration_s=d,
-        ),
-        ChoreographyStep(
-            step_idx=3,
-            roll_deg=0.0,
-            z_mm=0.0,
-            antenna_l=0.0,
-            antenna_r=0.0,
-            duration_s=d,
-        ),
+            step_idx=idx,
+            label=spec.label,
+            roll_deg=spec.roll_factor * params.roll_amplitude_deg,
+            z_mm=spec.z_factor * params.z_amplitude_mm,
+            antenna_l=spec.antenna_factor * params.antenna_amplitude,
+            antenna_r=-spec.antenna_factor * params.antenna_amplitude,
+            duration_s=params.step_duration_s,
+        )
+        for idx, spec in enumerate(params.sequence)
     ]
 
 
