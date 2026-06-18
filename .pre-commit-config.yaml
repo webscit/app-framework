@@ -12,6 +12,7 @@ repos:
       - id: mypy
         additional_dependencies: [fastapi]
         args: [--ignore-missing-imports]
+        files: ^pypackages/framework-core/src/
 
   - repo: local
     hooks:

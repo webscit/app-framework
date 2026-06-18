@@ -1,0 +1,16 @@
+[project]
+name = "reachy-mini-example"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["framework-core"]
+
+[tool.uv.sources]
+framework-core = { workspace = true }
+
+# reachy-mini[mujoco] must be installed separately via pip on macOS M2:
+#   pip install "reachy-mini[mujoco]"
+# On other platforms:
+#   pip install "reachy-mini[mujoco]"
+# The MuJoCo simulation daemon must also be running before starting the backend:
+#   macOS M2: mjpython -m reachy_mini.daemon.app.main --sim
+#   other:    reachy-mini-daemon --sim
