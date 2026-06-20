@@ -1,21 +1,39 @@
 """Reachy Mini choreography producer — event types, safety checking, and runner.
 
-The choreography runner drives the Reachy Mini simulation via the official SDK,
-publishing live telemetry, safety margins, and state transitions to the EventBus.
+The choreography runner drives an in-process MuJoCo simulation of the Reachy
+Mini (see :mod:`sim`), publishing live telemetry, safety margins, rendered
+frames, and state transitions to the EventBus. Running the simulation in our
+own process — rather than over the SDK/daemon — is what lets the dashboard
+show the robot's body directly, with no separate viewer window.
 
-``reachy_mini`` is imported lazily inside ``run_choreography`` so the module is
-importable and testable without the SDK installed.
+The renderer is dependency-injected as a :class:`RobotRenderer` so this module
+stays importable and unit-testable without the heavy ``mujoco`` / ``reachy_mini``
+native dependencies (which only ship for the Python version the daemon uses).
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from framework_core.bus import BaseEvent, EventBus
 
 logger = logging.getLogger(__name__)
+
+
+class RobotRenderer(Protocol):
+    """Renders the robot at a commanded step into JPEG frame bytes.
+
+    Implemented by :class:`sim.ChoreographySimulator`; tests inject a fake.
+    """
+
+    async def render_step(self, step: ChoreographyStep) -> bytes:
+        """Return JPEG bytes of the robot rendered at *step*'s pose."""
+        ...
+
 
 # ─── Safety limits ────────────────────────────────────────────────────────────
 
@@ -115,6 +133,19 @@ class ReachyLogEvent(BaseEvent):
 
     message: str
     """Log message text."""
+
+
+class ReachyFrameEvent(BaseEvent):
+    """A rendered frame of the robot, published after each executed step."""
+
+    step: int
+    """Choreography step index the frame depicts."""
+
+    loop: int
+    """Loop index the frame depicts."""
+
+    image: str
+    """``data:image/jpeg;base64,...`` URL of the ``studio_close`` camera render."""
 
 
 class ReachyControlEvent(BaseEvent):
@@ -363,28 +394,80 @@ def compute_safety(
 
 # ─── Choreography runner ──────────────────────────────────────────────────────
 
+HOME_STEP = ChoreographyStep(
+    step_idx=0,
+    label="home",
+    roll_deg=0.0,
+    z_mm=0.0,
+    antenna_l=0.0,
+    antenna_r=0.0,
+    duration_s=1.0,
+)
+"""The robot's neutral resting pose — used to render an idle frame at startup."""
 
-async def run_choreography(bus: EventBus, params: ChoreographyParams) -> None:
-    """Connect to the Reachy Mini simulation and run the choreography sequence.
 
-    Publishes telemetry, safety, state, and log events to the bus on each step.
-    Stops immediately if a safety violation is detected.
+async def _pace(seconds: float) -> None:
+    """Sleep between steps to play the run back at a watchable rate.
 
-    ``reachy_mini`` is imported lazily so the module can be used and tested
-    without the SDK installed. The SDK (and the daemon) must be running before
-    this coroutine is awaited.
+    A module-level indirection (rather than calling ``asyncio.sleep``
+    directly) so tests can control run pacing without patching the global
+    ``asyncio.sleep`` that test scaffolding itself relies on.
+    """
+    await asyncio.sleep(seconds)
+
+
+async def _publish_frame(
+    bus: EventBus, renderer: RobotRenderer, step: ChoreographyStep, loop: int
+) -> None:
+    """Render *step* and publish it as a ``reachy/frame`` event."""
+    jpeg = await renderer.render_step(step)
+    encoded = base64.b64encode(jpeg).decode("ascii")
+    await bus.publish(
+        "reachy/frame",
+        ReachyFrameEvent(
+            step=step.step_idx,
+            loop=loop,
+            image=f"data:image/jpeg;base64,{encoded}",
+        ),
+    )
+
+
+async def publish_idle_frame(bus: EventBus, renderer: RobotRenderer) -> None:
+    """Render the robot at its resting pose and publish it once.
+
+    Called at startup so the dashboard shows the robot immediately — and so a
+    later run that is blocked for a safety violation visibly leaves the robot
+    sitting in this pose (the unsafe move was refused), rather than showing a
+    blank panel. Failures are logged and swallowed so startup never breaks.
+    """
+    try:
+        await _publish_frame(bus, renderer, HOME_STEP, loop=0)
+    except Exception:
+        logger.exception("Failed to render the initial idle frame")
+
+
+async def run_choreography(
+    bus: EventBus,
+    params: ChoreographyParams,
+    renderer: RobotRenderer | None = None,
+) -> None:
+    """Run the choreography against the in-process simulation.
+
+    For each step, safety is evaluated against the commanded values *before*
+    the move is rendered — an unsafe step is never executed, and the run stops
+    immediately. Safe steps are rendered via *renderer* and published as
+    telemetry, safety, and frame events, paced by each step's duration.
 
     Args:
         bus: The shared EventBus to publish events on.
         params: Choreography parameters (may be mutated by the consumer between runs).
+        renderer: Robot renderer producing JPEG frames per step. When ``None``
+            (e.g. if the simulation failed to initialise), the run proceeds
+            without publishing frames.
 
     Raises:
         asyncio.CancelledError: When the consumer calls stop — re-raised after cleanup.
     """
-    # Lazy import — only fails at call time, not at module import time.
-    from reachy_mini import ReachyMini  # type: ignore[import-untyped]
-    from reachy_mini.utils import create_head_pose  # type: ignore[import-untyped]
-
     await bus.publish(
         "reachy/state",
         ReachyStateEvent(phase="running", verdict="", message="Choreography started"),
@@ -405,96 +488,87 @@ async def run_choreography(bus: EventBus, params: ChoreographyParams) -> None:
     steps = build_steps(params)
 
     try:
-        with ReachyMini() as mini:
-            for loop_idx in range(params.num_loops):
-                for step in steps:
-                    # Evaluate safety against the commanded values *before*
-                    # sending the move — an unsafe step must never reach the
-                    # SDK, since these values are known statically up front.
-                    safety = compute_safety(
-                        roll_deg=step.roll_deg,
-                        z_mm=step.z_mm,
-                        duration_s=step.duration_s,
-                        step=step.step_idx,
-                        loop=loop_idx,
-                    )
+        for loop_idx in range(params.num_loops):
+            for step in steps:
+                # Evaluate safety against the commanded values *before*
+                # rendering the move — an unsafe step must never be executed,
+                # since these values are known statically up front.
+                safety = compute_safety(
+                    roll_deg=step.roll_deg,
+                    z_mm=step.z_mm,
+                    duration_s=step.duration_s,
+                    step=step.step_idx,
+                    loop=loop_idx,
+                )
 
-                    if safety.status == "violation":
-                        await bus.publish("reachy/safety", safety)
-                        await bus.publish(
-                            "reachy/state",
-                            ReachyStateEvent(
-                                phase="violation",
-                                verdict="FAIL",
-                                message=(
-                                    f"Loop {loop_idx} step {step.step_idx}: VIOLATION "
-                                    f"on {safety.violated_axes} — move blocked"
-                                ),
-                            ),
-                        )
-                        await bus.publish(
-                            "reachy/log",
-                            ReachyLogEvent(
-                                level="error",
-                                message=(
-                                    f"Step {step.step_idx} VIOLATION: axes "
-                                    f"{safety.violated_axes} exceeded limits — "
-                                    f"move not sent"
-                                ),
-                            ),
-                        )
-                        return
-
-                    head = create_head_pose(
-                        z=step.z_mm,
-                        roll=step.roll_deg,
-                        mm=True,
-                        degrees=True,
-                    )
-                    # goto_target is synchronous and blocks for `duration` seconds.
-                    # Run in a thread so the event loop stays responsive.
-                    await asyncio.to_thread(
-                        lambda s=step, h=head: mini.goto_target(
-                            head=h,
-                            antennas=[s.antenna_l, s.antenna_r],
-                            duration=s.duration_s,
-                        )
-                    )
-
-                    telemetry = ReachyTelemetryEvent(
-                        step=step.step_idx,
-                        loop=loop_idx,
-                        roll_deg=step.roll_deg,
-                        z_mm=step.z_mm,
-                        antenna_l=step.antenna_l,
-                        antenna_r=step.antenna_r,
-                        duration_s=step.duration_s,
-                    )
-                    await bus.publish("reachy/telemetry", telemetry)
+                if safety.status == "violation":
                     await bus.publish("reachy/safety", safety)
+                    await bus.publish(
+                        "reachy/state",
+                        ReachyStateEvent(
+                            phase="violation",
+                            verdict="FAIL",
+                            message=(
+                                f"Loop {loop_idx} step {step.step_idx}: VIOLATION "
+                                f"on {safety.violated_axes} — move blocked"
+                            ),
+                        ),
+                    )
+                    await bus.publish(
+                        "reachy/log",
+                        ReachyLogEvent(
+                            level="error",
+                            message=(
+                                f"Step {step.step_idx} VIOLATION: axes "
+                                f"{safety.violated_axes} exceeded limits — "
+                                f"move not executed"
+                            ),
+                        ),
+                    )
+                    return
 
-                    if safety.status == "warning":
-                        await bus.publish(
-                            "reachy/state",
-                            ReachyStateEvent(
-                                phase="warning",
-                                verdict="",
-                                message=(
-                                    f"Loop {loop_idx} step {step.step_idx}: "
-                                    f"warning on {safety.warning_axes}"
-                                ),
+                # Render the robot at this pose (skipped if no renderer).
+                if renderer is not None:
+                    await _publish_frame(bus, renderer, step, loop_idx)
+
+                telemetry = ReachyTelemetryEvent(
+                    step=step.step_idx,
+                    loop=loop_idx,
+                    roll_deg=step.roll_deg,
+                    z_mm=step.z_mm,
+                    antenna_l=step.antenna_l,
+                    antenna_r=step.antenna_r,
+                    duration_s=step.duration_s,
+                )
+                await bus.publish("reachy/telemetry", telemetry)
+                await bus.publish("reachy/safety", safety)
+
+                if safety.status == "warning":
+                    await bus.publish(
+                        "reachy/state",
+                        ReachyStateEvent(
+                            phase="warning",
+                            verdict="",
+                            message=(
+                                f"Loop {loop_idx} step {step.step_idx}: "
+                                f"warning on {safety.warning_axes}"
                             ),
-                        )
-                        await bus.publish(
-                            "reachy/log",
-                            ReachyLogEvent(
-                                level="warning",
-                                message=(
-                                    f"Step {step.step_idx}: approaching limits on "
-                                    f"{safety.warning_axes}"
-                                ),
+                        ),
+                    )
+                    await bus.publish(
+                        "reachy/log",
+                        ReachyLogEvent(
+                            level="warning",
+                            message=(
+                                f"Step {step.step_idx}: approaching limits on "
+                                f"{safety.warning_axes}"
                             ),
-                        )
+                        ),
+                    )
+
+                # Pace the run by the step duration so the dashboard plays back
+                # at a watchable rate, like a real movement taking this long.
+                await _pace(step.duration_s)
 
         await bus.publish(
             "reachy/state",

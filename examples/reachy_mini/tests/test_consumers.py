@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -20,6 +19,11 @@ from examples.reachy_mini.backend.producers import (
     ChoreographyParams,
     ReachyStateEvent,
 )
+
+# run_choreography paces via producers._pace; patch it so lifecycle tests can
+# make a run complete instantly or hang on demand, without touching the global
+# asyncio.sleep the tests themselves use.
+_PACE_TARGET = "examples.reachy_mini.backend.producers._pace"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -240,38 +244,29 @@ async def test_unknown_preset_is_ignored() -> None:
 
 
 @pytest.mark.anyio
-async def test_start_command_launches_task(
-    reachy_modules: dict[str, MagicMock],
-) -> None:
+async def test_start_command_launches_task() -> None:
     bus = EventBus()
     params = ChoreographyParams()
     consumer = ControlConsumer(bus, params)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=AsyncMock(return_value=None)),
-    ):
+    # No renderer + no-op pacing → the run completes near-instantly.
+    with patch(_PACE_TARGET, new=AsyncMock(return_value=None)):
         await consumer("reachy/control", _make_control_event({"command": "start"}))
         assert consumer._task is not None
-        # Let it finish
-        await consumer._task
+        await consumer._task  # let it finish
 
 
 @pytest.mark.anyio
-async def test_stop_command_cancels_running_task(
-    reachy_modules: dict[str, MagicMock],
-) -> None:
+async def test_stop_command_cancels_running_task() -> None:
     bus = EventBus()
     params = ChoreographyParams()
     consumer = ControlConsumer(bus, params)
 
+    # Make the run's per-step pacing sleep hang so the task stays alive to cancel.
     async def hang(*_: object, **__: object) -> None:
         await asyncio.sleep(60)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=AsyncMock(side_effect=hang)),
-    ):
+    with patch(_PACE_TARGET, new=AsyncMock(side_effect=hang)):
         await consumer("reachy/control", _make_control_event({"command": "start"}))
         await asyncio.sleep(0)  # let task start
         assert consumer._task is not None
@@ -281,9 +276,7 @@ async def test_stop_command_cancels_running_task(
 
 
 @pytest.mark.anyio
-async def test_start_replaces_running_task(
-    reachy_modules: dict[str, MagicMock],
-) -> None:
+async def test_start_replaces_running_task() -> None:
     """A second 'start' cancels the first task and starts a fresh one."""
     bus = EventBus()
     params = ChoreographyParams()
@@ -292,10 +285,7 @@ async def test_start_replaces_running_task(
     async def hang(*_: object, **__: object) -> None:
         await asyncio.sleep(60)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=AsyncMock(side_effect=hang)),
-    ):
+    with patch(_PACE_TARGET, new=AsyncMock(side_effect=hang)):
         await consumer("reachy/control", _make_control_event({"command": "start"}))
         first_task = consumer._task
         await asyncio.sleep(0)

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from framework_core.bus import EventBus
@@ -17,14 +16,22 @@ from examples.reachy_mini.backend.producers import (
     Z_VIOLATION_MM,
     Z_WARN_MM,
     ChoreographyParams,
+    ReachyFrameEvent,
     ReachySafetyEvent,
     ReachyStateEvent,
     ReachyTelemetryEvent,
     StepSpec,
     build_steps,
     compute_safety,
+    publish_idle_frame,
     run_choreography,
 )
+from examples.reachy_mini.tests.conftest import FakeRenderer
+
+# run_choreography paces itself via producers._pace(step.duration_s); patch it to
+# a no-op so the suite stays fast regardless of preset durations.
+_PACE_TARGET = "examples.reachy_mini.backend.producers._pace"
+_NO_SLEEP = patch(_PACE_TARGET, new=AsyncMock(return_value=None))
 
 # ─── compute_safety ───────────────────────────────────────────────────────────
 
@@ -254,7 +261,7 @@ def test_aggressive_preset_has_at_least_one_violation() -> None:
 
 @pytest.mark.anyio
 async def test_run_choreography_safe_preset_publishes_pass(
-    reachy_modules: dict[str, MagicMock],
+    fake_renderer: FakeRenderer,
 ) -> None:
     """Safe preset completes all steps and publishes a PASS state."""
     bus = EventBus()
@@ -266,11 +273,8 @@ async def test_run_choreography_safe_preset_publishes_pass(
 
     bus.subscribe("reachy/state", capture)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=AsyncMock(return_value=None)),
-    ):
-        await run_choreography(bus, SAFE_PRESET)
+    with _NO_SLEEP:
+        await run_choreography(bus, SAFE_PRESET, fake_renderer)
 
     phases = [s.phase for s in states]
     assert "running" in phases
@@ -283,7 +287,7 @@ async def test_run_choreography_safe_preset_publishes_pass(
 
 @pytest.mark.anyio
 async def test_run_choreography_aggressive_preset_stops_on_violation(
-    reachy_modules: dict[str, MagicMock],
+    fake_renderer: FakeRenderer,
 ) -> None:
     """Aggressive preset triggers a violation and stops without reaching 'done'."""
     bus = EventBus()
@@ -295,11 +299,8 @@ async def test_run_choreography_aggressive_preset_stops_on_violation(
 
     bus.subscribe("reachy/state", capture)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=AsyncMock(return_value=None)),
-    ):
-        await run_choreography(bus, AGGRESSIVE_PRESET)
+    with _NO_SLEEP:
+        await run_choreography(bus, AGGRESSIVE_PRESET, fake_renderer)
 
     phases = [s.phase for s in states]
     assert "violation" in phases
@@ -310,32 +311,28 @@ async def test_run_choreography_aggressive_preset_stops_on_violation(
 
 
 @pytest.mark.anyio
-async def test_run_choreography_violation_blocks_the_move(
-    reachy_modules: dict[str, MagicMock],
+async def test_run_choreography_violation_blocks_the_render(
+    fake_renderer: FakeRenderer,
 ) -> None:
-    """The unsafe move never reaches the SDK — safety is checked before goto_target."""
+    """The unsafe move is never rendered — safety is checked before render_step."""
     bus = EventBus()
-    mock_to_thread = AsyncMock(return_value=None)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=mock_to_thread),
-    ):
-        await run_choreography(bus, AGGRESSIVE_PRESET)
+    with _NO_SLEEP:
+        await run_choreography(bus, AGGRESSIVE_PRESET, fake_renderer)
 
-    # Step 0 of AGGRESSIVE_PRESET already violates roll — goto_target must
-    # never be reached.
-    mock_to_thread.assert_not_called()
+    # Step 0 of AGGRESSIVE_PRESET already violates — nothing should be rendered.
+    assert fake_renderer.rendered_steps == []
 
 
 @pytest.mark.anyio
-async def test_run_choreography_publishes_telemetry_and_safety(
-    reachy_modules: dict[str, MagicMock],
+async def test_run_choreography_publishes_telemetry_safety_and_frames(
+    fake_renderer: FakeRenderer,
 ) -> None:
-    """Telemetry and safety events are published for each executed step."""
+    """Telemetry, safety, and frame events are published for each executed step."""
     bus = EventBus()
     telemetry_events: list[ReachyTelemetryEvent] = []
     safety_events: list[ReachySafetyEvent] = []
+    frame_events: list[ReachyFrameEvent] = []
 
     async def on_telemetry(channel: str, event: object) -> None:
         if isinstance(event, ReachyTelemetryEvent):
@@ -345,23 +342,54 @@ async def test_run_choreography_publishes_telemetry_and_safety(
         if isinstance(event, ReachySafetyEvent):
             safety_events.append(event)
 
+    async def on_frame(channel: str, event: object) -> None:
+        if isinstance(event, ReachyFrameEvent):
+            frame_events.append(event)
+
     bus.subscribe("reachy/telemetry", on_telemetry)
     bus.subscribe("reachy/safety", on_safety)
+    bus.subscribe("reachy/frame", on_frame)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=AsyncMock(return_value=None)),
-    ):
-        await run_choreography(bus, SAFE_PRESET)
+    with _NO_SLEEP:
+        await run_choreography(bus, SAFE_PRESET, fake_renderer)
 
     # 4 steps × 2 loops = 8 events each
-    assert len(telemetry_events) == 4 * SAFE_PRESET.num_loops
-    assert len(safety_events) == 4 * SAFE_PRESET.num_loops
+    expected = 4 * SAFE_PRESET.num_loops
+    assert len(telemetry_events) == expected
+    assert len(safety_events) == expected
+    assert len(frame_events) == expected
+    assert len(fake_renderer.rendered_steps) == expected
+    assert frame_events[0].image.startswith("data:image/jpeg;base64,")
+
+
+@pytest.mark.anyio
+async def test_run_choreography_without_renderer_still_passes() -> None:
+    """With no renderer, the run completes and simply publishes no frames."""
+    bus = EventBus()
+    states: list[ReachyStateEvent] = []
+    frame_events: list[ReachyFrameEvent] = []
+
+    async def on_state(channel: str, event: object) -> None:
+        if isinstance(event, ReachyStateEvent):
+            states.append(event)
+
+    async def on_frame(channel: str, event: object) -> None:
+        if isinstance(event, ReachyFrameEvent):
+            frame_events.append(event)
+
+    bus.subscribe("reachy/state", on_state)
+    bus.subscribe("reachy/frame", on_frame)
+
+    with _NO_SLEEP:
+        await run_choreography(bus, SAFE_PRESET, None)
+
+    assert any(s.phase == "done" for s in states)
+    assert frame_events == []
 
 
 @pytest.mark.anyio
 async def test_run_choreography_warning_message_names_the_axis(
-    reachy_modules: dict[str, MagicMock],
+    fake_renderer: FakeRenderer,
 ) -> None:
     """A warning-phase state event names the actual axis, not 'unknown'."""
     bus = EventBus()
@@ -381,11 +409,8 @@ async def test_run_choreography_warning_message_names_the_axis(
         num_loops=1,
     )
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=AsyncMock(return_value=None)),
-    ):
-        await run_choreography(bus, warning_params)
+    with _NO_SLEEP:
+        await run_choreography(bus, warning_params, fake_renderer)
 
     warning_states = [s for s in states if s.phase == "warning"]
     assert warning_states, "expected at least one warning state event"
@@ -395,7 +420,7 @@ async def test_run_choreography_warning_message_names_the_axis(
 
 @pytest.mark.anyio
 async def test_run_choreography_cancelled_publishes_idle(
-    reachy_modules: dict[str, MagicMock],
+    fake_renderer: FakeRenderer,
 ) -> None:
     """Cancelling the task transitions state back to idle."""
     bus = EventBus()
@@ -407,14 +432,12 @@ async def test_run_choreography_cancelled_publishes_idle(
 
     bus.subscribe("reachy/state", capture)
 
-    async def slow_goto(*args: object, **kwargs: object) -> None:
+    # Make the per-step pacing hang so we can cancel mid-run.
+    async def hang(*args: object, **kwargs: object) -> None:
         await asyncio.sleep(10)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch("asyncio.to_thread", new=AsyncMock(side_effect=slow_goto)),
-    ):
-        task = asyncio.create_task(run_choreography(bus, SAFE_PRESET))
+    with patch(_PACE_TARGET, new=AsyncMock(side_effect=hang)):
+        task = asyncio.create_task(run_choreography(bus, SAFE_PRESET, fake_renderer))
         await asyncio.sleep(0)  # let the task start
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -425,10 +448,10 @@ async def test_run_choreography_cancelled_publishes_idle(
 
 
 @pytest.mark.anyio
-async def test_run_choreography_sdk_exception_publishes_fail(
-    reachy_modules: dict[str, MagicMock],
+async def test_run_choreography_render_exception_publishes_fail(
+    fake_renderer: FakeRenderer,
 ) -> None:
-    """A non-cancellation exception from the SDK is caught and surfaced as FAIL."""
+    """A non-cancellation exception during rendering is caught and surfaced as FAIL."""
     bus = EventBus()
     states: list[ReachyStateEvent] = []
 
@@ -438,17 +461,53 @@ async def test_run_choreography_sdk_exception_publishes_fail(
 
     bus.subscribe("reachy/state", capture)
 
-    with (
-        patch.dict(sys.modules, reachy_modules),
-        patch(
-            "asyncio.to_thread",
-            new=AsyncMock(side_effect=RuntimeError("daemon down")),
-        ),
-    ):
-        await run_choreography(bus, SAFE_PRESET)
+    async def boom(step: object) -> bytes:
+        raise RuntimeError("render failed")
+
+    fake_renderer.render_step = boom  # type: ignore[method-assign]
+
+    with _NO_SLEEP:
+        await run_choreography(bus, SAFE_PRESET, fake_renderer)
 
     phases = [s.phase for s in states]
     assert "violation" in phases
     failed = next(s for s in states if s.phase == "violation")
     assert failed.verdict == "FAIL"
-    assert "daemon down" in failed.message
+    assert "render failed" in failed.message
+
+
+# ─── publish_idle_frame ──────────────────────────────────────────────────────
+
+
+@pytest.mark.anyio
+async def test_publish_idle_frame_renders_home_pose(
+    fake_renderer: FakeRenderer,
+) -> None:
+    """The idle frame renders the neutral home pose and publishes one frame."""
+    bus = EventBus()
+    frames: list[ReachyFrameEvent] = []
+
+    async def on_frame(channel: str, event: object) -> None:
+        if isinstance(event, ReachyFrameEvent):
+            frames.append(event)
+
+    bus.subscribe("reachy/frame", on_frame)
+
+    await publish_idle_frame(bus, fake_renderer)
+
+    assert len(frames) == 1
+    assert frames[0].image.startswith("data:image/jpeg;base64,")
+    assert fake_renderer.rendered_steps[0].label == "home"  # type: ignore[attr-defined]
+
+
+@pytest.mark.anyio
+async def test_publish_idle_frame_swallows_render_errors() -> None:
+    """A render failure during the idle frame must not propagate (startup-safe)."""
+    bus = EventBus()
+
+    class BoomRenderer:
+        async def render_step(self, step: object) -> bytes:
+            raise RuntimeError("no GL context")
+
+    # Should not raise.
+    await publish_idle_frame(bus, BoomRenderer())

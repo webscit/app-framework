@@ -58,6 +58,33 @@ function makeSuccessResponse() {
   );
 }
 
+const DIAGNOSIS_EXPLANATION = "Roll exceeded the violation threshold on step 0.";
+const SUGGESTED_PARAMS = { roll_amplitude_deg: 18.0 };
+
+/** A pure-diagnosis response: no layout key, only explanation + suggested_params. */
+function makeDiagnosisResponse() {
+  return new Response(
+    JSON.stringify({
+      layout: {},
+      explanation: DIAGNOSIS_EXPLANATION,
+      suggested_params: SUGGESTED_PARAMS,
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+}
+
+/** A combined response: explanation + suggested_params + a real layout change. */
+function makeCombinedResponse() {
+  return new Response(
+    JSON.stringify({
+      layout: PROPOSED_LAYOUT,
+      explanation: DIAGNOSIS_EXPLANATION,
+      suggested_params: SUGGESTED_PARAMS,
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+}
+
 // ─── Default props ─────────────────────────────────────────────────────────────
 
 function defaultProps(overrides?: Partial<Parameters<typeof AIChatPanel>[0]>) {
@@ -332,5 +359,137 @@ describe("AIChatPanel", () => {
     domClick("Collapse chat panel");
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  // ─── Simulation snapshot + suggested_params ──────────────────────────────────
+
+  it("does not attach snapshot fields when getSnapshot is not provided", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+
+    await render(<AIChatPanel {...defaultProps()} />);
+    await fillAndSend("Add a chart");
+
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.telemetry_snapshot).toBeUndefined();
+    expect(body.safety_snapshot).toBeUndefined();
+    expect(body.current_params).toBeUndefined();
+  });
+
+  it("attaches the snapshot returned by getSnapshot to every request", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeDiagnosisResponse());
+    const getSnapshot = vi.fn(() => ({
+      telemetry_snapshot: [{ step: 0, roll_deg: 42.0 }],
+      safety_snapshot: [{ step: 0, status: "violation" }],
+      current_params: { roll_amplitude_deg: 42.0 },
+    }));
+
+    await render(
+      <AIChatPanel {...defaultProps({ getSnapshot, onApproveParams: vi.fn() })} />,
+    );
+    await fillAndSend("What's wrong with this run?");
+
+    expect(getSnapshot).toHaveBeenCalled();
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.telemetry_snapshot).toEqual([{ step: 0, roll_deg: 42.0 }]);
+    expect(body.safety_snapshot).toEqual([{ step: 0, status: "violation" }]);
+    expect(body.current_params).toEqual({ roll_amplitude_deg: 42.0 });
+  });
+
+  it("renders ParamDiffViewer when the response includes suggested_params", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeDiagnosisResponse());
+
+    await render(<AIChatPanel {...defaultProps({ onApproveParams: vi.fn() })} />);
+    await fillAndSend("What's wrong with this run?");
+
+    await expect
+      .element(page.getByText(DIAGNOSIS_EXPLANATION).first())
+      .toBeInTheDocument();
+    await expect.element(page.getByText("roll_amplitude_deg")).toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Approve" }))
+      .toBeInTheDocument();
+  });
+
+  it("does not render ParamDiffViewer when onApproveParams is not provided", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeDiagnosisResponse());
+
+    await render(<AIChatPanel {...defaultProps()} />);
+    await fillAndSend("What's wrong with this run?");
+
+    // Explanation still shows as plain bubble text, but no diff/approve UI
+    await expect
+      .element(page.getByText(DIAGNOSIS_EXPLANATION).first())
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Approve" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("calls onApproveParams with the suggested params when Approve is clicked", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeDiagnosisResponse());
+    const onApproveParams = vi.fn();
+
+    await render(<AIChatPanel {...defaultProps({ onApproveParams })} />);
+    await fillAndSend("What's wrong with this run?");
+
+    await expect
+      .element(page.getByRole("button", { name: "Approve" }))
+      .toBeInTheDocument();
+    domClick("Approve");
+
+    expect(onApproveParams).toHaveBeenCalledWith(SUGGESTED_PARAMS);
+    await expect.element(page.getByText("Parameters applied.")).toBeInTheDocument();
+  });
+
+  it("does not call onApproveParams when Reject is clicked", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeDiagnosisResponse());
+    const onApproveParams = vi.fn();
+
+    await render(<AIChatPanel {...defaultProps({ onApproveParams })} />);
+    await fillAndSend("What's wrong with this run?");
+
+    await expect
+      .element(page.getByRole("button", { name: "Reject" }))
+      .toBeInTheDocument();
+    domClick("Reject");
+
+    expect(onApproveParams).not.toHaveBeenCalled();
+    await expect.element(page.getByText("Parameters rejected.")).toBeInTheDocument();
+  });
+
+  it("does not treat an empty layout object as a real layout proposal", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeDiagnosisResponse());
+    const onApplyLayout = vi.fn();
+
+    await render(
+      <AIChatPanel {...defaultProps({ onApplyLayout, onApproveParams: vi.fn() })} />,
+    );
+    await fillAndSend("What's wrong with this run?");
+
+    // Wait for the response to render before inspecting the DOM directly.
+    await expect
+      .element(page.getByRole("button", { name: "Approve" }))
+      .toBeInTheDocument();
+
+    // Only one Approve button — for params, not layout (layout was {} / omitted)
+    const approveButtons = document.querySelectorAll(".sct-AIChatPanel-diff button");
+    expect(document.querySelector(".sct-LayoutDiffViewer")).toBeNull();
+    expect(approveButtons.length).toBeGreaterThan(0);
+  });
+
+  it("renders both LayoutDiffViewer and ParamDiffViewer for a combined response", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeCombinedResponse());
+
+    await render(<AIChatPanel {...defaultProps({ onApproveParams: vi.fn() })} />);
+    await fillAndSend("Fix it and show me the margin");
+
+    await expect
+      .element(page.getByText(DIAGNOSIS_EXPLANATION).first())
+      .toBeInTheDocument();
+
+    expect(document.querySelector(".sct-LayoutDiffViewer")).not.toBeNull();
+    expect(document.querySelector(".sct-ParamDiffViewer")).not.toBeNull();
   });
 });

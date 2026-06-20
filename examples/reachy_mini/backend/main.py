@@ -1,25 +1,28 @@
 """Reachy Mini example — FastAPI application entry point.
 
-Wires the EventBus, ControlConsumer, and initial state together.
+Wires the EventBus, the in-process MuJoCo simulator, the ControlConsumer, and
+the initial state together.
 
 The app starts in the **aggressive preset** (broken state) so the demo
 immediately has something for the engineer to diagnose with the AI.
 
-Run with::
+The choreography runs against an in-process MuJoCo simulation (see
+:mod:`sim`), so no separate daemon or viewer window is needed — the robot is
+rendered straight into the dashboard. ``mujoco`` + ``reachy-mini[mujoco]``
+only ship wheels for the Python version the daemon uses (3.11 at time of
+writing), so run this backend with that interpreter, e.g.::
 
-    uv run uvicorn examples.reachy_mini.backend.main:app --reload
+    PYTHONPATH=pypackages/framework-core/src:. \\
+        <python3.11-with-mujoco> -m uvicorn \\
+        examples.reachy_mini.backend.main:app --port 8001
 
-The Reachy Mini MuJoCo daemon must be running first::
-
-    # macOS M2
-    mjpython -m reachy_mini.daemon.app.main --sim
-
-    # Other platforms
-    reachy-mini-daemon --sim
+If the simulator fails to initialise (e.g. ``mujoco`` not installed), the app
+still serves and runs choreographies — just without rendered frames.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -33,7 +36,30 @@ from .producers import (
     ChoreographyParams,
     ReachyLogEvent,
     ReachyStateEvent,
+    RobotRenderer,
+    publish_idle_frame,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _build_renderer() -> RobotRenderer | None:
+    """Construct the MuJoCo simulator, or ``None`` if its deps are unavailable.
+
+    Importing :mod:`sim` pulls in ``mujoco`` lazily, so a missing native
+    dependency degrades gracefully to a frame-less (data-only) dashboard
+    rather than crashing app startup.
+
+    Returns:
+        A :class:`~sim.ChoreographySimulator`, or ``None`` on import failure.
+    """
+    try:
+        from .sim import ChoreographySimulator
+
+        return ChoreographySimulator()
+    except Exception:  # pragma: no cover - depends on native deps at runtime
+        logger.exception("Simulator unavailable; running without rendered frames")
+        return None
 
 
 @asynccontextmanager
@@ -58,7 +84,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         num_loops=AGGRESSIVE_PRESET.num_loops,
     )
 
-    register_consumers(app.state.bus, params)
+    renderer = _build_renderer()
+    register_consumers(app.state.bus, params, renderer)
 
     await app.state.bus.publish(
         "reachy/state",
@@ -76,9 +103,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         ),
     )
 
+    # Render the robot at rest so the dashboard shows it immediately, before
+    # any run — and so a safety-blocked run visibly leaves it sitting still.
+    if renderer is not None:
+        await publish_idle_frame(app.state.bus, renderer)
+
     yield
-    # No background tasks to cancel — the choreography task is owned by
-    # ControlConsumer and cleaned up on stop/reset commands.
+
+    # The choreography task is owned by ControlConsumer (cancelled on
+    # stop/reset). Release the simulator's GL resources on shutdown.
+    if renderer is not None and hasattr(renderer, "aclose"):
+        await renderer.aclose()
 
 
 app = create_app(lifespan=lifespan)

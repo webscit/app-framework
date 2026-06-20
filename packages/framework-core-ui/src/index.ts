@@ -55,9 +55,14 @@ export {
   type LayoutDiffViewerProps,
 } from "./components/LayoutDiffViewer";
 export {
+  ParamDiffViewer,
+  type ParamDiffViewerProps,
+} from "./components/ParamDiffViewer";
+export {
   AIChatPanel,
   type AIChatPanelProps,
   type ChatMessage,
+  type SimulationSnapshot,
 } from "./components/AIChatPanel";
 export {
   useShellLayoutStore,
@@ -78,6 +83,7 @@ export type {
   EventHeaders,
   WireEvent,
   WebSocketFactory,
+  WebSocketLike,
 } from "./client";
 
 /**

@@ -21,6 +21,7 @@ from .producers import (
     ChoreographyParams,
     ReachyLogEvent,
     ReachyStateEvent,
+    RobotRenderer,
     StepSpec,
     run_choreography,
 )
@@ -39,11 +40,19 @@ class ControlConsumer:
             launch :func:`~producers.run_choreography`.
         params: The shared :class:`~producers.ChoreographyParams` that is
             mutated in-place when the frontend sends parameter updates.
+        renderer: Robot renderer injected into each run so the dashboard
+            receives rendered frames. ``None`` runs without frames.
     """
 
-    def __init__(self, bus: EventBus, params: ChoreographyParams) -> None:
+    def __init__(
+        self,
+        bus: EventBus,
+        params: ChoreographyParams,
+        renderer: RobotRenderer | None = None,
+    ) -> None:
         self._bus = bus
         self._params = params
+        self._renderer = renderer
         self._task: asyncio.Task[None] | None = None
 
     async def __call__(self, channel: str, message: BaseEvent) -> None:
@@ -114,7 +123,9 @@ class ControlConsumer:
         """
         if command == "start":
             await self._cancel_running()
-            self._task = asyncio.create_task(run_choreography(self._bus, self._params))
+            self._task = asyncio.create_task(
+                run_choreography(self._bus, self._params, self._renderer)
+            )
             logger.info("Choreography task started")
 
         elif command == "stop":
@@ -227,7 +238,11 @@ def _set_sequence(params: ChoreographyParams, value: object) -> None:
 # ── Registration ──────────────────────────────────────────────────────────────
 
 
-def register_consumers(bus: EventBus, params: ChoreographyParams) -> None:
+def register_consumers(
+    bus: EventBus,
+    params: ChoreographyParams,
+    renderer: RobotRenderer | None = None,
+) -> None:
     """Register all Reachy Mini consumers on the EventBus.
 
     Creates a :class:`ControlConsumer` instance and subscribes it to the
@@ -237,6 +252,7 @@ def register_consumers(bus: EventBus, params: ChoreographyParams) -> None:
     Args:
         bus: The shared EventBus to subscribe consumers on.
         params: The shared :class:`~producers.ChoreographyParams` instance.
+        renderer: Robot renderer injected into each run for dashboard frames.
     """
-    consumer = ControlConsumer(bus, params)
+    consumer = ControlConsumer(bus, params, renderer)
     bus.subscribe("reachy/control", consumer)

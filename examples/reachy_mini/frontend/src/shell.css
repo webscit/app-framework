@@ -1,0 +1,114 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sct-ApplicationShell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Light theme that matches the framework widgets (light cards, dark text via
+   design tokens). Forcing white text here previously washed out the DataTable
+   cell values (white-on-white); using the token foreground keeps everything
+   readable. */
+
+.sct-ShellHeader {
+  background: var(--muted);
+  color: var(--foreground);
+  padding: 8px 16px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+}
+
+.sct-ApplicationShell-Body {
+  flex: 1;
+  min-height: 0;
+}
+
+.sct-ShellSidebar {
+  background: var(--muted);
+  color: var(--foreground);
+  padding: 8px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* ─── Panel resize handles (react-resizable-panels) ─── */
+
+.sct-PanelHandle {
+  background: transparent;
+  transition: background 0.15s;
+  z-index: 5;
+  flex-shrink: 0;
+}
+
+.sct-PanelHandle--vertical {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.sct-PanelHandle--horizontal {
+  height: 4px;
+  cursor: row-resize;
+}
+
+.sct-PanelHandle:hover,
+.sct-PanelHandle[data-resize-handle-active] {
+  background: var(--ring, #007acc);
+}
+
+.sct-ShellMain {
+  background: var(--background);
+  color: var(--foreground);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.sct-ShellMain-item {
+  height: 100%;
+  overflow: hidden;
+}
+
+.sct-ShellBottom {
+  background: var(--muted);
+  color: var(--foreground);
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.sct-ShellStatusBar {
+  background: var(--ring, #007acc);
+  color: white;
+  padding: 4px 16px;
+  min-height: 24px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+
+:root {
+  --chart-1: #3b82f6;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #ef4444;
+  --chart-5: #8b5cf6;
+}
