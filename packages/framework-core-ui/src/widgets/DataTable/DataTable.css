@@ -51,12 +51,33 @@
 }
 
 .sct-DataTable-th {
-  cursor: pointer;
   user-select: none;
 }
 
-.sct-DataTable-th:hover {
-  background-color: var(--muted);
+/* Sortable headers are real buttons for keyboard access; the th carries
+   aria-sort. The button is unstyled by default and fills the header cell. */
+.sct-DataTable-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sct-DataTable-sort-btn:hover {
+  color: var(--foreground);
+}
+
+.sct-DataTable-sort-icon {
+  font-size: 0.75em;
+  opacity: 0.55;
 }
 
 /* ─── Per-row severity highlighting (opt-in via the statusKey prop) ─── */

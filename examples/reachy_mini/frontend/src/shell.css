@@ -23,11 +23,18 @@ body {
 /* Branded top bar: solid light blue with a dark-navy underline and navy text —
    the clearest brand statement on the page. */
 .sct-ShellHeader {
-  background: var(--ring, #6995b8);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ring) 88%, #ffffff),
+    var(--ring, #6995b8)
+  );
   color: var(--primary, #001e32);
   padding: 8px 16px;
   min-height: 40px;
   border-bottom: 3px solid var(--primary, #001e32);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 22%, transparent);
+  position: relative;
+  z-index: 10;
   display: flex;
   align-items: center;
 }
@@ -147,28 +154,80 @@ body {
    gray labels). Higher-specificity overrides (scoped under .sct-ApplicationShell)
    re-skin them to the brand palette without touching the framework package. */
 
-.sct-ApplicationShell .sct-ParameterController-label,
-.sct-ApplicationShell .sct-ParameterController-value {
+.sct-ApplicationShell .sct-ParameterController-label {
   color: var(--primary);
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
-.sct-ApplicationShell .sct-ParameterController-slider-track {
-  background: color-mix(in srgb, var(--primary) 20%, #ffffff);
-}
-
-.sct-ApplicationShell .sct-ParameterController-slider-range {
-  background: var(--ring);
-}
-
-.sct-ApplicationShell .sct-ParameterController-slider-thumb {
+.sct-ApplicationShell .sct-ParameterController-value {
+  color: #ffffff;
   background: var(--primary);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Track: soft inset channel in a pale tint of the light blue. */
+.sct-ApplicationShell .sct-ParameterController-slider-track {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ring) 30%, #ffffff);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* Filled range: navy → light-blue gradient so progress reads at a glance. */
+.sct-ApplicationShell .sct-ParameterController-slider-range {
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--ring));
+}
+
+/* Thumb: light-blue disc with a navy outline and a soft brand halo; grows
+   slightly on hover and presses in on grab for tactile feedback. */
+.sct-ApplicationShell .sct-ParameterController-slider-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--ring);
+  border: 2px solid var(--primary);
+  box-shadow:
+    0 1px 3px color-mix(in srgb, var(--primary) 35%, transparent),
+    0 0 0 0 color-mix(in srgb, var(--ring) 60%, transparent);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.sct-ApplicationShell .sct-ParameterController-slider-thumb:hover {
+  transform: scale(1.18);
+}
+
+.sct-ApplicationShell .sct-ParameterController-slider-thumb:active {
+  transform: scale(1.08);
+  cursor: grabbing;
+}
+
+.sct-ApplicationShell .sct-ParameterController-slider-thumb:focus-visible {
+  box-shadow:
+    0 1px 3px color-mix(in srgb, var(--primary) 35%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--ring) 45%, transparent);
 }
 
 .sct-ApplicationShell .sct-ParameterController-input,
 .sct-ApplicationShell .sct-ParameterController-select-trigger {
   background: var(--input);
-  border-color: var(--primary);
+  border-color: var(--border);
   color: var(--primary);
+  font-weight: 600;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.sct-ApplicationShell .sct-ParameterController-input:focus,
+.sct-ApplicationShell .sct-ParameterController-select-trigger:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 35%, transparent);
 }
 
 .sct-ApplicationShell .sct-LogViewer-container {
@@ -178,4 +237,161 @@ body {
 
 .sct-ApplicationShell .sct-LogViewer-timestamp {
   color: var(--ring);
+}
+
+/* ─── Card depth ───
+   Widget cards use --card (lighter than the page) plus a soft brand-tinted
+   shadow so they lift off the background instead of blending in. */
+.sct-ApplicationShell .sct-Chart-container,
+.sct-ApplicationShell .sct-DataTable-container {
+  background-color: var(--card);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--primary) 10%, transparent),
+    0 4px 12px color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+/* ─── Run-control buttons ───
+   Class-based so they get proper hover/press feedback (inline styles can't).
+   Secondary buttons are light cards; the primary "Start" is brand navy. */
+.reachy-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.reachy-btn:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+.reachy-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.reachy-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
+.reachy-btn--primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+  font-weight: 600;
+}
+
+.reachy-btn--primary:hover {
+  background: color-mix(in srgb, var(--primary) 86%, var(--ring));
+}
+
+/* ─── Data table appeal ───
+   Branded sticky header, refined cells/rows, pill column-toggles, and themed
+   search + pagination. Severity row tints (set by statusKey) are preserved. */
+.sct-ApplicationShell .sct-DataTable-title {
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.sct-ApplicationShell .sct-DataTable-th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--ring) 24%, #ffffff);
+  color: var(--primary);
+  font-weight: 700;
+  border-bottom: 2px solid var(--primary);
+  white-space: nowrap;
+}
+
+.sct-ApplicationShell .sct-DataTable-table-wrapper td {
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+/* Transient hover tint layered over the row (keeps severity bars visible). */
+.sct-ApplicationShell .sct-DataTable-table-wrapper tbody tr:hover {
+  background: color-mix(in srgb, var(--ring) 16%, transparent);
+}
+
+/* Column-toggle pills reflect on/off via aria-pressed. */
+.sct-ApplicationShell .sct-DataTable-col-toggles {
+  gap: 8px;
+}
+
+.sct-ApplicationShell .sct-DataTable-col-toggles button {
+  height: auto;
+  min-height: 26px;
+  padding: 3px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.sct-ApplicationShell .sct-DataTable-col-toggles button[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid var(--primary);
+}
+
+.sct-ApplicationShell .sct-DataTable-col-toggles button[aria-pressed="false"] {
+  background: transparent;
+  color: var(--muted-foreground);
+  border: 1px dashed var(--border);
+}
+
+.sct-ApplicationShell .sct-DataTable-search {
+  background: var(--input);
+  border-color: var(--border);
+  color: var(--primary);
+  padding-left: 12px;
+}
+
+.sct-ApplicationShell .sct-DataTable-search:focus-visible {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 35%, transparent);
+}
+
+.sct-ApplicationShell .sct-DataTable-pagination button {
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--primary);
+}
+
+.sct-ApplicationShell .sct-DataTable-pagination button:not(:disabled):hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--ring) 16%, transparent);
+}
+
+.sct-ApplicationShell .sct-DataTable-sort-btn {
+  font-weight: 700;
+}
+
+/* ─── Accessibility: respect reduced-motion preferences ───
+   Users who set "reduce motion" get no transitions/animations/transforms. */
+@media (prefers-reduced-motion: reduce) {
+  .sct-ApplicationShell *,
+  .sct-ApplicationShell *::before,
+  .sct-ApplicationShell *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

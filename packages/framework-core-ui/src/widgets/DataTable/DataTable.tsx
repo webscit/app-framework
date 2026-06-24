@@ -303,21 +303,29 @@ export const DataTableComponent: ComponentType<DataTableProps> = ({
       <div className={`${DATA_TABLE_PREFIX}-toolbar`}>
         <Input
           placeholder="Search…"
+          aria-label="Search table rows"
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
           className={`${DATA_TABLE_PREFIX}-search`}
         />
         <div className={`${DATA_TABLE_PREFIX}-col-toggles`}>
-          {columns.map((col) => (
-            <Button
-              key={col.key}
-              variant={hiddenKeys.has(col.key) ? "outline" : "secondary"}
-              size="xs"
-              onClick={() => toggleColumn(col.key)}
-            >
-              {col.header}
-            </Button>
-          ))}
+          {columns.map((col) => {
+            const shown = !hiddenKeys.has(col.key);
+            return (
+              <Button
+                key={col.key}
+                variant={shown ? "secondary" : "outline"}
+                size="xs"
+                aria-pressed={shown}
+                title={
+                  shown ? `Hide ${col.header} column` : `Show ${col.header} column`
+                }
+                onClick={() => toggleColumn(col.key)}
+              >
+                {col.header}
+              </Button>
+            );
+          })}
         </div>
       </div>
 
@@ -325,16 +333,37 @@ export const DataTableComponent: ComponentType<DataTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              {visibleColumns.map((col) => (
-                <TableHead
-                  key={col.key}
-                  className={`${DATA_TABLE_PREFIX}-th`}
-                  onClick={() => handleHeaderClick(col.key)}
-                >
-                  {col.header}
-                  {sort?.key === col.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
-                </TableHead>
-              ))}
+              {visibleColumns.map((col) => {
+                const active = sort?.key === col.key;
+                const ariaSort = active
+                  ? sort.dir === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none";
+                return (
+                  <TableHead
+                    key={col.key}
+                    scope="col"
+                    aria-sort={ariaSort}
+                    className={`${DATA_TABLE_PREFIX}-th`}
+                  >
+                    <button
+                      type="button"
+                      className={`${DATA_TABLE_PREFIX}-sort-btn`}
+                      onClick={() => handleHeaderClick(col.key)}
+                      aria-label={`Sort by ${col.header}`}
+                    >
+                      <span>{col.header}</span>
+                      <span
+                        className={`${DATA_TABLE_PREFIX}-sort-icon`}
+                        aria-hidden="true"
+                      >
+                        {active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
+                      </span>
+                    </button>
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -23,26 +23,6 @@ function phaseColor(phase: string): string {
   }
 }
 
-const buttonStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border)",
-  background: "var(--card)",
-  color: "var(--foreground)",
-  cursor: "pointer",
-  fontSize: 13,
-};
-
-// "Start" is the primary action. It sits on the light-blue header, so it uses
-// the brand navy with white text to stand out as the call-to-action.
-const primaryButtonStyle: React.CSSProperties = {
-  ...buttonStyle,
-  border: "1px solid var(--primary)",
-  background: "var(--primary)",
-  color: "var(--primary-foreground)",
-  fontWeight: 600,
-};
-
 /**
  * Widget body: run status (from ``reachy/state``) plus the preset and
  * lifecycle buttons (published to ``reachy/control``). Self-contained so it
@@ -70,44 +50,67 @@ function RunControlsComponent(): React.ReactElement {
         fontSize: 13,
       }}
     >
-      <strong>Reachy Mini — Safety Validator</strong>
+      <strong style={{ letterSpacing: "0.02em" }}>
+        Reachy Mini — Safety Validator
+      </strong>
 
-      <span style={{ color: phaseColor(phase) }}>
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "3px 10px",
+          borderRadius: 999,
+          background: "rgba(255, 255, 255, 0.55)",
+          border: `1px solid ${phaseColor(phase)}`,
+          color: phaseColor(phase),
+          fontWeight: 600,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: phaseColor(phase),
+          }}
+        />
         {PHASE_LABELS[phase] ?? phase}
         {verdict ? ` (${verdict})` : ""}
       </span>
 
       <div style={{ display: "flex", gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
         <button
-          style={buttonStyle}
+          className="reachy-btn"
           onClick={() => send({ preset: "safe" })}
           aria-label="Apply safe preset"
         >
           Safe Preset
         </button>
         <button
-          style={buttonStyle}
+          className="reachy-btn"
           onClick={() => send({ preset: "aggressive" })}
           aria-label="Apply aggressive preset"
         >
           Aggressive Preset
         </button>
         <button
-          style={primaryButtonStyle}
+          className="reachy-btn reachy-btn--primary"
           onClick={() => send({ command: "start" })}
           aria-label="Start choreography run"
         >
           Start
         </button>
         <button
-          style={buttonStyle}
+          className="reachy-btn"
           onClick={() => send({ command: "stop" })}
           aria-label="Stop choreography run"
         >
           Stop
         </button>
         <button
-          style={buttonStyle}
+          className="reachy-btn"
           // The backend always resets to the aggressive preset; the `preset`
           // field is echoed back so the sliders reflect the reset values.
           onClick={() => send({ command: "reset", preset: "aggressive" })}

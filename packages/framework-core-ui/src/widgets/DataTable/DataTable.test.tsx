@@ -131,6 +131,53 @@ describe("DataTableComponent", () => {
     expect(row?.className ?? "").not.toContain("sct-DataTable-row--");
   });
 
+  it("sorting is keyboard-accessible and exposes aria-sort", async () => {
+    const socket = new FakeWebSocket();
+
+    const screen = await render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <DataTableComponent
+          channel="table/results"
+          columns={[{ key: "step", header: "Step", type: "number" }]}
+        />
+      </EventBusProvider>,
+    );
+
+    await act(async () => {
+      socket.open();
+      sendRowEvent(socket, "table/results", { step: 1 }, "m1");
+    });
+
+    const header = screen.getByRole("columnheader");
+    await expect.element(header).toHaveAttribute("aria-sort", "none");
+
+    await screen.getByRole("button", { name: "Sort by Step" }).click();
+    await expect.element(header).toHaveAttribute("aria-sort", "ascending");
+  });
+
+  it("column toggle buttons expose their aria-pressed state", async () => {
+    const socket = new FakeWebSocket();
+
+    const screen = await render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <DataTableComponent
+          channel="table/results"
+          columns={[{ key: "step", header: "Step", type: "number" }]}
+        />
+      </EventBusProvider>,
+    );
+
+    await act(async () => {
+      socket.open();
+      sendRowEvent(socket, "table/results", { step: 1 }, "m1");
+    });
+
+    const toggle = screen.getByRole("button", { name: "Step", exact: true });
+    await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+    await toggle.click();
+    await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("drops non-object payloads (null, array, string) silently", async () => {
     const socket = new FakeWebSocket();
 
@@ -239,12 +286,13 @@ describe("DataTableComponent", () => {
       sendRowEvent(socket, "table/results", { step: 1, residual: 0.001 });
     });
 
-    // Column toggle buttons confirm the user-provided headers are in use
+    // Column toggle buttons confirm the user-provided headers are in use.
+    // `exact` disambiguates from the "Sort by …" header sort buttons.
     await expect
-      .element(screen.getByRole("button", { name: "Step" }))
+      .element(screen.getByRole("button", { name: "Step", exact: true }))
       .toBeInTheDocument();
     await expect
-      .element(screen.getByRole("button", { name: "Residual" }))
+      .element(screen.getByRole("button", { name: "Residual", exact: true }))
       .toBeInTheDocument();
   });
 
@@ -264,10 +312,10 @@ describe("DataTableComponent", () => {
 
     // Toggle buttons confirm headers were auto-derived from the first row's keys
     await expect
-      .element(screen.getByRole("button", { name: "alpha" }))
+      .element(screen.getByRole("button", { name: "alpha", exact: true }))
       .toBeInTheDocument();
     await expect
-      .element(screen.getByRole("button", { name: "beta" }))
+      .element(screen.getByRole("button", { name: "beta", exact: true }))
       .toBeInTheDocument();
   });
 
