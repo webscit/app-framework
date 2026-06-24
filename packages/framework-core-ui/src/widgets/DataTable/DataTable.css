@@ -59,6 +59,32 @@
   background-color: var(--muted);
 }
 
+/* ─── Per-row severity highlighting (opt-in via the statusKey prop) ─── */
+
+.sct-DataTable-row--error {
+  background-color: color-mix(in oklch, var(--destructive) 14%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--destructive);
+}
+
+.sct-DataTable-row--error:hover {
+  background-color: color-mix(in oklch, var(--destructive) 22%, transparent);
+}
+
+.sct-DataTable-row--warning {
+  background-color: color-mix(in oklch, var(--chart-3) 18%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--chart-3);
+}
+
+.sct-DataTable-row--success {
+  background-color: color-mix(in oklch, var(--chart-2) 16%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--chart-2);
+}
+
+.sct-DataTable-row--info {
+  background-color: color-mix(in oklch, var(--chart-1) 16%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--chart-1);
+}
+
 .sct-DataTable-pagination {
   display: flex;
   align-items: center;

@@ -14,8 +14,10 @@ import type { ParameterConfig, ShellLayout } from "@app-framework/core-ui";
 import { useReachy } from "./useReachy";
 import { ROBOT_VIEW } from "./RobotViewWidget";
 import { RUN_CONTROLS } from "./RunControlsWidget";
-import "./shell.css";
+import { SAFETY_STATUS } from "./SafetyStatusWidget";
+// globals.css first so the example's shell.css :root brand overrides win.
 import "@/globals.css";
+import "./shell.css";
 
 const registry = new WidgetRegistry();
 registry.register(PARAMETER_CONTROLLER);
@@ -24,6 +26,7 @@ registry.register(LOG_VIEWER);
 registry.register(DATA_TABLE);
 registry.register(ROBOT_VIEW);
 registry.register(RUN_CONTROLS);
+registry.register(SAFETY_STATUS);
 
 /** Choreography parameter sliders, published to ``reachy/control``. */
 const CHOREOGRAPHY_PARAMETERS: Record<string, ParameterConfig> = {
@@ -98,8 +101,8 @@ the safe range (not just at the threshold).
 
 // Every visual is a widget inside the shell, so the AI assistant (or a future
 // no-code editor) can rearrange all of them. The run controls live in the
-// header; the robot render and parameter sliders in the left sidebar; chart +
-// safety table in main; log in the bottom.
+// header; the robot render and parameter sliders in the left sidebar; the
+// safety-status card, chart + safety table in main; log in the bottom.
 const initialLayout: ShellLayout = {
   regions: {
     ...createDefaultShellLayout().regions,
@@ -127,6 +130,12 @@ const initialLayout: ShellLayout = {
       visible: true,
       items: [
         {
+          id: "safety-status",
+          type: "SafetyStatus",
+          props: {},
+          order: 0,
+        },
+        {
           id: "telemetry-chart",
           type: "Chart",
           props: {
@@ -149,7 +158,7 @@ const initialLayout: ShellLayout = {
               },
             ],
           },
-          order: 0,
+          order: 1,
         },
         {
           id: "safety-table",
@@ -159,6 +168,10 @@ const initialLayout: ShellLayout = {
             title: "Safety Assessment",
             pageSize: 10,
             maxRows: 200,
+            // Highlight failing rows: the backend's `status` field drives the
+            // row colour (event-driven — the criteria live in the backend).
+            statusKey: "status",
+            statusVariants: { violation: "error", warning: "warning", ok: "success" },
             columns: [
               { key: "loop", header: "Loop", type: "number" },
               { key: "step", header: "Step", type: "number" },
@@ -172,7 +185,7 @@ const initialLayout: ShellLayout = {
               },
             ],
           },
-          order: 1,
+          order: 2,
         },
       ],
     },

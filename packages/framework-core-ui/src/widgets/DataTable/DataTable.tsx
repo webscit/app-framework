@@ -69,6 +69,21 @@ export interface DataTableProps {
    * Default: `1000`
    */
   maxRows?: number;
+  /**
+   * Name of a row field whose value classifies the row's severity, enabling
+   * per-row highlighting (e.g. a `"status"` column). When set, each rendered
+   * row receives a `sct-DataTable-row--{variant}` class so failing/anomalous
+   * rows can stand out. Leave unset to disable highlighting.
+   */
+  statusKey?: string;
+  /**
+   * Optional map from a raw `statusKey` value to a semantic severity variant.
+   * The framework ships styling for `"error"`, `"warning"`, `"success"`, and
+   * `"info"`. When omitted, the raw value is used as the variant directly; a
+   * value with no matching style simply adds no highlight.
+   * @example { violation: "error", warning: "warning", ok: "success" }
+   */
+  statusVariants?: Record<string, string>;
 }
 
 /** A single table row — the event payload cast as a flat-or-nested object. */
@@ -91,6 +106,21 @@ function cellString(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+/**
+ * Resolves the severity-variant class suffix for a row, or `undefined` when
+ * highlighting is disabled or the value maps to nothing.
+ */
+function rowVariant(
+  row: RowData,
+  statusKey: string | undefined,
+  statusVariants: Record<string, string> | undefined,
+): string | undefined {
+  if (!statusKey) return undefined;
+  const raw = cellString(row[statusKey]);
+  if (raw === "") return undefined;
+  return statusVariants ? statusVariants[raw] : raw;
 }
 
 function compareRows(a: RowData, b: RowData, col: ColumnDef): number {
@@ -146,6 +176,8 @@ export const DataTableComponent: ComponentType<DataTableProps> = ({
   columns: columnsProp,
   pageSize = 20,
   maxRows = 1000,
+  statusKey,
+  statusVariants,
 }) => {
   const client = useEventBusClient();
   const [rows, setRows] = useState<RowData[]>([]);
@@ -306,13 +338,21 @@ export const DataTableComponent: ComponentType<DataTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pageRows.map((row, i) => (
-              <TableRow key={i}>
-                {visibleColumns.map((col) => (
-                  <TableCell key={col.key}>{cellString(row[col.key])}</TableCell>
-                ))}
-              </TableRow>
-            ))}
+            {pageRows.map((row, i) => {
+              const variant = rowVariant(row, statusKey, statusVariants);
+              return (
+                <TableRow
+                  key={i}
+                  className={
+                    variant ? `${DATA_TABLE_PREFIX}-row--${variant}` : undefined
+                  }
+                >
+                  {visibleColumns.map((col) => (
+                    <TableCell key={col.key}>{cellString(row[col.key])}</TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

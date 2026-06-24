@@ -20,12 +20,14 @@ body {
    cell values (white-on-white); using the token foreground keeps everything
    readable. */
 
+/* Branded top bar: solid light blue with a dark-navy underline and navy text —
+   the clearest brand statement on the page. */
 .sct-ShellHeader {
-  background: var(--muted);
-  color: var(--foreground);
+  background: var(--ring, #6995b8);
+  color: var(--primary, #001e32);
   padding: 8px 16px;
   min-height: 40px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 3px solid var(--primary, #001e32);
   display: flex;
   align-items: center;
 }
@@ -36,10 +38,11 @@ body {
 }
 
 .sct-ShellSidebar {
-  background: var(--muted);
+  /* Pale tint of the brand light blue so the rails read as branded, not gray. */
+  background: color-mix(in srgb, var(--ring, #6995b8) 16%, #ffffff);
   color: var(--foreground);
   padding: 8px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid color-mix(in srgb, var(--ring, #6995b8) 40%, #ffffff);
   overflow-y: auto;
   height: 100%;
   box-sizing: border-box;
@@ -86,17 +89,17 @@ body {
 }
 
 .sct-ShellBottom {
-  background: var(--muted);
+  background: color-mix(in srgb, var(--ring, #6995b8) 16%, #ffffff);
   color: var(--foreground);
   padding: 8px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid color-mix(in srgb, var(--ring, #6995b8) 40%, #ffffff);
   overflow-y: auto;
   height: 100%;
   box-sizing: border-box;
 }
 
 .sct-ShellStatusBar {
-  background: var(--ring, #007acc);
+  background: var(--primary, #001e32);
   color: white;
   padding: 4px 16px;
   min-height: 24px;
@@ -105,10 +108,74 @@ body {
   align-items: center;
 }
 
+/* ─── Example branding ───
+   The framework ships a neutral grayscale palette. This example re-themes the
+   whole shell around the two company blues — dark navy (#001E32) and light
+   blue (#6995B8) — so nothing reads as flat gray/white/black. Every surface,
+   border, and text token below is derived from those two colours; change the
+   two brand values and the entire dashboard re-themes. */
 :root {
-  --chart-1: #3b82f6;
-  --chart-2: #10b981;
+  --primary: #001e32; /* brand dark blue */
+  --primary-foreground: #ffffff;
+  --ring: #6995b8; /* brand light blue */
+
+  /* Blue-tinted surfaces (no stark white) and navy-leaning text/borders. */
+  --background: #eef3f8;
+  --foreground: #001e32;
+  --card: #f6f9fc;
+  --card-foreground: #001e32;
+  --popover: #f6f9fc;
+  --popover-foreground: #001e32;
+  --muted: #dde8f1;
+  --muted-foreground: #3a5a72;
+  --secondary: #dde8f1;
+  --secondary-foreground: #001e32;
+  --accent: #d4e2ed;
+  --accent-foreground: #001e32;
+  --border: #aac2d6;
+  --input: #e4eef5;
+
+  --chart-1: #001e32;
+  --chart-2: #6995b8;
   --chart-3: #f59e0b;
   --chart-4: #ef4444;
-  --chart-5: #8b5cf6;
+  --chart-5: #4a7fa5;
+}
+
+/* ─── Re-theme framework widgets that ship hardcoded dark colours ───
+   ParameterController and LogViewer were built for a dark theme (black inputs,
+   gray labels). Higher-specificity overrides (scoped under .sct-ApplicationShell)
+   re-skin them to the brand palette without touching the framework package. */
+
+.sct-ApplicationShell .sct-ParameterController-label,
+.sct-ApplicationShell .sct-ParameterController-value {
+  color: var(--primary);
+}
+
+.sct-ApplicationShell .sct-ParameterController-slider-track {
+  background: color-mix(in srgb, var(--primary) 20%, #ffffff);
+}
+
+.sct-ApplicationShell .sct-ParameterController-slider-range {
+  background: var(--ring);
+}
+
+.sct-ApplicationShell .sct-ParameterController-slider-thumb {
+  background: var(--primary);
+}
+
+.sct-ApplicationShell .sct-ParameterController-input,
+.sct-ApplicationShell .sct-ParameterController-select-trigger {
+  background: var(--input);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.sct-ApplicationShell .sct-LogViewer-container {
+  background-color: var(--primary);
+  color: #dce8f2;
+}
+
+.sct-ApplicationShell .sct-LogViewer-timestamp {
+  color: var(--ring);
 }

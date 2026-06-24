@@ -81,6 +81,56 @@ describe("DataTableComponent", () => {
     await expect.element(screen.getByText("converging")).toBeInTheDocument();
   });
 
+  it("applies a severity variant class to rows via statusKey + statusVariants", async () => {
+    const socket = new FakeWebSocket();
+
+    const screen = await render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <DataTableComponent
+          channel="table/results"
+          columns={[
+            { key: "step", header: "Step", type: "number" },
+            { key: "status", header: "Status" },
+          ]}
+          statusKey="status"
+          statusVariants={{ violation: "error", ok: "success" }}
+        />
+      </EventBusProvider>,
+    );
+
+    await act(async () => {
+      socket.open();
+      sendRowEvent(socket, "table/results", { step: 1, status: "violation" }, "m1");
+      sendRowEvent(socket, "table/results", { step: 2, status: "ok" }, "m2");
+    });
+
+    const failing = (await screen.getByText("violation").element()).closest("tr");
+    const passing = (await screen.getByText("ok").element()).closest("tr");
+    expect(failing?.className).toContain("sct-DataTable-row--error");
+    expect(passing?.className).toContain("sct-DataTable-row--success");
+  });
+
+  it("adds no variant class when statusKey is unset", async () => {
+    const socket = new FakeWebSocket();
+
+    const screen = await render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <DataTableComponent
+          channel="table/results"
+          columns={[{ key: "status", header: "Status" }]}
+        />
+      </EventBusProvider>,
+    );
+
+    await act(async () => {
+      socket.open();
+      sendRowEvent(socket, "table/results", { status: "violation" }, "m1");
+    });
+
+    const row = (await screen.getByText("violation").element()).closest("tr");
+    expect(row?.className ?? "").not.toContain("sct-DataTable-row--");
+  });
+
   it("drops non-object payloads (null, array, string) silently", async () => {
     const socket = new FakeWebSocket();
 

@@ -405,22 +405,27 @@ const SHELL_STATUS_STYLE: React.CSSProperties = {
   fontFamily: "var(--font-sans, sans-serif)",
 };
 
-/** Right-edge tab that reopens the collapsed AI assistant. */
+/**
+ * Right-edge tab that reopens the collapsed AI assistant. Uses the app's brand
+ * tokens (`--primary` / `--primary-foreground`) so consumers can theme it,
+ * falling back to a neutral dark treatment when no theme is set.
+ */
 const AI_TAB_STYLE: React.CSSProperties = {
   position: "fixed",
   right: 0,
   top: "50%",
   transform: "translateY(-50%)",
   padding: "14px 6px",
-  background: "#1e1e1e",
-  color: "#fff",
-  border: "1px solid #555",
+  background: "var(--primary, #1e1e1e)",
+  color: "var(--primary-foreground, #fff)",
+  border: "1px solid var(--primary, #555)",
   borderRight: "none",
   borderRadius: "6px 0 0 6px",
   cursor: "pointer",
   writingMode: "vertical-rl",
   fontSize: 12,
   letterSpacing: "0.06em",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.18)",
   zIndex: 40,
 };
 

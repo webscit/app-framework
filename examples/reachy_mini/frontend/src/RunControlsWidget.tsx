@@ -26,11 +26,21 @@ function phaseColor(phase: string): string {
 const buttonStyle: React.CSSProperties = {
   padding: "6px 14px",
   borderRadius: 6,
-  border: "1px solid #555",
-  background: "#1e1e1e",
-  color: "#fff",
+  border: "1px solid var(--border)",
+  background: "var(--card)",
+  color: "var(--foreground)",
   cursor: "pointer",
   fontSize: 13,
+};
+
+// "Start" is the primary action. It sits on the light-blue header, so it uses
+// the brand navy with white text to stand out as the call-to-action.
+const primaryButtonStyle: React.CSSProperties = {
+  ...buttonStyle,
+  border: "1px solid var(--primary)",
+  background: "var(--primary)",
+  color: "var(--primary-foreground)",
+  fontWeight: 600,
 };
 
 /**
@@ -83,7 +93,7 @@ function RunControlsComponent(): React.ReactElement {
           Aggressive Preset
         </button>
         <button
-          style={buttonStyle}
+          style={primaryButtonStyle}
           onClick={() => send({ command: "start" })}
           aria-label="Start choreography run"
         >
