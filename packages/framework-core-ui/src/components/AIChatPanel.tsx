@@ -29,9 +29,9 @@ export interface ChatMessage {
   layoutExplanation?: string;
   /** Whether the user approved the proposed layout. Undefined until acted on. */
   approved?: boolean;
-  /** AI-suggested parameter values, present when the request included a simulation snapshot. */
+  /** AI-suggested parameter values (a flat name → value object), if any. */
   suggestedParams?: Record<string, unknown>;
-  /** The simulation's parameter values at the time this suggestion was made. */
+  /** Current parameter values at suggestion time, used as the diff baseline. */
   currentParamsSnapshot?: Record<string, unknown>;
   /** Whether the user approved the suggested params. Undefined until acted on. */
   paramsApproved?: boolean;
@@ -44,19 +44,24 @@ interface ConversationTurn {
 }
 
 /**
- * Optional simulation data attached to every chat request.
+ * Application-defined context attached to every chat request.
  *
- * Returned by the {@link AIChatPanelProps.getSnapshot} callback so the AI can
- * diagnose a running simulation in the same conversation used for layout
- * changes — see {@link AIChatPanelProps.onApproveParams}.
+ * Returned by the {@link AIChatPanelProps.getSnapshot} callback. The framework
+ * is deliberately domain-agnostic: it forwards `context` and `instructions`
+ * verbatim to the backend prompt and imposes no schema, so any app can adapt
+ * the structure to its own data. `currentParams` is used locally as the
+ * baseline for the suggested-parameter diff.
  */
-export interface SimulationSnapshot {
-  /** Recent raw data samples produced by the simulation. */
-  telemetry_snapshot?: unknown[];
-  /** Recent safety/threshold assessments paired with telemetry_snapshot. */
-  safety_snapshot?: unknown[];
-  /** The simulation's current parameter values. */
-  current_params?: Record<string, unknown>;
+export interface AISnapshot {
+  /** Arbitrary context (free-form JSON) describing the app's current state. */
+  context?: Record<string, unknown>;
+  /**
+   * App-specific guidance the AI should use to interpret `context` and decide
+   * what `suggested_params` may change (data meaning, safe ranges, etc.).
+   */
+  instructions?: string;
+  /** Current parameter values, used as the baseline for the suggested-params diff. */
+  currentParams?: Record<string, unknown>;
 }
 
 /**
@@ -79,11 +84,11 @@ export interface AIChatPanelProps {
    */
   apiUrl?: string;
   /**
-   * Called before every request to attach a {@link SimulationSnapshot}.
-   * Omit for layout-only apps (e.g. the sine-wave example) — no snapshot
-   * fields are sent and the AI behaves exactly as before.
+   * Called before every request to attach an application-defined
+   * {@link AISnapshot}. Omit for layout-only apps (e.g. the sine-wave
+   * example) — no context is sent and the AI behaves exactly as before.
    */
-  getSnapshot?: () => SimulationSnapshot;
+  getSnapshot?: () => AISnapshot;
   /**
    * Called when the user approves AI-suggested parameter values. Required
    * for `suggested_params` to render with Approve/Reject controls — omitted
@@ -265,6 +270,9 @@ export function AIChatPanel({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // When the app provides a snapshot, the user can choose per-conversation
+  // whether to include that context with their messages (default: on).
+  const [includeContext, setIncludeContext] = useState(true);
 
   /** Only approved turns are forwarded to the AI in subsequent requests. */
   const approvedHistory = useRef<ConversationTurn[]>([]);
@@ -286,7 +294,7 @@ export function AIChatPanel({
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    const snapshot = getSnapshot?.();
+    const snapshot = includeContext ? getSnapshot?.() : undefined;
 
     try {
       const response = await fetch(apiUrl, {
@@ -297,14 +305,9 @@ export function AIChatPanel({
           history: approvedHistory.current,
           registry: serializeRegistry(registry),
           current_layout: currentLayout,
-          ...(snapshot?.telemetry_snapshot !== undefined && {
-            telemetry_snapshot: snapshot.telemetry_snapshot,
-          }),
-          ...(snapshot?.safety_snapshot !== undefined && {
-            safety_snapshot: snapshot.safety_snapshot,
-          }),
-          ...(snapshot?.current_params !== undefined && {
-            current_params: snapshot.current_params,
+          ...(snapshot?.context !== undefined && { context: snapshot.context }),
+          ...(snapshot?.instructions !== undefined && {
+            context_instructions: snapshot.instructions,
           }),
         }),
       });
@@ -338,7 +341,7 @@ export function AIChatPanel({
         }),
         ...(data.suggested_params && {
           suggestedParams: data.suggested_params,
-          currentParamsSnapshot: snapshot?.current_params,
+          currentParamsSnapshot: snapshot?.currentParams,
         }),
       };
 
@@ -459,25 +462,38 @@ export function AIChatPanel({
           </div>
         </ScrollArea>
 
-        <div className="sct-AIChatPanel-input-row">
-          <Textarea
-            className="sct-AIChatPanel-textarea"
-            placeholder="Ask AI to build or modify your layout…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={loading}
-            aria-label="Chat input"
-          />
-          <Button
-            className="sct-AIChatPanel-send-btn"
-            size="default"
-            onClick={() => void handleSend()}
-            disabled={loading || input.trim() === ""}
-            aria-label="Send message"
-          >
-            Send
-          </Button>
+        <div className="sct-AIChatPanel-input-area">
+          {getSnapshot && (
+            <label className="sct-AIChatPanel-context-toggle">
+              <input
+                type="checkbox"
+                checked={includeContext}
+                onChange={(e) => setIncludeContext(e.target.checked)}
+                aria-label="Include app context"
+              />
+              Include app context
+            </label>
+          )}
+          <div className="sct-AIChatPanel-input-row">
+            <Textarea
+              className="sct-AIChatPanel-textarea"
+              placeholder="Ask AI to build or modify your layout…"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={loading}
+              aria-label="Chat input"
+            />
+            <Button
+              className="sct-AIChatPanel-send-btn"
+              size="default"
+              onClick={() => void handleSend()}
+              disabled={loading || input.trim() === ""}
+              aria-label="Send message"
+            >
+              Send
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

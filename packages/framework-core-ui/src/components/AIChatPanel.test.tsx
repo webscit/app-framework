@@ -361,9 +361,9 @@ describe("AIChatPanel", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  // ─── Simulation snapshot + suggested_params ──────────────────────────────────
+  // ─── Application context + suggested_params ──────────────────────────────────
 
-  it("does not attach snapshot fields when getSnapshot is not provided", async () => {
+  it("does not attach context fields when getSnapshot is not provided", async () => {
     vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
 
     await render(<AIChatPanel {...defaultProps()} />);
@@ -371,17 +371,16 @@ describe("AIChatPanel", () => {
 
     const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(body.telemetry_snapshot).toBeUndefined();
-    expect(body.safety_snapshot).toBeUndefined();
-    expect(body.current_params).toBeUndefined();
+    expect(body.context).toBeUndefined();
+    expect(body.context_instructions).toBeUndefined();
   });
 
-  it("attaches the snapshot returned by getSnapshot to every request", async () => {
+  it("forwards the snapshot's context and instructions to every request", async () => {
     vi.mocked(fetch).mockResolvedValue(makeDiagnosisResponse());
     const getSnapshot = vi.fn(() => ({
-      telemetry_snapshot: [{ step: 0, roll_deg: 42.0 }],
-      safety_snapshot: [{ step: 0, status: "violation" }],
-      current_params: { roll_amplitude_deg: 42.0 },
+      context: { samples: [{ step: 0, roll_deg: 42.0 }], parameters: { gain: 7 } },
+      instructions: "Roll must stay under 40 degrees.",
+      currentParams: { roll_amplitude_deg: 42.0 },
     }));
 
     await render(
@@ -392,9 +391,40 @@ describe("AIChatPanel", () => {
     expect(getSnapshot).toHaveBeenCalled();
     const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(body.telemetry_snapshot).toEqual([{ step: 0, roll_deg: 42.0 }]);
-    expect(body.safety_snapshot).toEqual([{ step: 0, status: "violation" }]);
-    expect(body.current_params).toEqual({ roll_amplitude_deg: 42.0 });
+    expect(body.context).toEqual({
+      samples: [{ step: 0, roll_deg: 42.0 }],
+      parameters: { gain: 7 },
+    });
+    expect(body.context_instructions).toBe("Roll must stay under 40 degrees.");
+    // currentParams is a local diff baseline — it is NOT sent to the backend.
+    expect(body.currentParams).toBeUndefined();
+  });
+
+  it("hides the include-context toggle when getSnapshot is not provided", async () => {
+    await render(<AIChatPanel {...defaultProps()} />);
+
+    expect(
+      page.getByRole("checkbox", { name: "Include app context" }).query(),
+    ).toBeNull();
+  });
+
+  it("omits context when the include-context toggle is unchecked", async () => {
+    vi.mocked(fetch).mockResolvedValue(makeSuccessResponse());
+    const getSnapshot = vi.fn(() => ({ context: { a: 1 }, instructions: "x" }));
+
+    await render(<AIChatPanel {...defaultProps({ getSnapshot })} />);
+
+    const toggle = page.getByRole("checkbox", { name: "Include app context" });
+    await expect.element(toggle).toBeChecked();
+    (toggle.element() as HTMLInputElement).click(); // uncheck
+
+    await fillAndSend("Just a layout change please");
+
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.context).toBeUndefined();
+    expect(body.context_instructions).toBeUndefined();
+    expect(getSnapshot).not.toHaveBeenCalled();
   });
 
   it("renders ParamDiffViewer when the response includes suggested_params", async () => {

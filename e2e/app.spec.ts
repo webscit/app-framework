@@ -7,9 +7,11 @@ test("renders the application shell", async ({ page }) => {
   await expect(page.locator("[data-testid='shell-layout']").first()).toBeVisible();
 });
 
-test("renders the dashboard local component", async ({ page }) => {
+test("shell provides the built-in AI assistant affordance", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("[data-testid='dashboard']")).toBeVisible();
+  // The ApplicationShell renders the AI assistant tab itself when configured
+  // with an `ai` prop — no per-app boilerplate.
+  await expect(page.getByRole("button", { name: "Open AI assistant" })).toBeVisible();
 });
 
 test("backend health endpoint returns ok", async ({ request }) => {

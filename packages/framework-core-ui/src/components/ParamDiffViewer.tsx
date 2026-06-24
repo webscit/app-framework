@@ -43,9 +43,9 @@ function formatValue(value: unknown): string {
  * @example
  * ```tsx
  * <ParamDiffViewer
- *   current={{ roll_amplitude_deg: 42 }}
- *   suggested={{ roll_amplitude_deg: 18 }}
- *   explanation="Roll exceeded the violation threshold on step 0."
+ *   current={{ gain: 42, window_ms: 200 }}
+ *   suggested={{ gain: 18 }}
+ *   explanation="Reduced gain to keep the value within range."
  *   onApprove={() => publish(suggested)}
  *   onReject={() => setProposed(null)}
  * />
@@ -64,22 +64,28 @@ export function ParamDiffViewer({
     <div className="sct-ParamDiffViewer">
       <p className="sct-ParamDiffViewer-explanation">{explanation}</p>
 
-      <ul className="sct-ParamDiffViewer-list">
-        {fields.map((field) => (
-          <li key={field} className="sct-ParamDiffViewer-row">
-            <span className="sct-ParamDiffViewer-field">{field}</span>
-            <span className="sct-ParamDiffViewer-current">
-              {formatValue(current[field])}
-            </span>
-            <span className="sct-ParamDiffViewer-arrow" aria-hidden>
-              →
-            </span>
-            <span className="sct-ParamDiffViewer-suggested">
-              {formatValue(suggested[field])}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <table className="sct-ParamDiffViewer-table">
+        <thead>
+          <tr>
+            <th scope="col">Parameter</th>
+            <th scope="col">Current</th>
+            <th scope="col">Suggested</th>
+          </tr>
+        </thead>
+        <tbody>
+          {fields.map((field) => (
+            <tr key={field}>
+              <td className="sct-ParamDiffViewer-field">{field}</td>
+              <td className="sct-ParamDiffViewer-current">
+                {formatValue(current[field])}
+              </td>
+              <td className="sct-ParamDiffViewer-suggested">
+                {formatValue(suggested[field])}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       <div className="sct-ParamDiffViewer-actions">
         <Button

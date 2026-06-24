@@ -168,7 +168,24 @@
   font-size: 13px;
 }
 
-/* ─── Input row ───────────────────────────────────────────────────────────── */
+/* ─── Input area ──────────────────────────────────────────────────────────── */
+
+.sct-AIChatPanel-input-area {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background-color: var(--background);
+}
+
+.sct-AIChatPanel-context-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  user-select: none;
+}
 
 .sct-AIChatPanel-input-row {
   flex-shrink: 0;
@@ -177,8 +194,6 @@
   align-items: flex-end;
   gap: 8px;
   padding: 10px 12px;
-  border-top: 1px solid var(--border);
-  background-color: var(--background);
 }
 
 .sct-AIChatPanel-textarea {

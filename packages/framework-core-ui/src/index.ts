@@ -48,8 +48,10 @@ export {
   ApplicationShell,
   applyNonTogglableCorrection,
   type ApplicationShellProps,
+  type ShellAIConfig,
   type ShellClassNames,
 } from "./ApplicationShell";
+export { AppRoot, type AppRootProps } from "./AppRoot";
 export {
   LayoutDiffViewer,
   type LayoutDiffViewerProps,
@@ -61,8 +63,8 @@ export {
 export {
   AIChatPanel,
   type AIChatPanelProps,
+  type AISnapshot,
   type ChatMessage,
-  type SimulationSnapshot,
 } from "./components/AIChatPanel";
 export {
   useShellLayoutStore,

@@ -1,9 +1,11 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 import { mergeClassNames } from "./helpers";
 
 import { useShellLayoutStore } from "./stores/shellStore";
 import { useWidgetRegistryInstance } from "./WidgetRegistryContext";
+import { useWidgetLoader } from "./useWidgetLoader";
+import { AIChatPanel, type AISnapshot } from "./components/AIChatPanel";
 import {
   ShellBottom,
   ShellHeader,
@@ -78,6 +80,28 @@ export interface ShellClassNames {
   statusBar?: string;
 }
 
+// ─── ShellAIConfig ─────────────────────────────────────────────────────────
+
+/**
+ * Configuration for the built-in AI assistant panel.
+ *
+ * When passed to {@link ApplicationShell} via the `ai` prop, the shell renders
+ * the {@link AIChatPanel} and its collapse/expand affordance itself — wiring
+ * the current layout and apply-layout handler from its own store — so consumer
+ * apps don't have to repeat that boilerplate.
+ */
+export interface ShellAIConfig {
+  /** Layout-generation endpoint. Defaults to `"/ai/layout"`. */
+  apiUrl?: string;
+  /**
+   * Called before every request to attach an application-specific
+   * {@link AISnapshot}. Omit for layout-only assistants.
+   */
+  getSnapshot?: () => AISnapshot;
+  /** Called when the user approves AI-suggested parameter values. */
+  onApproveParams?: (params: Record<string, unknown>) => void;
+}
+
 // ─── ApplicationShellProps ───────────────────────────────────────────────────
 
 /**
@@ -93,30 +117,38 @@ export interface ApplicationShellProps {
   initialLayout?: ShellLayout;
   /** Optional CSS class overrides for individual shell regions. */
   classNames?: ShellClassNames;
+  /**
+   * When set, the shell loads this widget manifest itself (via
+   * {@link useWidgetLoader}) and shows loading/error states until it is ready,
+   * so consumers don't have to gate rendering on the manifest manually.
+   */
+  manifestUrl?: string;
+  /**
+   * When set, the shell renders the built-in {@link AIChatPanel} and its
+   * expand affordance, wired to the shell's own layout store.
+   */
+  ai?: ShellAIConfig;
 }
 
-// ─── ApplicationShell ─────────────────────────────────────────────────────────
+// ─── ShellLayoutTree (internal) ───────────────────────────────────────────────
 
 /**
- * Root shell component. Owns layout state via Zustand store.
+ * The resizable shell layout tree (header, sidebars, main, bottom, status-bar).
+ * Owns layout state via the Zustand store. Internal — consumers use the
+ * {@link ApplicationShell} wrapper, which adds optional manifest loading and
+ * the built-in AI assistant.
  *
- * When `initialLayout` is omitted the shell builds its layout from the
+ * When `initialLayout` is omitted the layout is built from the
  * {@link WidgetRegistry}. When provided, that layout is used as-is after
  * non-togglable correction.
  *
- * @param props - {@link ApplicationShellProps}
- * @returns The full shell layout tree with header, sidebars, main, bottom, and status-bar regions.
- * @example
- * ```tsx
- * <WidgetRegistryContext.Provider value={registry}>
- *   <ApplicationShell />
- * </WidgetRegistryContext.Provider>
- * ```
+ * @param props - `initialLayout` and `classNames` from {@link ApplicationShellProps}.
+ * @returns The full shell layout tree.
  */
-export function ApplicationShell({
+function ShellLayoutTree({
   initialLayout,
   classNames,
-}: ApplicationShellProps): React.ReactElement {
+}: Pick<ApplicationShellProps, "initialLayout" | "classNames">): React.ReactElement {
   const registry = useWidgetRegistryInstance();
   const isControlled = initialLayout !== undefined;
   const { layout, setLayout } = useShellLayoutStore();
@@ -338,5 +370,127 @@ export function ApplicationShell({
         className={classNames?.statusBar}
       />
     </div>
+  );
+}
+
+// ─── ManifestGate (internal) ──────────────────────────────────────────────────
+
+/**
+ * Loads a widget manifest and renders *children* only once it is ready,
+ * showing loading/error fallbacks meanwhile.
+ *
+ * @param props.url - Manifest URL to load.
+ * @param props.children - Rendered once the manifest is ready.
+ * @returns The children, or a loading/error fallback.
+ */
+function ManifestGate({
+  url,
+  children,
+}: {
+  url: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  const status = useWidgetLoader(url);
+  if (status === "loading") {
+    return <p style={SHELL_STATUS_STYLE}>Loading widgets…</p>;
+  }
+  if (status === "error") {
+    return <p style={SHELL_STATUS_STYLE}>Failed to load widget manifest.</p>;
+  }
+  return <>{children}</>;
+}
+
+const SHELL_STATUS_STYLE: React.CSSProperties = {
+  padding: 16,
+  fontFamily: "var(--font-sans, sans-serif)",
+};
+
+/** Right-edge tab that reopens the collapsed AI assistant. */
+const AI_TAB_STYLE: React.CSSProperties = {
+  position: "fixed",
+  right: 0,
+  top: "50%",
+  transform: "translateY(-50%)",
+  padding: "14px 6px",
+  background: "#1e1e1e",
+  color: "#fff",
+  border: "1px solid #555",
+  borderRight: "none",
+  borderRadius: "6px 0 0 6px",
+  cursor: "pointer",
+  writingMode: "vertical-rl",
+  fontSize: 12,
+  letterSpacing: "0.06em",
+  zIndex: 40,
+};
+
+// ─── ApplicationShell ─────────────────────────────────────────────────────────
+
+/**
+ * The application shell: a resizable widget layout plus, optionally, manifest
+ * loading and a built-in AI assistant.
+ *
+ * This is intended to be the top-level UI component of an app built on the
+ * framework. Pass `manifestUrl` to let the shell load widgets itself, and `ai`
+ * to render the {@link AIChatPanel} (and its expand affordance) wired to the
+ * shell's own layout store — so consumer apps need no chat-panel boilerplate.
+ *
+ * @param props - {@link ApplicationShellProps}
+ * @returns The shell, gated on manifest loading and with the AI panel when configured.
+ * @example
+ * ```tsx
+ * <ApplicationShell
+ *   initialLayout={layout}
+ *   manifestUrl="/sct-manifest.json"
+ *   ai={{ apiUrl: "/ai/layout" }}
+ * />
+ * ```
+ */
+export function ApplicationShell({
+  initialLayout,
+  classNames,
+  manifestUrl,
+  ai,
+}: ApplicationShellProps): React.ReactElement {
+  const registry = useWidgetRegistryInstance();
+  const { layout, setLayout } = useShellLayoutStore();
+  const [chatOpen, setChatOpen] = useState(false);
+
+  const tree = (
+    <ShellLayoutTree initialLayout={initialLayout} classNames={classNames} />
+  );
+
+  return (
+    <>
+      {manifestUrl ? <ManifestGate url={manifestUrl}>{tree}</ManifestGate> : tree}
+
+      {ai && (
+        <>
+          {/* Right-edge tab — stays visible when the panel is collapsed so the
+              user can reopen it. */}
+          {!chatOpen && (
+            <button
+              style={AI_TAB_STYLE}
+              onClick={() => setChatOpen(true)}
+              aria-label="Open AI assistant"
+            >
+              AI Assistant
+            </button>
+          )}
+          <AIChatPanel
+            open={chatOpen}
+            onOpenChange={setChatOpen}
+            currentLayout={layout}
+            onApplyLayout={(proposed) =>
+              setLayout(() => applyNonTogglableCorrection(proposed))
+            }
+            registry={registry}
+            apiUrl={ai.apiUrl}
+            getSnapshot={ai.getSnapshot}
+            onApproveParams={ai.onApproveParams}
+          />
+        </>
+      )}
+    </>
   );
 }

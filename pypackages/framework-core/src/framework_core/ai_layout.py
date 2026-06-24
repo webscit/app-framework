@@ -63,43 +63,38 @@ CURRENT LAYOUT (start from this and make only the requested changes):
 <current_layout_json>
 """
 
-# Appended to the system prompt only when the caller supplies at least one of
-# telemetry_snapshot / safety_snapshot / current_params — i.e. the request is
-# about a running simulation, not just a layout change. Deliberately kept
-# generic: framework_core is shared across examples, so no example-specific
-# domain knowledge (e.g. one app's numeric safety thresholds) belongs here.
-# Any such limits must already be encoded in the snapshot data itself
-# (status / violated_axes / *_margin_* fields).
-_SIMULATION_DATA_SECTION = """
+# Appended to the system prompt only when the caller supplies application
+# context — i.e. the request is about a running application, not just a layout
+# change. Deliberately domain-agnostic: framework_core is shared across apps,
+# so it forwards whatever JSON the app provides as ``context`` plus the app's
+# own ``context_instructions``. Any domain knowledge (data meaning, safe
+# ranges, what suggested_params represent) is supplied by the application —
+# never hardcoded here.
+_CONTEXT_SECTION = """
 
 ---
 
-SIMULATION DATA (present because the request included telemetry/safety data or \
-current parameters — the user is asking about a running simulation, not just a \
-layout change):
+APPLICATION CONTEXT (present because the request included context from the \
+running application — the user is asking about their data/run, not just a \
+layout change).
 
-- telemetry_snapshot: recent raw data samples produced by the simulation.
-<telemetry_snapshot_json>
+Context data provided by the application (JSON):
+<context_json>
 
-- safety_snapshot: a safety/threshold assessment per sample, when the app publishes \
-one. Look for fields such as "status", "violated_axes", or "*_margin_*" — a negative \
-margin means a limit was exceeded.
-<safety_snapshot_json>
+Guidance provided by the application (how to interpret the context and what \
+parameters can be changed):
+<context_instructions>
 
-- current_params: the simulation's current parameter values.
-<current_params_json>
+When this context is present and the user asks what is wrong or how to fix it, \
+you may add a "suggested_params" key to your JSON response: corrected values \
+for the application parameters that should change, as a flat object of \
+name → value. Only include parameters that need to change.
 
-When this data is present and the user asks what is wrong with the run, you may add \
-a third key to your JSON response:
-  - "suggested_params": corrected values for the fields in current_params that need \
-to change to bring the run back within safe margins. Only include fields that need \
-to change.
-
-Base any diagnosis or suggested_params strictly on the data provided above — do not \
-invent numeric thresholds that are not present in the snapshot. You may omit \
-"suggested_params" if no parameter fix is needed. You may also omit "layout" \
-entirely if you have no layout change to suggest — a pure diagnosis response \
-needs only "explanation" (and "suggested_params" if applicable).
+Base any diagnosis or suggested_params strictly on the context data and \
+guidance above — do not invent values or thresholds that are not present. You \
+may omit "suggested_params" if no parameter fix is needed, and you may omit \
+"layout" entirely if you have no layout change to suggest — a pure diagnosis \
+response needs only "explanation" (and "suggested_params" if applicable).
 """
 
 # ─── Tool definition ──────────────────────────────────────────────────────────
@@ -370,9 +365,8 @@ def build_layout_prompt(
     layout_schema: dict[str, Any],
     history: list[dict[str, str]] | None = None,
     current_layout: dict[str, Any] | None = None,
-    telemetry_snapshot: list[dict[str, Any]] | None = None,
-    safety_snapshot: list[dict[str, Any]] | None = None,
-    current_params: dict[str, Any] | None = None,
+    context: dict[str, Any] | None = None,
+    context_instructions: str = "",
 ) -> list[dict[str, Any]]:
     """Assemble the messages array for a layout generation request.
 
@@ -388,12 +382,14 @@ def build_layout_prompt(
         current_layout: The live ShellLayout currently displayed. When
             provided, the AI starts from it and applies only the requested
             changes instead of generating from scratch.
-        telemetry_snapshot: Recent simulation data samples, when the caller's
-            chat panel has simulation data buffered. Triggers the simulation
-            analysis section of the prompt when non-empty.
-        safety_snapshot: Recent safety/threshold assessments paired with
-            ``telemetry_snapshot``, when the app publishes one.
-        current_params: The simulation's current parameter values, as a dict.
+        context: Arbitrary, application-defined context (free-form JSON) about
+            the running app — e.g. recent data samples and current parameters.
+            The framework forwards it verbatim; it imposes no schema. Triggers
+            the context section of the prompt when non-empty.
+        context_instructions: Application-provided guidance describing how to
+            interpret ``context`` and what parameters ``suggested_params`` may
+            change. This is where domain knowledge (data meaning, safe ranges)
+            belongs — the framework prompt stays domain-agnostic.
 
     Returns:
         Messages array ready to pass to :func:`call_openrouter`.
@@ -411,20 +407,14 @@ def build_layout_prompt(
         .replace("<current_layout_json>", current_layout_text)
     )
 
-    if telemetry_snapshot or safety_snapshot or current_params:
-        simulation_section = (
-            _SIMULATION_DATA_SECTION.replace(
-                "<telemetry_snapshot_json>",
-                json.dumps(telemetry_snapshot or [], indent=2),
-            )
-            .replace(
-                "<safety_snapshot_json>", json.dumps(safety_snapshot or [], indent=2)
-            )
-            .replace(
-                "<current_params_json>", json.dumps(current_params or {}, indent=2)
-            )
+    if context or context_instructions:
+        context_section = _CONTEXT_SECTION.replace(
+            "<context_json>", json.dumps(context or {}, indent=2)
+        ).replace(
+            "<context_instructions>",
+            context_instructions or "None provided.",
         )
-        system_content += simulation_section
+        system_content += context_section
 
     messages: list[dict[str, Any]] = [{"role": "system", "content": system_content}]
 
@@ -500,22 +490,22 @@ class LayoutRequest(BaseModel):
             field excluded).
         current_layout: The live ShellLayout currently displayed. The AI uses
             this to preserve existing regions when making partial changes.
-        telemetry_snapshot: Recent simulation data samples, when the caller's
-            chat panel has simulation data buffered (e.g. the last N events
-            from a backend producer channel). Empty by default — existing
-            callers that never send simulation data are unaffected.
-        safety_snapshot: Recent safety/threshold assessments paired with
-            ``telemetry_snapshot``, when the app publishes one.
-        current_params: The simulation's current parameter values, as a dict.
+        context: Arbitrary, application-defined context (free-form JSON) about
+            the running app. The framework forwards it verbatim into the prompt
+            and imposes no schema — empty by default, so layout-only callers
+            are unaffected.
+        context_instructions: Application-provided guidance describing how to
+            interpret ``context`` and what ``suggested_params`` may change.
+            This is where domain knowledge belongs, keeping the framework
+            prompt domain-agnostic.
     """
 
     prompt: str
     history: list[dict[str, str]] = []
     registry: list[dict[str, Any]]
     current_layout: dict[str, Any] | None = None
-    telemetry_snapshot: list[dict[str, Any]] = []
-    safety_snapshot: list[dict[str, Any]] = []
-    current_params: dict[str, Any] = {}
+    context: dict[str, Any] = {}
+    context_instructions: str = ""
 
 
 class LayoutResponse(BaseModel):
@@ -524,9 +514,9 @@ class LayoutResponse(BaseModel):
     Attributes:
         layout: Validated ``ShellLayout`` dict generated by the AI.
         explanation: Short human-readable summary of what was built and why.
-        suggested_params: Corrected parameter values proposed by the AI when
-            the request included a simulation snapshot, or ``None`` when no
-            parameter fix was suggested.
+        suggested_params: Application parameter values proposed by the AI when
+            the request included context, as a flat name → value object, or
+            ``None`` when no parameter change was suggested.
     """
 
     layout: dict[str, Any]
@@ -579,9 +569,8 @@ def mount_ai_routes(app: FastAPI) -> None:
             layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
             history=request.history,
             current_layout=request.current_layout,
-            telemetry_snapshot=request.telemetry_snapshot,
-            safety_snapshot=request.safety_snapshot,
-            current_params=request.current_params,
+            context=request.context,
+            context_instructions=request.context_instructions,
         )
 
         try:

@@ -15,45 +15,45 @@
   line-height: 1.5;
 }
 
-/* ─── List ────────────────────────────────────────────────────────────────── */
+/* ─── Table (Parameter | Current | Suggested) ───────────────────────────────── */
 
-.sct-ParamDiffViewer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sct-ParamDiffViewer-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+.sct-ParamDiffViewer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
   background-color: var(--card);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 12px;
+  overflow: hidden;
+}
+
+.sct-ParamDiffViewer-table th,
+.sct-ParamDiffViewer-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sct-ParamDiffViewer-table thead th {
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.sct-ParamDiffViewer-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .sct-ParamDiffViewer-field {
   font-weight: 500;
   color: var(--foreground);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .sct-ParamDiffViewer-current {
   color: var(--muted-foreground);
   text-decoration: line-through;
-}
-
-.sct-ParamDiffViewer-arrow {
-  color: var(--muted-foreground);
 }
 
 .sct-ParamDiffViewer-suggested {

@@ -81,5 +81,10 @@ export function createDefaultShellLayout(): ShellLayout {
   };
 }
 
-/** Increment this when ShellLayout schema changes in a breaking way. */
-export const SHELL_LAYOUT_STORAGE_VERSION = 1;
+/**
+ * Increment this when ShellLayout schema changes in a breaking way. Bumping it
+ * discards stale persisted layouts (any older version is migrated to the
+ * default), so apps that moved widgets between regions don't get a leftover
+ * layout from a previous build.
+ */
+export const SHELL_LAYOUT_STORAGE_VERSION = 2;

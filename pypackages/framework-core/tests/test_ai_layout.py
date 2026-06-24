@@ -198,11 +198,11 @@ def test_build_layout_prompt_catalog_injected() -> None:
     assert "Shows logs." in system_text
 
 
-def test_build_layout_prompt_no_simulation_section_by_default() -> None:
-    """No snapshot fields supplied — system prompt stays layout-generation only.
+def test_build_layout_prompt_no_context_section_by_default() -> None:
+    """No context supplied — system prompt stays layout-generation only.
 
-    This keeps callers that never send simulation data (e.g. the sine-wave
-    example) unaffected: no extra section, no token bloat.
+    This keeps layout-only callers (e.g. the sine-wave example) unaffected:
+    no extra section, no token bloat.
     """
     catalog = [{"name": "Chart", "description": "A chart."}]
     messages = build_layout_prompt(
@@ -210,71 +210,57 @@ def test_build_layout_prompt_no_simulation_section_by_default() -> None:
         widget_catalog=catalog,
         layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
     )
-    assert "SIMULATION DATA" not in messages[0]["content"]
+    assert "APPLICATION CONTEXT" not in messages[0]["content"]
 
 
-def test_build_layout_prompt_includes_simulation_section_when_snapshot_present() -> (
-    None
-):
-    """Any one of telemetry/safety/current_params triggers the section."""
+def test_build_layout_prompt_includes_context_section_when_context_present() -> None:
+    """Arbitrary application context is forwarded verbatim into the prompt."""
     catalog = [{"name": "Chart", "description": "A chart."}]
     messages = build_layout_prompt(
         user_message="What's wrong with this run?",
         widget_catalog=catalog,
         layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
-        telemetry_snapshot=[{"step": 0, "roll_deg": 42.0}],
-        safety_snapshot=[{"step": 0, "status": "violation", "violated_axes": ["roll"]}],
-        current_params={"roll_amplitude_deg": 42.0},
+        context={"samples": [{"value": 42.0}], "parameters": {"gain": 7}},
     )
     system_text = messages[0]["content"]
-    assert "SIMULATION DATA" in system_text
-    assert "42.0" in system_text
-    assert "violation" in system_text
+    assert "APPLICATION CONTEXT" in system_text
+    assert "42.0" in system_text  # context JSON dumped verbatim
     assert "suggested_params" in system_text
 
 
-def test_build_layout_prompt_simulation_section_omits_domain_specifics() -> None:
-    """The framework prompt must stay generic — no example-specific numbers baked in.
+def test_build_layout_prompt_context_section_is_domain_agnostic() -> None:
+    """The framework prompt carries no domain knowledge of its own.
 
-    framework_core is shared across examples; hardcoding Reachy Mini's
-    safety thresholds here would leak demo-specific knowledge into a
-    reusable package. The snapshot data itself (margins/status) carries
-    that information instead.
+    All domain specifics arrive via the app-provided ``context`` data and
+    ``context_instructions`` — the framework template must not name any
+    example's concepts (e.g. telemetry/safety) or units.
     """
     catalog = [{"name": "Chart", "description": "A chart."}]
     messages = build_layout_prompt(
         user_message="diagnose",
         widget_catalog=catalog,
         layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
-        safety_snapshot=[{"step": 0, "status": "ok"}],
+        context={"anything": "here"},
     )
     system_text = messages[0]["content"]
-    assert "Reachy" not in system_text
-    assert "°" not in system_text
+    # The generic template (above the app's context) names none of these.
+    template = system_text.split('{\n  "anything"')[0]
+    assert "telemetry" not in template
+    assert "safety" not in template
 
 
-def test_build_layout_prompt_simulation_section_triggered_by_telemetry_only() -> None:
+def test_build_layout_prompt_includes_app_instructions() -> None:
+    """App context_instructions appear in the prompt and trigger the section."""
     catalog = [{"name": "Chart", "description": "A chart."}]
     messages = build_layout_prompt(
         user_message="any",
         widget_catalog=catalog,
         layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
-        telemetry_snapshot=[{"step": 0}],
+        context_instructions="Roll must stay under 40 degrees.",
     )
-    assert "SIMULATION DATA" in messages[0]["content"]
-
-
-def test_build_layout_prompt_simulation_section_triggered_by_current_params_only() -> (
-    None
-):
-    catalog = [{"name": "Chart", "description": "A chart."}]
-    messages = build_layout_prompt(
-        user_message="any",
-        widget_catalog=catalog,
-        layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
-        current_params={"frequency": 1.0},
-    )
-    assert "SIMULATION DATA" in messages[0]["content"]
+    system_text = messages[0]["content"]
+    assert "APPLICATION CONTEXT" in system_text
+    assert "Roll must stay under 40 degrees." in system_text
 
 
 # ─── serialise_catalog ─────────────────────────────────────────────────────────

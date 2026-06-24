@@ -8,13 +8,9 @@ immediately has something for the engineer to diagnose with the AI.
 
 The choreography runs against an in-process MuJoCo simulation (see
 :mod:`sim`), so no separate daemon or viewer window is needed — the robot is
-rendered straight into the dashboard. ``mujoco`` + ``reachy-mini[mujoco]``
-only ship wheels for the Python version the daemon uses (3.11 at time of
-writing), so run this backend with that interpreter, e.g.::
-
-    PYTHONPATH=pypackages/framework-core/src:. \\
-        <python3.11-with-mujoco> -m uvicorn \\
-        examples.reachy_mini.backend.main:app --port 8001
+rendered straight into the dashboard. Because ``mujoco`` / ``reachy-mini``
+require a Python 3.11 environment, see ``examples/reachy_mini/README.md`` for
+setup and the exact run command.
 
 If the simulator fails to initialise (e.g. ``mujoco`` not installed), the app
 still serves and runs choreographies — just without rendered frames.
@@ -108,12 +104,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if renderer is not None:
         await publish_idle_frame(app.state.bus, renderer)
 
-    yield
-
-    # The choreography task is owned by ControlConsumer (cancelled on
-    # stop/reset). Release the simulator's GL resources on shutdown.
-    if renderer is not None and hasattr(renderer, "aclose"):
-        await renderer.aclose()
+    try:
+        yield
+    finally:
+        # The choreography task is owned by ControlConsumer (cancelled on
+        # stop/reset). Always release the simulator's GL resources on shutdown,
+        # even if the app errored, so the worker thread/context don't leak.
+        if renderer is not None and hasattr(renderer, "aclose"):
+            await renderer.aclose()
 
 
 app = create_app(lifespan=lifespan)

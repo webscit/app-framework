@@ -17,16 +17,6 @@ dependencies = [
 [tool.uv.sources]
 framework-core = { workspace = true }
 
-# This example runs a self-contained in-process MuJoCo simulation and renders
-# the robot straight into the dashboard — NO separate daemon or viewer window
-# is needed. Install the native deps into a Python 3.11 environment:
-#
-#   python3.11 -m venv .venv-reachy && source .venv-reachy/bin/activate
-#   pip install "reachy-mini[mujoco]" fastapi uvicorn pillow
-#   pip install -e pypackages/framework-core   # framework_core
-#
-# Then run the backend (note: NOT the repo's `uv` venv, which is 3.11-incompatible):
-#
-#   PYTHONPATH=. python -m uvicorn examples.reachy_mini.backend.main:app --port 8001
-#
-# The frontend dev server proxies /ws and /ai to port 8001 (see vite.config.ts).
+# Setup & run instructions live in examples/reachy_mini/README.md. In short:
+# this example runs a self-contained in-process MuJoCo simulation (no daemon),
+# and its native deps (mujoco, reachy-mini) require a Python 3.11 environment.

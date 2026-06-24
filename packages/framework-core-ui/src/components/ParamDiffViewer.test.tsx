@@ -38,9 +38,32 @@ describe("ParamDiffViewer", () => {
       />,
     );
 
-    const rows = document.querySelectorAll(".sct-ParamDiffViewer-row");
+    // One body row per suggested field (header row is in <thead>).
+    const rows = document.querySelectorAll(".sct-ParamDiffViewer-table tbody tr");
     expect(rows.length).toBe(1);
     await expect.element(page.getByText("roll_amplitude_deg")).toBeInTheDocument();
+  });
+
+  it("renders a Parameter | Current | Suggested table header", async () => {
+    await render(
+      <ParamDiffViewer
+        current={CURRENT}
+        suggested={SUGGESTED}
+        explanation={EXPLANATION}
+        onApprove={vi.fn()}
+        onReject={vi.fn()}
+      />,
+    );
+
+    await expect
+      .element(page.getByRole("columnheader", { name: "Parameter" }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByRole("columnheader", { name: "Current" }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByRole("columnheader", { name: "Suggested" }))
+      .toBeInTheDocument();
   });
 
   it("shows the current and suggested values for each changed field", async () => {

@@ -1,23 +1,16 @@
-import React, { useState } from "react";
+import React from "react";
 import ReactDOM from "react-dom/client";
 import {
   ApplicationShell,
-  applyNonTogglableCorrection,
-  EventBusProvider,
+  AppRoot,
   WidgetRegistry,
-  WidgetRegistryContext,
-  WidgetLoaderProvider,
-  useWidgetLoader,
   PARAMETER_CONTROLLER,
   CHART,
   LOG_VIEWER,
   DATA_TABLE,
   createDefaultShellLayout,
-  AIChatPanel,
-  useShellLayoutStore,
 } from "@app-framework/core-ui";
 import type { ShellLayout } from "@app-framework/core-ui";
-import { useSimulation } from "./useSimulation";
 import "./shell.css";
 import "@/globals.css";
 
@@ -118,133 +111,20 @@ const initialLayout: ShellLayout = {
   },
 };
 
-interface DashboardProps {
-  onOpenChat: () => void;
-}
-
-function Dashboard({ onOpenChat }: DashboardProps) {
-  const { sine, log } = useSimulation();
-
-  return (
-    <div
-      data-testid="dashboard"
-      style={{
-        padding: "12px 16px",
-        borderBottom: "1px solid #333",
-        fontFamily: "monospace",
-        fontSize: 13,
-        display: "flex",
-        gap: 32,
-        alignItems: "center",
-      }}
-    >
-      <strong>Simulation Dashboard</strong>
-      <span>
-        Sine: <span data-testid="sine-value">{sine ? sine.value.toFixed(4) : "—"}</span>
-      </span>
-      <span>
-        Last log:{" "}
-        <span data-testid="last-log">
-          {log ? `[${log.level}] ${log.message}` : "—"}
-        </span>
-      </span>
-      <button
-        style={{ ...buttonStyle, marginLeft: "auto" }}
-        onClick={onOpenChat}
-        aria-label="Open AI layout chat"
-      >
-        AI Layout
-      </button>
-    </div>
-  );
-}
-
-interface AppShellProps {
-  onOpenChat: () => void;
-}
-
-function AppShell({ onOpenChat }: AppShellProps) {
-  const loaderStatus = useWidgetLoader("/sct-manifest.json");
-
-  if (loaderStatus === "loading") return <p>Loading widgets…</p>;
-  if (loaderStatus === "error") return <p>Failed to load widget manifest.</p>;
-
-  return (
-    <div
-      data-testid="shell-layout"
-      style={{ display: "flex", flexDirection: "column", height: "100vh" }}
-    >
-      <Dashboard onOpenChat={onOpenChat} />
-      <div style={{ flex: 1, overflow: "hidden" }}>
-        <ApplicationShell initialLayout={initialLayout} />
-      </div>
-    </div>
-  );
-}
-
-const buttonStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid #555",
-  background: "#1e1e1e",
-  color: "#fff",
-  cursor: "pointer",
-  fontSize: 13,
-};
-
-const expandTabStyle: React.CSSProperties = {
-  position: "fixed",
-  right: 0,
-  top: "50%",
-  transform: "translateY(-50%)",
-  padding: "14px 6px",
-  background: "#1e1e1e",
-  color: "#fff",
-  border: "1px solid #555",
-  borderRight: "none",
-  borderRadius: "6px 0 0 6px",
-  cursor: "pointer",
-  writingMode: "vertical-rl",
-  fontSize: 12,
-  letterSpacing: "0.06em",
-  zIndex: 40,
-};
-
+/**
+ * The whole app: providers via {@link AppRoot}, and an {@link ApplicationShell}
+ * that loads the widget manifest and hosts the layout-only AI assistant. All
+ * widgets live in the shell so the AI can rearrange them.
+ */
 function App() {
-  const [chatOpen, setChatOpen] = useState(false);
-  const { layout, setLayout } = useShellLayoutStore();
-
   return (
-    <WidgetRegistryContext.Provider value={registry}>
-      <EventBusProvider path="/ws">
-        <WidgetLoaderProvider>
-          <AppShell onOpenChat={() => setChatOpen((v) => !v)} />
-
-          {/* Right-edge tab — stays visible when the panel is collapsed so the
-              user can expand it again without navigating back to the Dashboard bar */}
-          {!chatOpen && (
-            <button
-              style={expandTabStyle}
-              onClick={() => setChatOpen(true)}
-              aria-label="Open AI layout chat"
-            >
-              AI Layout
-            </button>
-          )}
-
-          <AIChatPanel
-            open={chatOpen}
-            onOpenChange={setChatOpen}
-            currentLayout={layout}
-            onApplyLayout={(proposed) =>
-              setLayout(() => applyNonTogglableCorrection(proposed))
-            }
-            registry={registry}
-            apiUrl="/ai/layout"
-          />
-        </WidgetLoaderProvider>
-      </EventBusProvider>
-    </WidgetRegistryContext.Provider>
+    <AppRoot registry={registry} webSocketPath="/ws">
+      <ApplicationShell
+        initialLayout={initialLayout}
+        manifestUrl="/sct-manifest.json"
+        ai={{ apiUrl: "/ai/layout" }}
+      />
+    </AppRoot>
   );
 }
 

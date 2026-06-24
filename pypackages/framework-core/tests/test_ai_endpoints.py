@@ -146,11 +146,11 @@ def test_layout_endpoint_returns_suggested_params_with_snapshot(
                 "prompt": "What's wrong with this run?",
                 "history": [],
                 "registry": _REGISTRY,
-                "telemetry_snapshot": [{"step": 0, "roll_deg": 42.0}],
-                "safety_snapshot": [
-                    {"step": 0, "status": "violation", "violated_axes": ["roll"]}
-                ],
-                "current_params": {"roll_amplitude_deg": 42.0},
+                "context": {
+                    "samples": [{"step": 0, "roll_deg": 42.0}],
+                    "parameters": {"roll_amplitude_deg": 42.0},
+                },
+                "context_instructions": "Roll must stay under 40 degrees.",
             },
         )
 
@@ -160,17 +160,19 @@ def test_layout_endpoint_returns_suggested_params_with_snapshot(
     assert data["layout"] == {}
     assert "Roll exceeded" in data["explanation"]
 
-    # The prompt actually sent to the AI must carry the simulation section.
+    # The prompt actually sent to the AI must carry the context section, with
+    # both the app's data and its instructions.
     sent_messages = mock_call.call_args.kwargs["messages"]
     system_text = sent_messages[0]["content"]
-    assert "SIMULATION DATA" in system_text
+    assert "APPLICATION CONTEXT" in system_text
     assert "42.0" in system_text
+    assert "Roll must stay under 40 degrees." in system_text
 
 
-def test_layout_endpoint_without_snapshot_has_no_suggested_params(
+def test_layout_endpoint_without_context_has_no_suggested_params(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Backward compatibility: callers that never send a snapshot are unaffected."""
+    """Backward compatibility: callers that never send context are unaffected."""
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
     with patch(
@@ -193,7 +195,7 @@ def test_layout_endpoint_without_snapshot_has_no_suggested_params(
     assert "regions" in data["layout"]
 
     sent_messages = mock_call.call_args.kwargs["messages"]
-    assert "SIMULATION DATA" not in sent_messages[0]["content"]
+    assert "APPLICATION CONTEXT" not in sent_messages[0]["content"]
 
 
 def test_layout_endpoint_combined_diagnosis_and_layout_change(
@@ -221,7 +223,7 @@ def test_layout_endpoint_combined_diagnosis_and_layout_change(
                 "prompt": "Fix it and show me the margin",
                 "history": [],
                 "registry": _REGISTRY,
-                "safety_snapshot": [{"step": 0, "status": "violation"}],
+                "context": {"samples": [{"step": 0, "status": "violation"}]},
             },
         )
 
