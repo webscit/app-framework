@@ -56,13 +56,13 @@ rest immediately.
 2. Click **Safe Preset → Start** — every step passes; the robot animates
    through the sequence and the run ends **PASS**.
 3. Open the **AI assistant** (right-edge tab) on a failed run and ask
-   *"what's wrong with this run, and can you suggest safe parameters?"* — it
+   _"what's wrong with this run, and can you suggest safe parameters?"_ — it
    diagnoses the violation and proposes corrected parameters you can approve.
 
 ## Safety limits
 
-| Axis            | Warning      | Violation   |
-| --------------- | ------------ | ----------- |
-| Head roll       | > ±30°       | ≥ ±40°      |
-| Head height (z) | > 25 mm      | ≥ 35 mm     |
-| Step duration   | < 0.5 s      | ≤ 0.3 s     |
+| Axis            | Warning | Violation |
+| --------------- | ------- | --------- |
+| Head roll       | > ±30°  | ≥ ±40°    |
+| Head height (z) | > 25 mm | ≥ 35 mm   |
+| Step duration   | < 0.5 s | ≤ 0.3 s   |
