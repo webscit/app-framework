@@ -69,9 +69,10 @@ describe("ShellSidebar", () => {
       .getByRole("complementary", { name: "left sidebar" })
       .element() as HTMLElement;
     expect(el).not.toBeNull();
-    // Collapsed sidebar uses width:32px instead of display:none
-    expect(el.style.width).toBe("32px");
-    expect(el.style.overflow).toBe("hidden");
+    // Collapsed sidebar is flagged with the `--collapsed` modifier, which clips
+    // its content to the rail (overflow + width come from CSS / the parent
+    // panel's `collapsedSize`, not inline styles).
+    expect(el.className).toContain("sct-ShellSidebar--collapsed");
   });
 
   it("side=right renders right sidebar", async () => {
@@ -90,8 +91,7 @@ describe("ShellSidebar", () => {
       .getByRole("complementary", { name: "right sidebar" })
       .element() as HTMLElement;
     expect(el).not.toBeNull();
-    expect(el.style.width).toBe("32px");
-    expect(el.style.overflow).toBe("hidden");
+    expect(el.className).toContain("sct-ShellSidebar--collapsed");
   });
 });
 
@@ -174,7 +174,7 @@ describe("ShellBottom", () => {
       .getByRole("region", { name: "bottom panel", includeHidden: true })
       .element() as HTMLElement;
     expect(el).not.toBeNull();
-    expect(el.style.display).toBe("none");
+    expect(el.className).toContain("sct-ShellBottom--collapsed");
   });
 });
 

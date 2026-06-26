@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useChannel, usePublish } from "@app-framework/core-ui";
 import type { WidgetDefinition } from "@app-framework/core-ui";
 import type { ReachyControlPayload, ReachyState } from "./useReachy";
@@ -32,57 +33,41 @@ function phaseColor(phase: string): string {
  */
 function RunControlsComponent(): React.ReactElement {
   const state = useChannel<ReachyState>("reachy/state");
+  const control = useChannel<ReachyControlPayload>("reachy/control");
   const publish = usePublish();
   const send = (payload: ReachyControlPayload) => publish("reachy/control", payload);
 
   const phase = state?.phase ?? "idle";
   const verdict = state?.verdict;
+  // A run is in-flight while the backend reports the "running" phase; the other
+  // phases (idle/done/violation/warning) are settled states.
+  const isRunning = phase === "running";
+
+  // Track the active preset from echoed control events so the matching button
+  // can be highlighted. The backend starts in the aggressive preset by design.
+  const [activePreset, setActivePreset] = useState<"safe" | "aggressive">("aggressive");
+  useEffect(() => {
+    if (control?.preset) setActivePreset(control.preset);
+  }, [control]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 12,
-        alignItems: "center",
-        flexWrap: "wrap",
-        width: "100%",
-        fontFamily: "monospace",
-        fontSize: 13,
-      }}
-    >
-      <strong style={{ letterSpacing: "0.02em" }}>
-        Reachy Mini — Safety Validator
-      </strong>
+    <div className="reachy-runctl">
+      <strong className="reachy-runctl-title">Reachy Mini — Safety Validator</strong>
 
       <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "3px 10px",
-          borderRadius: 999,
-          background: "rgba(255, 255, 255, 0.55)",
-          border: `1px solid ${phaseColor(phase)}`,
-          color: phaseColor(phase),
-          fontWeight: 600,
-        }}
+        className="reachy-runctl-phase"
+        // Phase colour is data-driven; expose it as a CSS variable the rule reads.
+        style={{ "--phase-color": phaseColor(phase) } as React.CSSProperties}
       >
-        <span
-          aria-hidden
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: phaseColor(phase),
-          }}
-        />
+        <span aria-hidden className="reachy-runctl-dot" />
         {PHASE_LABELS[phase] ?? phase}
         {verdict ? ` (${verdict})` : ""}
       </span>
 
-      <div style={{ display: "flex", gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
+      <div className="reachy-runctl-actions">
         <button
           className="reachy-btn"
+          aria-pressed={activePreset === "safe"}
           onClick={() => send({ preset: "safe" })}
           aria-label="Apply safe preset"
         >
@@ -90,6 +75,7 @@ function RunControlsComponent(): React.ReactElement {
         </button>
         <button
           className="reachy-btn"
+          aria-pressed={activePreset === "aggressive"}
           onClick={() => send({ preset: "aggressive" })}
           aria-label="Apply aggressive preset"
         >
@@ -98,6 +84,7 @@ function RunControlsComponent(): React.ReactElement {
         <button
           className="reachy-btn reachy-btn--primary"
           onClick={() => send({ command: "start" })}
+          disabled={isRunning}
           aria-label="Start choreography run"
         >
           Start
@@ -105,6 +92,7 @@ function RunControlsComponent(): React.ReactElement {
         <button
           className="reachy-btn"
           onClick={() => send({ command: "stop" })}
+          disabled={!isRunning}
           aria-label="Stop choreography run"
         >
           Stop

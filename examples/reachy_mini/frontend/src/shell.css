@@ -46,13 +46,23 @@ body {
 
 .sct-ShellSidebar {
   /* Pale tint of the brand light blue so the rails read as branded, not gray. */
-  background: color-mix(in srgb, var(--ring, #6995b8) 16%, #ffffff);
+  background: var(--muted);
   color: var(--foreground);
   padding: 8px;
-  border-right: 1px solid color-mix(in srgb, var(--ring, #6995b8) 40%, #ffffff);
+  border-right: 1px solid var(--border);
   overflow-y: auto;
   height: 100%;
   box-sizing: border-box;
+}
+
+/* Reserve a gutter on the inner edge for the collapse notch so it never
+   overlaps widget content. Scoped to win over the `padding` shorthand above. */
+.sct-ApplicationShell .sct-ShellSidebar--left {
+  padding-right: 24px;
+}
+
+.sct-ApplicationShell .sct-ShellSidebar--right {
+  padding-left: 24px;
 }
 
 /* ─── Panel resize handles (react-resizable-panels) ─── */
@@ -96,13 +106,41 @@ body {
 }
 
 .sct-ShellBottom {
-  background: color-mix(in srgb, var(--ring, #6995b8) 16%, #ffffff);
+  background: var(--muted);
   color: var(--foreground);
   padding: 8px;
-  border-top: 1px solid color-mix(in srgb, var(--ring, #6995b8) 40%, #ffffff);
-  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  overflow: hidden;
   height: 100%;
   box-sizing: border-box;
+  /* Column layout so the toggle bar stays pinned at the top and the log fills
+     the space below it and scrolls internally — otherwise the log container's
+     full height plus the bar overflowed and auto-scroll hid the bar/title. */
+  display: flex;
+  flex-direction: column;
+}
+
+.sct-ShellBottom > .sct-ShellBottom-bar {
+  flex: 0 0 auto;
+}
+
+.sct-ShellBottom > :not(.sct-ShellBottom-bar) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Override the widget's intrinsic height: 100% so it flexes instead of
+   overflowing past the pinned bar. */
+.sct-ShellBottom .sct-LogViewer-container {
+  height: auto;
+}
+
+/* Re-skin the log's title bar to the brand palette — the framework default is a
+   near-black grey, which is off-theme here. Brand light blue with navy text. */
+.sct-ApplicationShell .sct-LogViewer-title {
+  background: var(--ring);
+  color: var(--primary);
+  border-bottom-color: color-mix(in srgb, var(--primary) 35%, var(--ring));
 }
 
 .sct-ShellStatusBar {
@@ -154,8 +192,19 @@ body {
    gray labels). Higher-specificity overrides (scoped under .sct-ApplicationShell)
    re-skin them to the brand palette without touching the framework package. */
 
+/* Parameter panel as a card, in the brand sans (was monospace). */
+.sct-ApplicationShell .sct-ParameterController-container {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-sans, sans-serif);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--primary) 10%, transparent),
+    0 4px 12px color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
 .sct-ApplicationShell .sct-ParameterController-label {
-  color: var(--primary);
+  color: var(--foreground);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -173,7 +222,7 @@ body {
 .sct-ApplicationShell .sct-ParameterController-slider-track {
   height: 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ring) 30%, #ffffff);
+  background: color-mix(in srgb, var(--ring) 30%, var(--card));
   box-shadow: inset 0 1px 2px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
@@ -217,7 +266,7 @@ body {
 .sct-ApplicationShell .sct-ParameterController-select-trigger {
   background: var(--input);
   border-color: var(--border);
-  color: var(--primary);
+  color: var(--foreground);
   font-weight: 600;
   transition:
     border-color 0.12s ease,
@@ -239,6 +288,35 @@ body {
   color: var(--ring);
 }
 
+/* ─── Friendlier empty states ───
+   Center the "waiting for data" copy in a soft dashed frame with a muted glyph
+   so an unpopulated chart/table looks intentional rather than broken. */
+.sct-ApplicationShell .sct-DataTable-empty,
+.sct-ApplicationShell .sct-Chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 120px;
+  margin: 8px;
+  padding: 24px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--ring) 8%, transparent);
+  color: var(--muted-foreground);
+  font-style: normal;
+  text-align: center;
+}
+
+.sct-ApplicationShell .sct-DataTable-empty::before,
+.sct-ApplicationShell .sct-Chart-empty::before {
+  content: "◴";
+  font-size: 30px;
+  line-height: 1;
+  opacity: 0.5;
+}
+
 /* ─── Card depth ───
    Widget cards use --card (lighter than the page) plus a soft brand-tinted
    shadow so they lift off the background instead of blending in. */
@@ -258,7 +336,7 @@ body {
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--card);
-  color: var(--primary);
+  color: var(--foreground);
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
@@ -296,11 +374,33 @@ body {
   background: color-mix(in srgb, var(--primary) 86%, var(--ring));
 }
 
+/* Disabled buttons (e.g. Start during a run) read as inert — no hover lift. */
+.reachy-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.reachy-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border);
+}
+
+/* Active preset (aria-pressed) gets a filled brand chip with a check-like ring. */
+.reachy-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--ring) 30%, var(--card));
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  font-weight: 700;
+}
+
 /* ─── Data table appeal ───
    Branded sticky header, refined cells/rows, pill column-toggles, and themed
    search + pagination. Severity row tints (set by statusKey) are preserved. */
 .sct-ApplicationShell .sct-DataTable-title {
-  color: var(--primary);
+  color: var(--foreground);
   font-weight: 700;
   font-size: 0.95rem;
 }
@@ -309,8 +409,11 @@ body {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: color-mix(in srgb, var(--ring) 24%, #ffffff);
-  color: var(--primary);
+  /* Match the cell padding so headers (e.g. "Loop") align with their column
+     and don't hug the left edge / severity bar. */
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--ring) 24%, var(--card));
+  color: var(--foreground);
   font-weight: 700;
   border-bottom: 2px solid var(--primary);
   white-space: nowrap;
@@ -359,7 +462,7 @@ body {
 .sct-ApplicationShell .sct-DataTable-search {
   background: var(--input);
   border-color: var(--border);
-  color: var(--primary);
+  color: var(--foreground);
   padding-left: 12px;
 }
 
@@ -369,9 +472,16 @@ body {
 }
 
 .sct-ApplicationShell .sct-DataTable-pagination button {
+  padding: 5px 16px;
+  min-height: 30px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  color: var(--primary);
+  color: var(--foreground);
+}
+
+.sct-ApplicationShell .sct-DataTable-pagination {
+  gap: 10px;
+  padding-top: 4px;
 }
 
 .sct-ApplicationShell .sct-DataTable-pagination button:not(:disabled):hover {
@@ -381,6 +491,183 @@ body {
 
 .sct-ApplicationShell .sct-DataTable-sort-btn {
   font-weight: 700;
+}
+
+/* Pulsing dot on the robot view's LIVE badge while frames stream. */
+.reachy-live-badge span[aria-hidden] {
+  animation: reachy-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes reachy-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
+/* ─── Example widget styles ───
+   Class-based styling for the example's bespoke widgets. Data-driven colours
+   (safety status, run phase, connection state) are passed in as CSS custom
+   properties so only the value — not the whole rule — needs to be inline. */
+
+/* Safety status card (main region) */
+.reachy-safety-idle {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-family: var(--font-sans, sans-serif);
+  font-size: 13px;
+}
+
+.reachy-safety-card {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--safety-accent);
+  border-left: 6px solid var(--safety-accent);
+  background: var(--safety-bg);
+  color: #1e1e1e;
+  font-family: var(--font-sans, sans-serif);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reachy-safety-card-title {
+  color: var(--safety-accent);
+  font-size: 15px;
+}
+
+.reachy-safety-card-detail {
+  font-size: 13px;
+}
+
+/* Run controls toolbar (header) */
+.reachy-runctl {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 13px;
+}
+
+.reachy-runctl-title {
+  letter-spacing: 0.02em;
+}
+
+.reachy-runctl-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--phase-color);
+  color: var(--phase-color);
+  font-weight: 600;
+}
+
+.reachy-runctl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--phase-color);
+}
+
+.reachy-runctl-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+/* Connection status indicator (status bar) */
+.reachy-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.reachy-conn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--conn-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--conn-color) 20%, transparent);
+}
+
+/* Robot view card (left sidebar). Sized to the image — not 100% — so sibling
+   widgets (the parameter sliders) stay visible below it in the same region. */
+.reachy-robotview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  box-sizing: border-box;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow:
+    0 1px 2px rgba(0, 30, 50, 0.1),
+    0 4px 12px rgba(0, 30, 50, 0.08);
+}
+
+.reachy-robotview-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.reachy-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #ef4444;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.reachy-live-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.reachy-robotview-img {
+  width: 100%;
+  border-radius: 6px;
+  background: #000;
+  display: block;
+}
+
+.reachy-robotview-placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-family: monospace;
+  font-size: 13px;
+  text-align: center;
+  padding: 16px;
 }
 
 /* ─── Accessibility: respect reduced-motion preferences ───

@@ -57,17 +57,7 @@ function SafetyStatusComponent(): React.ReactElement {
 
   if (!safety) {
     return (
-      <div
-        style={{
-          padding: 16,
-          borderRadius: 8,
-          border: "1px solid var(--border)",
-          background: "var(--muted)",
-          color: "var(--muted-foreground)",
-          fontFamily: "var(--font-sans, sans-serif)",
-          fontSize: 13,
-        }}
-      >
+      <div className="reachy-safety-idle">
         Safety status — start a run to begin checking each step against the limits.
       </div>
     );
@@ -85,21 +75,18 @@ function SafetyStatusComponent(): React.ReactElement {
     <div
       role="status"
       aria-live="polite"
-      style={{
-        padding: 16,
-        borderRadius: 8,
-        border: `1px solid ${look.color}`,
-        borderLeft: `6px solid ${look.color}`,
-        background: look.background,
-        color: "#1e1e1e",
-        fontFamily: "var(--font-sans, sans-serif)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-      }}
+      className="reachy-safety-card"
+      // Data-driven accent/background come from the backend status; pass them as
+      // CSS custom properties so the rule itself lives in shell.css.
+      style={
+        {
+          "--safety-accent": look.color,
+          "--safety-bg": look.background,
+        } as React.CSSProperties
+      }
     >
-      <strong style={{ color: look.color, fontSize: 15 }}>{look.title}</strong>
-      <span style={{ fontSize: 13 }}>
+      <strong className="reachy-safety-card-title">{look.title}</strong>
+      <span className="reachy-safety-card-detail">
         Loop {safety.loop}, step {safety.step}
         {offending.length > 0 ? ` — ${axisSummary(offending)}` : ""}
       </span>

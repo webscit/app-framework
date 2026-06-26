@@ -15,6 +15,7 @@ import { useReachy } from "./useReachy";
 import { ROBOT_VIEW } from "./RobotViewWidget";
 import { RUN_CONTROLS } from "./RunControlsWidget";
 import { SAFETY_STATUS } from "./SafetyStatusWidget";
+import { CONNECTION_STATUS } from "./ConnectionStatusWidget";
 // globals.css first so the example's shell.css :root brand overrides win.
 import "@/globals.css";
 import "./shell.css";
@@ -27,6 +28,7 @@ registry.register(DATA_TABLE);
 registry.register(ROBOT_VIEW);
 registry.register(RUN_CONTROLS);
 registry.register(SAFETY_STATUS);
+registry.register(CONNECTION_STATUS);
 
 /** Choreography parameter sliders, published to ``reachy/control``. */
 const CHOREOGRAPHY_PARAMETERS: Record<string, ParameterConfig> = {
@@ -134,6 +136,9 @@ const initialLayout: ShellLayout = {
           type: "SafetyStatus",
           props: {},
           order: 0,
+          // Compact banner: keep this slim so the chart starts right below it
+          // instead of leaving dead space under the status card.
+          size: 12,
         },
         {
           id: "telemetry-chart",
@@ -159,6 +164,7 @@ const initialLayout: ShellLayout = {
             ],
           },
           order: 1,
+          size: 54,
         },
         {
           id: "safety-table",
@@ -186,6 +192,7 @@ const initialLayout: ShellLayout = {
             ],
           },
           order: 2,
+          size: 34,
         },
       ],
     },
@@ -195,9 +202,20 @@ const initialLayout: ShellLayout = {
         {
           id: "reachy-log",
           type: "LogViewer",
-          props: { channel: "reachy/log", maxLines: 500, showTimestamps: true },
+          props: {
+            channel: "reachy/log",
+            maxLines: 500,
+            showTimestamps: true,
+            title: "Logs",
+          },
           order: 0,
         },
+      ],
+    },
+    "status-bar": {
+      visible: true,
+      items: [
+        { id: "connection-status", type: "ConnectionStatus", props: {}, order: 0 },
       ],
     },
   },

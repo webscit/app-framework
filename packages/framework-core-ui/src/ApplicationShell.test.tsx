@@ -70,7 +70,7 @@ describe("ApplicationShell", () => {
 
     expect(sidebarRight).not.toBeNull();
     expect(bottom).not.toBeNull();
-    expect(bottom.style.display).toBe("none");
+    expect(bottom.className).toContain("sct-ShellBottom--collapsed");
   });
 
   it("visible regions are rendered", async () => {

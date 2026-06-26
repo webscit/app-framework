@@ -102,8 +102,21 @@ const DATA_TABLE_PREFIX = "sct-DataTable";
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Formats a number for display: integers verbatim, other finite values rounded
+ * to at most 4 decimal places with trailing zeros stripped — so a noisy float
+ * like `-0.04999999999999999` renders as `-0.05` instead of a long tail.
+ * Non-finite values (NaN/Infinity) fall back to their string form.
+ */
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  if (Number.isInteger(value)) return String(value);
+  return String(Number(value.toFixed(4)));
+}
+
 function cellString(value: unknown): string {
   if (value === null || value === undefined) return "";
+  if (typeof value === "number") return formatNumber(value);
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }

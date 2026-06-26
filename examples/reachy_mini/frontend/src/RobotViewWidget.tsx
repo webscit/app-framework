@@ -1,65 +1,38 @@
 import { useChannel } from "@app-framework/core-ui";
 import type { WidgetDefinition } from "@app-framework/core-ui";
-import type { ReachyFrame } from "./useReachy";
+import type { ReachyFrame, ReachyState } from "./useReachy";
 
 /**
  * Widget body: shows the latest robot frame streamed on ``reachy/frame``,
- * or a placeholder until the first frame of a run arrives.
+ * or a placeholder until the first frame of a run arrives. Shows a pulsing
+ * "LIVE" badge while a run is actively streaming frames.
  *
  * @returns The robot image, or a "press Start" placeholder.
  */
 function RobotViewComponent(): React.ReactElement {
   const frame = useChannel<ReachyFrame>("reachy/frame");
+  const state = useChannel<ReachyState>("reachy/state");
+  const live = state?.phase === "running";
 
   return (
-    <div
-      style={{
-        // Size to the image (not 100%) so sibling widgets in the same region
-        // — e.g. the parameter sliders — remain visible below it.
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        padding: 8,
-        boxSizing: "border-box",
-      }}
-    >
-      <span
-        style={{
-          fontFamily: "monospace",
-          fontSize: 12,
-          color: "var(--muted-foreground)",
-        }}
-      >
+    <div className="reachy-robotview">
+      <span className="reachy-robotview-header">
         Robot (MuJoCo studio camera)
+        {live && (
+          <span className="reachy-live-badge">
+            <span aria-hidden className="reachy-live-badge-dot" />
+            LIVE
+          </span>
+        )}
       </span>
       {frame ? (
         <img
           src={frame.image}
           alt="Live render of the Reachy Mini robot"
-          style={{
-            width: "100%",
-            borderRadius: 6,
-            background: "#000",
-            display: "block",
-          }}
+          className="reachy-robotview-img"
         />
       ) : (
-        <div
-          style={{
-            width: "100%",
-            aspectRatio: "1 / 1",
-            borderRadius: 6,
-            background: "#000",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#888",
-            fontFamily: "monospace",
-            fontSize: 13,
-            textAlign: "center",
-            padding: 16,
-          }}
-        >
+        <div className="reachy-robotview-placeholder">
           Press Start to run a choreography — the robot will appear here.
         </div>
       )}

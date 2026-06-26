@@ -21,6 +21,7 @@ import {
   type RegionState,
   type ShellLayout,
 } from "./shellTypes";
+import "./ApplicationShell.css";
 
 // ─── Non-togglable ──────────────────────────────────────────────────────────
 
@@ -30,6 +31,27 @@ const NON_TOGGLABLE: ReadonlySet<RegionId> = new Set<RegionId>([
   "main",
   "status-bar",
 ]);
+
+/**
+ * Default expanded sizes for the collapsible regions, as percentage strings
+ * (react-resizable-panels v4 treats bare numbers as pixels). Used both as the
+ * panels' `defaultSize` and as the size restored when a region is re-expanded.
+ */
+const SIDEBAR_DEFAULT_SIZE = "18%";
+const BOTTOM_DEFAULT_SIZE = "20%";
+
+/**
+ * Width of the thin rail a collapsed sidebar shrinks to when it still holds
+ * widgets — just enough to keep the expand notch reachable. Fixed px (not a
+ * percentage) so the rail is a consistent size on any viewport.
+ */
+const SIDEBAR_RAIL_SIZE = "32px";
+
+/**
+ * Height the bottom region collapses to: a thin rail that still shows its
+ * toggle bar, so the "Show" control stays reachable after hiding the panel.
+ */
+const BOTTOM_RAIL_SIZE = "44px";
 
 /**
  * Ensures non-togglable regions (`header`, `main`, `status-bar`) have
@@ -237,13 +259,18 @@ function ShellLayoutTree({
   const rightPanelRef = usePanelRef();
   const bottomPanelRef = usePanelRef();
 
-  // Sync panel collapse/expand with region.visible toggled by the sidebar buttons.
+  // Sync panel collapse/expand with region.visible toggled by the region
+  // buttons. On expand we `resize()` to an explicit percentage rather than
+  // `expand()`: the layout hydrates after mount (visible flips false→true), and
+  // react-resizable-panels' `expand()` only restores a "most recent size" that
+  // doesn't exist yet, landing the panel on its `minSize` sliver. `resize()`
+  // sets a deterministic size and is a no-op when already at that size.
   useEffect(() => {
     const p = leftPanelRef.current;
     if (!p) return;
     if (layout.regions["sidebar-left"].visible) {
-      p.expand();
-    } else {
+      if (p.isCollapsed()) p.resize(SIDEBAR_DEFAULT_SIZE);
+    } else if (!p.isCollapsed()) {
       p.collapse();
     }
   }, [layout.regions["sidebar-left"].visible]);
@@ -252,8 +279,8 @@ function ShellLayoutTree({
     const p = rightPanelRef.current;
     if (!p) return;
     if (layout.regions["sidebar-right"].visible) {
-      p.expand();
-    } else {
+      if (p.isCollapsed()) p.resize(SIDEBAR_DEFAULT_SIZE);
+    } else if (!p.isCollapsed()) {
       p.collapse();
     }
   }, [layout.regions["sidebar-right"].visible]);
@@ -262,8 +289,8 @@ function ShellLayoutTree({
     const p = bottomPanelRef.current;
     if (!p) return;
     if (layout.regions.bottom.visible) {
-      p.expand();
-    } else {
+      if (p.isCollapsed()) p.resize(BOTTOM_DEFAULT_SIZE);
+    } else if (!p.isCollapsed()) {
       p.collapse();
     }
   }, [layout.regions.bottom.visible]);
@@ -304,15 +331,23 @@ function ShellLayoutTree({
         orientation="vertical"
         className={mergeClassNames("sct-ApplicationShell-Body", classNames?.content)}
       >
-        <Panel minSize={20} defaultSize={80}>
+        {/* Sizes are percentage strings: react-resizable-panels v4 treats a
+            bare number as pixels, so `18` would mean an 18px sliver, not 18%. */}
+        <Panel minSize="20%" defaultSize="80%">
           {/* Horizontal split: left sidebar | main | right sidebar */}
-          <Group orientation="horizontal" style={{ height: "100%" }}>
+          <Group orientation="horizontal" className="sct-ShellPanelGroup">
             <Panel
               panelRef={leftPanelRef}
-              defaultSize={18}
-              minSize={5}
+              defaultSize={SIDEBAR_DEFAULT_SIZE}
+              minSize="12%"
               collapsible
-              collapsedSize={0}
+              // A sidebar with widgets collapses to a thin rail that keeps the
+              // expand notch reachable; an empty sidebar hides completely.
+              collapsedSize={
+                layout.regions["sidebar-left"].items.length > 0
+                  ? SIDEBAR_RAIL_SIZE
+                  : "0%"
+              }
             >
               <ShellSidebar
                 side="left"
@@ -322,7 +357,7 @@ function ShellLayoutTree({
               />
             </Panel>
             <Separator className="sct-PanelHandle sct-PanelHandle--vertical" />
-            <Panel minSize={20}>
+            <Panel minSize="20%">
               <ShellMain
                 region={layout.regions.main}
                 setRegion={regionSetters["main"]}
@@ -332,10 +367,14 @@ function ShellLayoutTree({
             <Separator className="sct-PanelHandle sct-PanelHandle--vertical" />
             <Panel
               panelRef={rightPanelRef}
-              defaultSize={18}
-              minSize={5}
+              defaultSize={SIDEBAR_DEFAULT_SIZE}
+              minSize="12%"
               collapsible
-              collapsedSize={0}
+              collapsedSize={
+                layout.regions["sidebar-right"].items.length > 0
+                  ? SIDEBAR_RAIL_SIZE
+                  : "0%"
+              }
             >
               <ShellSidebar
                 side="right"
@@ -351,10 +390,10 @@ function ShellLayoutTree({
 
         <Panel
           panelRef={bottomPanelRef}
-          defaultSize={20}
-          minSize={5}
+          defaultSize={BOTTOM_DEFAULT_SIZE}
+          minSize="8%"
           collapsible
-          collapsedSize={0}
+          collapsedSize={BOTTOM_RAIL_SIZE}
         >
           <ShellBottom
             region={layout.regions.bottom}
@@ -392,42 +431,13 @@ function ManifestGate({
 }): React.ReactElement {
   const status = useWidgetLoader(url);
   if (status === "loading") {
-    return <p style={SHELL_STATUS_STYLE}>Loading widgets…</p>;
+    return <p className="sct-ManifestGate-status">Loading widgets…</p>;
   }
   if (status === "error") {
-    return <p style={SHELL_STATUS_STYLE}>Failed to load widget manifest.</p>;
+    return <p className="sct-ManifestGate-status">Failed to load widget manifest.</p>;
   }
   return <>{children}</>;
 }
-
-const SHELL_STATUS_STYLE: React.CSSProperties = {
-  padding: 16,
-  fontFamily: "var(--font-sans, sans-serif)",
-};
-
-/**
- * Right-edge tab that reopens the collapsed AI assistant. Uses the app's brand
- * tokens (`--primary` / `--primary-foreground`) so consumers can theme it,
- * falling back to a neutral dark treatment when no theme is set.
- */
-const AI_TAB_STYLE: React.CSSProperties = {
-  position: "fixed",
-  right: 0,
-  top: "50%",
-  transform: "translateY(-50%)",
-  padding: "14px 6px",
-  background: "var(--primary, #1e1e1e)",
-  color: "var(--primary-foreground, #fff)",
-  border: "1px solid var(--primary, #555)",
-  borderRight: "none",
-  borderRadius: "6px 0 0 6px",
-  cursor: "pointer",
-  writingMode: "vertical-rl",
-  fontSize: 12,
-  letterSpacing: "0.06em",
-  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.18)",
-  zIndex: 40,
-};
 
 // ─── ApplicationShell ─────────────────────────────────────────────────────────
 
@@ -467,6 +477,12 @@ export function ApplicationShell({
 
   return (
     <>
+      {/* Keyboard users can jump straight to the main region, bypassing the
+          header/sidebar widgets. Visually hidden until focused. */}
+      <a href="#sct-main-content" className="sct-SkipLink">
+        Skip to main content
+      </a>
+
       {manifestUrl ? <ManifestGate url={manifestUrl}>{tree}</ManifestGate> : tree}
 
       {ai && (
@@ -475,7 +491,7 @@ export function ApplicationShell({
               user can reopen it. */}
           {!chatOpen && (
             <button
-              style={AI_TAB_STYLE}
+              className="sct-AIAssistant-tab"
               onClick={() => setChatOpen(true)}
               aria-label="Open AI assistant"
             >

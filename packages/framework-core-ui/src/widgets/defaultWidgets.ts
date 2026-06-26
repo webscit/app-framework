@@ -27,6 +27,11 @@ export const LOG_VIEWER: WidgetDefinition = {
     maxLines: { type: "integer", default: 1000, minimum: 100, maximum: 10000 },
     showTimestamps: { type: "boolean", default: true },
     wrapLines: { type: "boolean", default: false },
+    title: {
+      type: "string",
+      default: "",
+      description: "Optional title shown as a pinned bar above the log lines.",
+    },
   },
   factory: () => LogViewerComponent,
 };

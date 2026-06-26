@@ -17,6 +17,13 @@ export interface RegionItem {
   props: Record<string, unknown>;
   /** Render order within the region. Lower renders first. Defaults to 0. */
   order?: number;
+  /**
+   * Optional initial panel size as a percentage of the region, used when a
+   * region stacks multiple items (e.g. `main`). When omitted, items share the
+   * region equally. Lets a small widget (e.g. a status card) take less space
+   * than a large one. Values across a region's items should sum to ~100.
+   */
+  size?: number;
 }
 
 /** Serializable state for a single region. */
@@ -87,4 +94,4 @@ export function createDefaultShellLayout(): ShellLayout {
  * default), so apps that moved widgets between regions don't get a leftover
  * layout from a previous build.
  */
-export const SHELL_LAYOUT_STORAGE_VERSION = 2;
+export const SHELL_LAYOUT_STORAGE_VERSION = 3;

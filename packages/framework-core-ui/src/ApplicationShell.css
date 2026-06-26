@@ -1,0 +1,27 @@
+/* Manifest loading / error message shown by ManifestGate. */
+.sct-ManifestGate-status {
+  padding: 16px;
+  font-family: var(--font-sans, sans-serif);
+}
+
+/* Right-edge tab that reopens the collapsed AI assistant. Uses the app's brand
+   tokens (--primary / --primary-foreground) so consumers can theme it, falling
+   back to a neutral dark treatment when no theme is set. */
+.sct-AIAssistant-tab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 14px 6px;
+  background: var(--primary, #1e1e1e);
+  color: var(--primary-foreground, #fff);
+  border: 1px solid var(--primary, #555);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  z-index: 40;
+}

@@ -131,6 +131,26 @@ describe("DataTableComponent", () => {
     expect(row?.className ?? "").not.toContain("sct-DataTable-row--");
   });
 
+  it("rounds noisy floating-point values for display", async () => {
+    const socket = new FakeWebSocket();
+
+    const screen = await render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <DataTableComponent
+          channel="table/results"
+          columns={[{ key: "margin", header: "Margin", type: "number" }]}
+        />
+      </EventBusProvider>,
+    );
+
+    await act(async () => {
+      socket.open();
+      sendRowEvent(socket, "table/results", { margin: -0.04999999999999999 }, "m1");
+    });
+
+    await expect.element(screen.getByText("-0.05")).toBeInTheDocument();
+  });
+
   it("sorting is keyboard-accessible and exposes aria-sort", async () => {
     const socket = new FakeWebSocket();
 
