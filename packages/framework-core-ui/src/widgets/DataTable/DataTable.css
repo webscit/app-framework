@@ -51,12 +51,59 @@
 }
 
 .sct-DataTable-th {
-  cursor: pointer;
   user-select: none;
 }
 
-.sct-DataTable-th:hover {
-  background-color: var(--muted);
+/* Sortable headers are real buttons for keyboard access; the th carries
+   aria-sort. The button is unstyled by default and fills the header cell. */
+.sct-DataTable-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sct-DataTable-sort-btn:hover {
+  color: var(--foreground);
+}
+
+.sct-DataTable-sort-icon {
+  font-size: 0.75em;
+  opacity: 0.55;
+}
+
+/* ─── Per-row severity highlighting (opt-in via the statusKey prop) ─── */
+
+.sct-DataTable-row--error {
+  background-color: color-mix(in oklch, var(--destructive) 14%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--destructive);
+}
+
+.sct-DataTable-row--error:hover {
+  background-color: color-mix(in oklch, var(--destructive) 22%, transparent);
+}
+
+.sct-DataTable-row--warning {
+  background-color: color-mix(in oklch, var(--chart-3) 18%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--chart-3);
+}
+
+.sct-DataTable-row--success {
+  background-color: color-mix(in oklch, var(--chart-2) 16%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--chart-2);
+}
+
+.sct-DataTable-row--info {
+  background-color: color-mix(in oklch, var(--chart-1) 16%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--chart-1);
 }
 
 .sct-DataTable-pagination {

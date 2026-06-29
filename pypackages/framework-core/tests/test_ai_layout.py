@@ -198,6 +198,71 @@ def test_build_layout_prompt_catalog_injected() -> None:
     assert "Shows logs." in system_text
 
 
+def test_build_layout_prompt_no_context_section_by_default() -> None:
+    """No context supplied — system prompt stays layout-generation only.
+
+    This keeps layout-only callers (e.g. the sine-wave example) unaffected:
+    no extra section, no token bloat.
+    """
+    catalog = [{"name": "Chart", "description": "A chart."}]
+    messages = build_layout_prompt(
+        user_message="Build a dashboard",
+        widget_catalog=catalog,
+        layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
+    )
+    assert "APPLICATION CONTEXT" not in messages[0]["content"]
+
+
+def test_build_layout_prompt_includes_context_section_when_context_present() -> None:
+    """Arbitrary application context is forwarded verbatim into the prompt."""
+    catalog = [{"name": "Chart", "description": "A chart."}]
+    messages = build_layout_prompt(
+        user_message="What's wrong with this run?",
+        widget_catalog=catalog,
+        layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
+        context={"samples": [{"value": 42.0}], "parameters": {"gain": 7}},
+    )
+    system_text = messages[0]["content"]
+    assert "APPLICATION CONTEXT" in system_text
+    assert "42.0" in system_text  # context JSON dumped verbatim
+    assert "suggested_params" in system_text
+
+
+def test_build_layout_prompt_context_section_is_domain_agnostic() -> None:
+    """The framework prompt carries no domain knowledge of its own.
+
+    All domain specifics arrive via the app-provided ``context`` data and
+    ``context_instructions`` — the framework template must not name any
+    example's concepts (e.g. telemetry/safety) or units.
+    """
+    catalog = [{"name": "Chart", "description": "A chart."}]
+    messages = build_layout_prompt(
+        user_message="diagnose",
+        widget_catalog=catalog,
+        layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
+        context={"anything": "here"},
+    )
+    system_text = messages[0]["content"]
+    # The generic template (above the app's context) names none of these.
+    template = system_text.split('{\n  "anything"')[0]
+    assert "telemetry" not in template
+    assert "safety" not in template
+
+
+def test_build_layout_prompt_includes_app_instructions() -> None:
+    """App context_instructions appear in the prompt and trigger the section."""
+    catalog = [{"name": "Chart", "description": "A chart."}]
+    messages = build_layout_prompt(
+        user_message="any",
+        widget_catalog=catalog,
+        layout_schema=SHELL_LAYOUT_JSON_SCHEMA,
+        context_instructions="Roll must stay under 40 degrees.",
+    )
+    system_text = messages[0]["content"]
+    assert "APPLICATION CONTEXT" in system_text
+    assert "Roll must stay under 40 degrees." in system_text
+
+
 # ─── serialise_catalog ─────────────────────────────────────────────────────────
 
 

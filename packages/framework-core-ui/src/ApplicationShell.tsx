@@ -1,9 +1,11 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 import { mergeClassNames } from "./helpers";
 
 import { useShellLayoutStore } from "./stores/shellStore";
 import { useWidgetRegistryInstance } from "./WidgetRegistryContext";
+import { useWidgetLoader } from "./useWidgetLoader";
+import { AIChatPanel, type AISnapshot } from "./components/AIChatPanel";
 import {
   ShellBottom,
   ShellHeader,
@@ -19,6 +21,7 @@ import {
   type RegionState,
   type ShellLayout,
 } from "./shellTypes";
+import "./ApplicationShell.css";
 
 // ─── Non-togglable ──────────────────────────────────────────────────────────
 
@@ -28,6 +31,27 @@ const NON_TOGGLABLE: ReadonlySet<RegionId> = new Set<RegionId>([
   "main",
   "status-bar",
 ]);
+
+/**
+ * Default expanded sizes for the collapsible regions, as percentage strings
+ * (react-resizable-panels v4 treats bare numbers as pixels). Used both as the
+ * panels' `defaultSize` and as the size restored when a region is re-expanded.
+ */
+const SIDEBAR_DEFAULT_SIZE = "18%";
+const BOTTOM_DEFAULT_SIZE = "20%";
+
+/**
+ * Width of the thin rail a collapsed sidebar shrinks to when it still holds
+ * widgets — just enough to keep the expand notch reachable. Fixed px (not a
+ * percentage) so the rail is a consistent size on any viewport.
+ */
+const SIDEBAR_RAIL_SIZE = "32px";
+
+/**
+ * Height the bottom region collapses to: a thin rail that still shows its
+ * toggle bar, so the "Show" control stays reachable after hiding the panel.
+ */
+const BOTTOM_RAIL_SIZE = "44px";
 
 /**
  * Ensures non-togglable regions (`header`, `main`, `status-bar`) have
@@ -78,6 +102,28 @@ export interface ShellClassNames {
   statusBar?: string;
 }
 
+// ─── ShellAIConfig ─────────────────────────────────────────────────────────
+
+/**
+ * Configuration for the built-in AI assistant panel.
+ *
+ * When passed to {@link ApplicationShell} via the `ai` prop, the shell renders
+ * the {@link AIChatPanel} and its collapse/expand affordance itself — wiring
+ * the current layout and apply-layout handler from its own store — so consumer
+ * apps don't have to repeat that boilerplate.
+ */
+export interface ShellAIConfig {
+  /** Layout-generation endpoint. Defaults to `"/ai/layout"`. */
+  apiUrl?: string;
+  /**
+   * Called before every request to attach an application-specific
+   * {@link AISnapshot}. Omit for layout-only assistants.
+   */
+  getSnapshot?: () => AISnapshot;
+  /** Called when the user approves AI-suggested parameter values. */
+  onApproveParams?: (params: Record<string, unknown>) => void;
+}
+
 // ─── ApplicationShellProps ───────────────────────────────────────────────────
 
 /**
@@ -93,30 +139,38 @@ export interface ApplicationShellProps {
   initialLayout?: ShellLayout;
   /** Optional CSS class overrides for individual shell regions. */
   classNames?: ShellClassNames;
+  /**
+   * When set, the shell loads this widget manifest itself (via
+   * {@link useWidgetLoader}) and shows loading/error states until it is ready,
+   * so consumers don't have to gate rendering on the manifest manually.
+   */
+  manifestUrl?: string;
+  /**
+   * When set, the shell renders the built-in {@link AIChatPanel} and its
+   * expand affordance, wired to the shell's own layout store.
+   */
+  ai?: ShellAIConfig;
 }
 
-// ─── ApplicationShell ─────────────────────────────────────────────────────────
+// ─── ShellLayoutTree (internal) ───────────────────────────────────────────────
 
 /**
- * Root shell component. Owns layout state via Zustand store.
+ * The resizable shell layout tree (header, sidebars, main, bottom, status-bar).
+ * Owns layout state via the Zustand store. Internal — consumers use the
+ * {@link ApplicationShell} wrapper, which adds optional manifest loading and
+ * the built-in AI assistant.
  *
- * When `initialLayout` is omitted the shell builds its layout from the
+ * When `initialLayout` is omitted the layout is built from the
  * {@link WidgetRegistry}. When provided, that layout is used as-is after
  * non-togglable correction.
  *
- * @param props - {@link ApplicationShellProps}
- * @returns The full shell layout tree with header, sidebars, main, bottom, and status-bar regions.
- * @example
- * ```tsx
- * <WidgetRegistryContext.Provider value={registry}>
- *   <ApplicationShell />
- * </WidgetRegistryContext.Provider>
- * ```
+ * @param props - `initialLayout` and `classNames` from {@link ApplicationShellProps}.
+ * @returns The full shell layout tree.
  */
-export function ApplicationShell({
+function ShellLayoutTree({
   initialLayout,
   classNames,
-}: ApplicationShellProps): React.ReactElement {
+}: Pick<ApplicationShellProps, "initialLayout" | "classNames">): React.ReactElement {
   const registry = useWidgetRegistryInstance();
   const isControlled = initialLayout !== undefined;
   const { layout, setLayout } = useShellLayoutStore();
@@ -205,13 +259,18 @@ export function ApplicationShell({
   const rightPanelRef = usePanelRef();
   const bottomPanelRef = usePanelRef();
 
-  // Sync panel collapse/expand with region.visible toggled by the sidebar buttons.
+  // Sync panel collapse/expand with region.visible toggled by the region
+  // buttons. On expand we `resize()` to an explicit percentage rather than
+  // `expand()`: the layout hydrates after mount (visible flips false→true), and
+  // react-resizable-panels' `expand()` only restores a "most recent size" that
+  // doesn't exist yet, landing the panel on its `minSize` sliver. `resize()`
+  // sets a deterministic size and is a no-op when already at that size.
   useEffect(() => {
     const p = leftPanelRef.current;
     if (!p) return;
     if (layout.regions["sidebar-left"].visible) {
-      p.expand();
-    } else {
+      if (p.isCollapsed()) p.resize(SIDEBAR_DEFAULT_SIZE);
+    } else if (!p.isCollapsed()) {
       p.collapse();
     }
   }, [layout.regions["sidebar-left"].visible]);
@@ -220,8 +279,8 @@ export function ApplicationShell({
     const p = rightPanelRef.current;
     if (!p) return;
     if (layout.regions["sidebar-right"].visible) {
-      p.expand();
-    } else {
+      if (p.isCollapsed()) p.resize(SIDEBAR_DEFAULT_SIZE);
+    } else if (!p.isCollapsed()) {
       p.collapse();
     }
   }, [layout.regions["sidebar-right"].visible]);
@@ -230,8 +289,8 @@ export function ApplicationShell({
     const p = bottomPanelRef.current;
     if (!p) return;
     if (layout.regions.bottom.visible) {
-      p.expand();
-    } else {
+      if (p.isCollapsed()) p.resize(BOTTOM_DEFAULT_SIZE);
+    } else if (!p.isCollapsed()) {
       p.collapse();
     }
   }, [layout.regions.bottom.visible]);
@@ -272,15 +331,23 @@ export function ApplicationShell({
         orientation="vertical"
         className={mergeClassNames("sct-ApplicationShell-Body", classNames?.content)}
       >
-        <Panel minSize={20} defaultSize={80}>
+        {/* Sizes are percentage strings: react-resizable-panels v4 treats a
+            bare number as pixels, so `18` would mean an 18px sliver, not 18%. */}
+        <Panel minSize="20%" defaultSize="80%">
           {/* Horizontal split: left sidebar | main | right sidebar */}
-          <Group orientation="horizontal" style={{ height: "100%" }}>
+          <Group orientation="horizontal" className="sct-ShellPanelGroup">
             <Panel
               panelRef={leftPanelRef}
-              defaultSize={18}
-              minSize={5}
+              defaultSize={SIDEBAR_DEFAULT_SIZE}
+              minSize="12%"
               collapsible
-              collapsedSize={0}
+              // A sidebar with widgets collapses to a thin rail that keeps the
+              // expand notch reachable; an empty sidebar hides completely.
+              collapsedSize={
+                layout.regions["sidebar-left"].items.length > 0
+                  ? SIDEBAR_RAIL_SIZE
+                  : "0%"
+              }
             >
               <ShellSidebar
                 side="left"
@@ -290,7 +357,7 @@ export function ApplicationShell({
               />
             </Panel>
             <Separator className="sct-PanelHandle sct-PanelHandle--vertical" />
-            <Panel minSize={20}>
+            <Panel minSize="20%">
               <ShellMain
                 region={layout.regions.main}
                 setRegion={regionSetters["main"]}
@@ -300,10 +367,14 @@ export function ApplicationShell({
             <Separator className="sct-PanelHandle sct-PanelHandle--vertical" />
             <Panel
               panelRef={rightPanelRef}
-              defaultSize={18}
-              minSize={5}
+              defaultSize={SIDEBAR_DEFAULT_SIZE}
+              minSize="12%"
               collapsible
-              collapsedSize={0}
+              collapsedSize={
+                layout.regions["sidebar-right"].items.length > 0
+                  ? SIDEBAR_RAIL_SIZE
+                  : "0%"
+              }
             >
               <ShellSidebar
                 side="right"
@@ -319,10 +390,10 @@ export function ApplicationShell({
 
         <Panel
           panelRef={bottomPanelRef}
-          defaultSize={20}
-          minSize={5}
+          defaultSize={BOTTOM_DEFAULT_SIZE}
+          minSize="8%"
           collapsible
-          collapsedSize={0}
+          collapsedSize={BOTTOM_RAIL_SIZE}
         >
           <ShellBottom
             region={layout.regions.bottom}
@@ -338,5 +409,109 @@ export function ApplicationShell({
         className={classNames?.statusBar}
       />
     </div>
+  );
+}
+
+// ─── ManifestGate (internal) ──────────────────────────────────────────────────
+
+/**
+ * Loads a widget manifest and renders *children* only once it is ready,
+ * showing loading/error fallbacks meanwhile.
+ *
+ * @param props.url - Manifest URL to load.
+ * @param props.children - Rendered once the manifest is ready.
+ * @returns The children, or a loading/error fallback.
+ */
+function ManifestGate({
+  url,
+  children,
+}: {
+  url: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  const status = useWidgetLoader(url);
+  if (status === "loading") {
+    return <p className="sct-ManifestGate-status">Loading widgets…</p>;
+  }
+  if (status === "error") {
+    return <p className="sct-ManifestGate-status">Failed to load widget manifest.</p>;
+  }
+  return <>{children}</>;
+}
+
+// ─── ApplicationShell ─────────────────────────────────────────────────────────
+
+/**
+ * The application shell: a resizable widget layout plus, optionally, manifest
+ * loading and a built-in AI assistant.
+ *
+ * This is intended to be the top-level UI component of an app built on the
+ * framework. Pass `manifestUrl` to let the shell load widgets itself, and `ai`
+ * to render the {@link AIChatPanel} (and its expand affordance) wired to the
+ * shell's own layout store — so consumer apps need no chat-panel boilerplate.
+ *
+ * @param props - {@link ApplicationShellProps}
+ * @returns The shell, gated on manifest loading and with the AI panel when configured.
+ * @example
+ * ```tsx
+ * <ApplicationShell
+ *   initialLayout={layout}
+ *   manifestUrl="/sct-manifest.json"
+ *   ai={{ apiUrl: "/ai/layout" }}
+ * />
+ * ```
+ */
+export function ApplicationShell({
+  initialLayout,
+  classNames,
+  manifestUrl,
+  ai,
+}: ApplicationShellProps): React.ReactElement {
+  const registry = useWidgetRegistryInstance();
+  const { layout, setLayout } = useShellLayoutStore();
+  const [chatOpen, setChatOpen] = useState(false);
+
+  const tree = (
+    <ShellLayoutTree initialLayout={initialLayout} classNames={classNames} />
+  );
+
+  return (
+    <>
+      {/* Keyboard users can jump straight to the main region, bypassing the
+          header/sidebar widgets. Visually hidden until focused. */}
+      <a href="#sct-main-content" className="sct-SkipLink">
+        Skip to main content
+      </a>
+
+      {manifestUrl ? <ManifestGate url={manifestUrl}>{tree}</ManifestGate> : tree}
+
+      {ai && (
+        <>
+          {/* Right-edge tab — stays visible when the panel is collapsed so the
+              user can reopen it. */}
+          {!chatOpen && (
+            <button
+              className="sct-AIAssistant-tab"
+              onClick={() => setChatOpen(true)}
+              aria-label="Open AI assistant"
+            >
+              AI Assistant
+            </button>
+          )}
+          <AIChatPanel
+            open={chatOpen}
+            onOpenChange={setChatOpen}
+            currentLayout={layout}
+            onApplyLayout={(proposed) =>
+              setLayout(() => applyNonTogglableCorrection(proposed))
+            }
+            registry={registry}
+            apiUrl={ai.apiUrl}
+            getSnapshot={ai.getSnapshot}
+            onApproveParams={ai.onApproveParams}
+          />
+        </>
+      )}
+    </>
   );
 }

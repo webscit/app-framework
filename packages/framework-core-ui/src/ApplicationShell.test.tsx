@@ -70,7 +70,7 @@ describe("ApplicationShell", () => {
 
     expect(sidebarRight).not.toBeNull();
     expect(bottom).not.toBeNull();
-    expect(bottom.style.display).toBe("none");
+    expect(bottom.className).toContain("sct-ShellBottom--collapsed");
   });
 
   it("visible regions are rendered", async () => {
@@ -240,5 +240,44 @@ describe("ApplicationShell", () => {
     await renderShell(registry);
 
     expect(page.getByRole("main").query()).not.toBeNull();
+  });
+
+  // ─── Built-in AI assistant (ai prop) ────────────────────────────────────────
+
+  it("renders the AI assistant tab when `ai` is configured", async () => {
+    const registry = new WidgetRegistry();
+    await render(
+      <WidgetRegistryContext.Provider value={registry}>
+        <ApplicationShell ai={{ apiUrl: "/ai/layout" }} />
+      </WidgetRegistryContext.Provider>,
+    );
+
+    await expect
+      .element(page.getByRole("button", { name: "Open AI assistant" }))
+      .toBeInTheDocument();
+  });
+
+  it("does not render the AI assistant tab when `ai` is omitted", async () => {
+    const registry = new WidgetRegistry();
+    await renderShell(registry);
+
+    expect(page.getByRole("button", { name: "Open AI assistant" }).query()).toBeNull();
+  });
+
+  it("opens the AI assistant panel when the tab is clicked", async () => {
+    const registry = new WidgetRegistry();
+    await render(
+      <WidgetRegistryContext.Provider value={registry}>
+        <ApplicationShell ai={{ apiUrl: "/ai/layout" }} />
+      </WidgetRegistryContext.Provider>,
+    );
+
+    (
+      page.getByRole("button", { name: "Open AI assistant" }).element() as HTMLElement
+    ).click();
+
+    await expect
+      .element(page.getByRole("heading", { name: "AI Layout Assistant" }))
+      .toBeInTheDocument();
   });
 });

@@ -69,6 +69,21 @@ export interface DataTableProps {
    * Default: `1000`
    */
   maxRows?: number;
+  /**
+   * Name of a row field whose value classifies the row's severity, enabling
+   * per-row highlighting (e.g. a `"status"` column). When set, each rendered
+   * row receives a `sct-DataTable-row--{variant}` class so failing/anomalous
+   * rows can stand out. Leave unset to disable highlighting.
+   */
+  statusKey?: string;
+  /**
+   * Optional map from a raw `statusKey` value to a semantic severity variant.
+   * The framework ships styling for `"error"`, `"warning"`, `"success"`, and
+   * `"info"`. When omitted, the raw value is used as the variant directly; a
+   * value with no matching style simply adds no highlight.
+   * @example { violation: "error", warning: "warning", ok: "success" }
+   */
+  statusVariants?: Record<string, string>;
 }
 
 /** A single table row — the event payload cast as a flat-or-nested object. */
@@ -87,10 +102,38 @@ const DATA_TABLE_PREFIX = "sct-DataTable";
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Formats a number for display: integers verbatim, other finite values rounded
+ * to at most 4 decimal places with trailing zeros stripped — so a noisy float
+ * like `-0.04999999999999999` renders as `-0.05` instead of a long tail.
+ * Non-finite values (NaN/Infinity) fall back to their string form.
+ */
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  if (Number.isInteger(value)) return String(value);
+  return String(Number(value.toFixed(4)));
+}
+
 function cellString(value: unknown): string {
   if (value === null || value === undefined) return "";
+  if (typeof value === "number") return formatNumber(value);
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+/**
+ * Resolves the severity-variant class suffix for a row, or `undefined` when
+ * highlighting is disabled or the value maps to nothing.
+ */
+function rowVariant(
+  row: RowData,
+  statusKey: string | undefined,
+  statusVariants: Record<string, string> | undefined,
+): string | undefined {
+  if (!statusKey) return undefined;
+  const raw = cellString(row[statusKey]);
+  if (raw === "") return undefined;
+  return statusVariants ? statusVariants[raw] : raw;
 }
 
 function compareRows(a: RowData, b: RowData, col: ColumnDef): number {
@@ -146,6 +189,8 @@ export const DataTableComponent: ComponentType<DataTableProps> = ({
   columns: columnsProp,
   pageSize = 20,
   maxRows = 1000,
+  statusKey,
+  statusVariants,
 }) => {
   const client = useEventBusClient();
   const [rows, setRows] = useState<RowData[]>([]);
@@ -271,21 +316,29 @@ export const DataTableComponent: ComponentType<DataTableProps> = ({
       <div className={`${DATA_TABLE_PREFIX}-toolbar`}>
         <Input
           placeholder="Search…"
+          aria-label="Search table rows"
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
           className={`${DATA_TABLE_PREFIX}-search`}
         />
         <div className={`${DATA_TABLE_PREFIX}-col-toggles`}>
-          {columns.map((col) => (
-            <Button
-              key={col.key}
-              variant={hiddenKeys.has(col.key) ? "outline" : "secondary"}
-              size="xs"
-              onClick={() => toggleColumn(col.key)}
-            >
-              {col.header}
-            </Button>
-          ))}
+          {columns.map((col) => {
+            const shown = !hiddenKeys.has(col.key);
+            return (
+              <Button
+                key={col.key}
+                variant={shown ? "secondary" : "outline"}
+                size="xs"
+                aria-pressed={shown}
+                title={
+                  shown ? `Hide ${col.header} column` : `Show ${col.header} column`
+                }
+                onClick={() => toggleColumn(col.key)}
+              >
+                {col.header}
+              </Button>
+            );
+          })}
         </div>
       </div>
 
@@ -293,26 +346,55 @@ export const DataTableComponent: ComponentType<DataTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              {visibleColumns.map((col) => (
-                <TableHead
-                  key={col.key}
-                  className={`${DATA_TABLE_PREFIX}-th`}
-                  onClick={() => handleHeaderClick(col.key)}
-                >
-                  {col.header}
-                  {sort?.key === col.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
-                </TableHead>
-              ))}
+              {visibleColumns.map((col) => {
+                const active = sort?.key === col.key;
+                const ariaSort = active
+                  ? sort.dir === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none";
+                return (
+                  <TableHead
+                    key={col.key}
+                    scope="col"
+                    aria-sort={ariaSort}
+                    className={`${DATA_TABLE_PREFIX}-th`}
+                  >
+                    <button
+                      type="button"
+                      className={`${DATA_TABLE_PREFIX}-sort-btn`}
+                      onClick={() => handleHeaderClick(col.key)}
+                      aria-label={`Sort by ${col.header}`}
+                    >
+                      <span>{col.header}</span>
+                      <span
+                        className={`${DATA_TABLE_PREFIX}-sort-icon`}
+                        aria-hidden="true"
+                      >
+                        {active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
+                      </span>
+                    </button>
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pageRows.map((row, i) => (
-              <TableRow key={i}>
-                {visibleColumns.map((col) => (
-                  <TableCell key={col.key}>{cellString(row[col.key])}</TableCell>
-                ))}
-              </TableRow>
-            ))}
+            {pageRows.map((row, i) => {
+              const variant = rowVariant(row, statusKey, statusVariants);
+              return (
+                <TableRow
+                  key={i}
+                  className={
+                    variant ? `${DATA_TABLE_PREFIX}-row--${variant}` : undefined
+                  }
+                >
+                  {visibleColumns.map((col) => (
+                    <TableCell key={col.key}>{cellString(row[col.key])}</TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

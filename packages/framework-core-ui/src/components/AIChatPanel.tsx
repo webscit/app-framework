@@ -6,6 +6,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Textarea } from "./ui/textarea";
 import { LayoutDiffViewer } from "./LayoutDiffViewer";
+import { ParamDiffViewer } from "./ParamDiffViewer";
 import type { ShellLayout } from "../shellTypes";
 import type { WidgetRegistry, WidgetDefinition } from "../widgetRegistry";
 import "./AIChatPanel.css";
@@ -28,12 +29,39 @@ export interface ChatMessage {
   layoutExplanation?: string;
   /** Whether the user approved the proposed layout. Undefined until acted on. */
   approved?: boolean;
+  /** AI-suggested parameter values (a flat name → value object), if any. */
+  suggestedParams?: Record<string, unknown>;
+  /** Current parameter values at suggestion time, used as the diff baseline. */
+  currentParamsSnapshot?: Record<string, unknown>;
+  /** Whether the user approved the suggested params. Undefined until acted on. */
+  paramsApproved?: boolean;
 }
 
 /** A turn in the conversation history sent to the backend. */
 interface ConversationTurn {
   user: string;
   assistant: string;
+}
+
+/**
+ * Application-defined context attached to every chat request.
+ *
+ * Returned by the {@link AIChatPanelProps.getSnapshot} callback. The framework
+ * is deliberately domain-agnostic: it forwards `context` and `instructions`
+ * verbatim to the backend prompt and imposes no schema, so any app can adapt
+ * the structure to its own data. `currentParams` is used locally as the
+ * baseline for the suggested-parameter diff.
+ */
+export interface AISnapshot {
+  /** Arbitrary context (free-form JSON) describing the app's current state. */
+  context?: Record<string, unknown>;
+  /**
+   * App-specific guidance the AI should use to interpret `context` and decide
+   * what `suggested_params` may change (data meaning, safe ranges, etc.).
+   */
+  instructions?: string;
+  /** Current parameter values, used as the baseline for the suggested-params diff. */
+  currentParams?: Record<string, unknown>;
 }
 
 /**
@@ -55,6 +83,18 @@ export interface AIChatPanelProps {
    * Defaults to `"/ai/layout"`.
    */
   apiUrl?: string;
+  /**
+   * Called before every request to attach an application-defined
+   * {@link AISnapshot}. Omit for layout-only apps (e.g. the sine-wave
+   * example) — no context is sent and the AI behaves exactly as before.
+   */
+  getSnapshot?: () => AISnapshot;
+  /**
+   * Called when the user approves AI-suggested parameter values. Required
+   * for `suggested_params` to render with Approve/Reject controls — omitted
+   * entirely when not provided, even if the AI returns `suggested_params`.
+   */
+  onApproveParams?: (params: Record<string, unknown>) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -95,6 +135,8 @@ interface MessageBubbleProps {
   currentLayout: ShellLayout;
   onApprove: (messageId: string, layout: ShellLayout) => void;
   onReject: (messageId: string) => void;
+  onApproveParams?: (messageId: string, params: Record<string, unknown>) => void;
+  onRejectParams: (messageId: string) => void;
 }
 
 /**
@@ -102,7 +144,10 @@ interface MessageBubbleProps {
  *
  * User messages are right-aligned; assistant messages are left-aligned.
  * Assistant messages that carry a `proposedLayout` include an inline
- * {@link LayoutDiffViewer} with Approve/Reject controls.
+ * {@link LayoutDiffViewer}, and messages that carry `suggestedParams` include
+ * an inline {@link ParamDiffViewer} — both with their own Approve/Reject
+ * controls. A single response may include both (e.g. a diagnosis that fixes
+ * parameters and adds a widget to visualise the result).
  *
  * @param props - {@link MessageBubbleProps}
  * @returns A styled message bubble element.
@@ -112,6 +157,8 @@ function MessageBubble({
   currentLayout,
   onApprove,
   onReject,
+  onApproveParams,
+  onRejectParams,
 }: MessageBubbleProps): React.ReactElement {
   const isUser = message.role === "user";
   const bubbleClass = isUser
@@ -120,13 +167,19 @@ function MessageBubble({
 
   const showDiff =
     message.proposedLayout !== undefined && message.approved === undefined;
+  const showParamDiff =
+    message.suggestedParams !== undefined &&
+    onApproveParams !== undefined &&
+    message.paramsApproved === undefined;
 
   return (
     <div className={`sct-AIChatPanel-row sct-AIChatPanel-row--${message.role}`}>
       <div className={bubbleClass}>
-        {/* Hide bubble text while the diff viewer is showing — the explanation
-            is already rendered inside LayoutDiffViewer to avoid duplication. */}
-        {!showDiff && <p className="sct-AIChatPanel-bubble-text">{message.content}</p>}
+        {/* Hide bubble text while a diff viewer is showing — the explanation
+            is already rendered inside the diff viewer to avoid duplication. */}
+        {!showDiff && !showParamDiff && (
+          <p className="sct-AIChatPanel-bubble-text">{message.content}</p>
+        )}
 
         {showDiff && message.proposedLayout && message.layoutExplanation && (
           <div className="sct-AIChatPanel-diff">
@@ -140,6 +193,18 @@ function MessageBubble({
           </div>
         )}
 
+        {showParamDiff && message.suggestedParams && onApproveParams && (
+          <div className="sct-AIChatPanel-diff">
+            <ParamDiffViewer
+              current={message.currentParamsSnapshot ?? {}}
+              suggested={message.suggestedParams}
+              explanation={message.content}
+              onApprove={() => onApproveParams(message.id, message.suggestedParams!)}
+              onReject={() => onRejectParams(message.id)}
+            />
+          </div>
+        )}
+
         {message.approved === true && (
           <p className="sct-AIChatPanel-status sct-AIChatPanel-status--approved">
             Layout applied.
@@ -148,6 +213,16 @@ function MessageBubble({
         {message.approved === false && (
           <p className="sct-AIChatPanel-status sct-AIChatPanel-status--rejected">
             Layout rejected.
+          </p>
+        )}
+        {message.paramsApproved === true && (
+          <p className="sct-AIChatPanel-status sct-AIChatPanel-status--approved">
+            Parameters applied.
+          </p>
+        )}
+        {message.paramsApproved === false && (
+          <p className="sct-AIChatPanel-status sct-AIChatPanel-status--rejected">
+            Parameters rejected.
           </p>
         )}
       </div>
@@ -188,11 +263,16 @@ export function AIChatPanel({
   onApplyLayout,
   registry,
   apiUrl = "/ai/layout",
+  getSnapshot,
+  onApproveParams,
 }: AIChatPanelProps): React.ReactElement {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // When the app provides a snapshot, the user can choose per-conversation
+  // whether to include that context with their messages (default: on).
+  const [includeContext, setIncludeContext] = useState(true);
 
   /** Only approved turns are forwarded to the AI in subsequent requests. */
   const approvedHistory = useRef<ConversationTurn[]>([]);
@@ -214,6 +294,8 @@ export function AIChatPanel({
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    const snapshot = includeContext ? getSnapshot?.() : undefined;
+
     try {
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -223,6 +305,10 @@ export function AIChatPanel({
           history: approvedHistory.current,
           registry: serializeRegistry(registry),
           current_layout: currentLayout,
+          ...(snapshot?.context !== undefined && { context: snapshot.context }),
+          ...(snapshot?.instructions !== undefined && {
+            context_instructions: snapshot.instructions,
+          }),
         }),
       });
 
@@ -237,14 +323,26 @@ export function AIChatPanel({
       const data = (await response.json()) as {
         layout: ShellLayout;
         explanation: string;
+        suggested_params?: Record<string, unknown> | null;
       };
+
+      // The backend omits/empties "layout" for a pure diagnosis response —
+      // only treat it as a real proposal when it has actual region content.
+      const hasLayout =
+        data.layout && "regions" in data.layout && Object.keys(data.layout).length > 0;
 
       const assistantMsg: ChatMessage = {
         id: nextId(),
         role: "assistant",
         content: data.explanation,
-        proposedLayout: data.layout,
-        layoutExplanation: data.explanation,
+        ...(hasLayout && {
+          proposedLayout: data.layout,
+          layoutExplanation: data.explanation,
+        }),
+        ...(data.suggested_params && {
+          suggestedParams: data.suggested_params,
+          currentParamsSnapshot: snapshot?.currentParams,
+        }),
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -281,6 +379,22 @@ export function AIChatPanel({
       prev.map((m) => (m.id === messageId ? { ...m, approved: false } : m)),
     );
     _pendingTurns.delete(messageId);
+  }
+
+  function handleApproveParams(
+    messageId: string,
+    params: Record<string, unknown>,
+  ): void {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, paramsApproved: true } : m)),
+    );
+    onApproveParams?.(params);
+  }
+
+  function handleRejectParams(messageId: string): void {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, paramsApproved: false } : m)),
+    );
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>): void {
@@ -325,6 +439,8 @@ export function AIChatPanel({
                 currentLayout={currentLayout}
                 onApprove={handleApprove}
                 onReject={handleReject}
+                onApproveParams={onApproveParams && handleApproveParams}
+                onRejectParams={handleRejectParams}
               />
             ))}
 
@@ -346,25 +462,38 @@ export function AIChatPanel({
           </div>
         </ScrollArea>
 
-        <div className="sct-AIChatPanel-input-row">
-          <Textarea
-            className="sct-AIChatPanel-textarea"
-            placeholder="Ask AI to build or modify your layout…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={loading}
-            aria-label="Chat input"
-          />
-          <Button
-            className="sct-AIChatPanel-send-btn"
-            size="default"
-            onClick={() => void handleSend()}
-            disabled={loading || input.trim() === ""}
-            aria-label="Send message"
-          >
-            Send
-          </Button>
+        <div className="sct-AIChatPanel-input-area">
+          {getSnapshot && (
+            <label className="sct-AIChatPanel-context-toggle">
+              <input
+                type="checkbox"
+                checked={includeContext}
+                onChange={(e) => setIncludeContext(e.target.checked)}
+                aria-label="Include app context"
+              />
+              Include app context
+            </label>
+          )}
+          <div className="sct-AIChatPanel-input-row">
+            <Textarea
+              className="sct-AIChatPanel-textarea"
+              placeholder="Ask AI to build or modify your layout…"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={loading}
+              aria-label="Chat input"
+            />
+            <Button
+              className="sct-AIChatPanel-send-btn"
+              size="default"
+              onClick={() => void handleSend()}
+              disabled={loading || input.trim() === ""}
+              aria-label="Send message"
+            >
+              Send
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

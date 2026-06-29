@@ -141,6 +141,46 @@ describe("LogViewerComponent", () => {
       .not.toBeInTheDocument();
   });
 
+  it("renders a pinned title bar when title is provided", async () => {
+    const socket = new FakeWebSocket();
+
+    const screen = await render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <LogViewerComponent channel="log/app" title="Logs" />
+      </EventBusProvider>,
+    );
+
+    await act(async () => {
+      socket.open();
+    });
+
+    // Title shows even before any logs arrive (empty state).
+    await expect.element(screen.getByText("Logs")).toBeInTheDocument();
+
+    await act(async () => {
+      sendLogEvent(socket, "log/app", "after-title", "msg-1");
+    });
+
+    await expect.element(screen.getByText("after-title")).toBeInTheDocument();
+    await expect.element(screen.getByText("Logs")).toBeInTheDocument();
+  });
+
+  it("renders no title bar when title is omitted", async () => {
+    const socket = new FakeWebSocket();
+
+    await render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <LogViewerComponent channel="log/app" />
+      </EventBusProvider>,
+    );
+
+    await act(async () => {
+      socket.open();
+    });
+
+    expect(document.querySelector(".sct-LogViewer-title")).toBeNull();
+  });
+
   it("uses pre-wrap style when wrapLines is true", async () => {
     const socket = new FakeWebSocket();
 

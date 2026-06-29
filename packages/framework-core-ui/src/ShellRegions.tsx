@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { mergeClassNames } from "./helpers";
 
 import type { RegionItem, RegionSetter, RegionState } from "./shellTypes";
@@ -137,22 +138,27 @@ export function ShellSidebar({
   return (
     <aside
       aria-label={`${side} sidebar`}
-      className={mergeClassNames("sct-ShellSidebar", className)}
+      className={mergeClassNames(
+        `sct-ShellSidebar sct-ShellSidebar--${side}${
+          region.visible ? "" : " sct-ShellSidebar--collapsed"
+        }`,
+        className,
+      )}
       data-testid={`shell-sidebar-${side}`}
-      style={region.visible ? undefined : { width: "32px", overflow: "hidden" }}
     >
       <button
         data-testid={`shell-sidebar-${side}-toggle`}
+        className={`sct-ShellRegion-toggle sct-ShellSidebar-toggle sct-ShellSidebar-toggle--${side}`}
+        aria-label={`${region.visible ? "Collapse" : "Expand"} ${side} sidebar`}
+        aria-expanded={region.visible}
+        title={`${region.visible ? "Collapse" : "Expand"} sidebar`}
         onClick={() => setRegion((prev) => ({ ...prev, visible: !prev.visible }))}
-        style={{ width: "100%", cursor: "pointer" }}
       >
-        {region.visible
-          ? side === "left"
-            ? "<<"
-            : ">>"
-          : side === "left"
-            ? ">>"
-            : "<<"}
+        {(side === "left") === region.visible ? (
+          <ChevronLeft size={16} aria-hidden />
+        ) : (
+          <ChevronRight size={16} aria-hidden />
+        )}
       </button>
       {sorted.map((item) => (
         <RegionItemRenderer key={item.id} item={item} />
@@ -193,6 +199,8 @@ export function ShellMain({
 
   return (
     <main
+      id="sct-main-content"
+      tabIndex={-1}
       className={mergeClassNames("sct-ShellMain", className)}
       data-testid="shell-main"
     >
@@ -203,13 +211,15 @@ export function ShellMain({
           <RegionItemRenderer item={sorted[0]} />
         </div>
       ) : (
-        <Group orientation="vertical" style={{ height: "100%" }}>
+        <Group orientation="vertical" className="sct-ShellPanelGroup">
           {sorted.map((item, idx) => (
             <React.Fragment key={item.id}>
               {idx > 0 && (
                 <Separator className="sct-PanelHandle sct-PanelHandle--horizontal" />
               )}
-              <Panel minSize={10} defaultSize={100 / sorted.length}>
+              {/* Percentage strings: react-resizable-panels v4 reads a bare
+                  number as pixels, so sizes must carry an explicit `%` unit. */}
+              <Panel minSize="8%" defaultSize={`${item.size ?? 100 / sorted.length}%`}>
                 <div className="sct-ShellMain-item">
                   <RegionItemRenderer item={item} />
                 </div>
@@ -253,16 +263,28 @@ export function ShellBottom({
     <div
       role="region"
       aria-label="bottom panel"
-      className={mergeClassNames("sct-ShellBottom", className)}
+      className={mergeClassNames(
+        `sct-ShellBottom${region.visible ? "" : " sct-ShellBottom--collapsed"}`,
+        className,
+      )}
       data-testid="shell-bottom"
-      style={region.visible ? undefined : { display: "none" }}
     >
-      <button
-        data-testid="shell-bottom-toggle"
-        onClick={() => setRegion((prev) => ({ ...prev, visible: !prev.visible }))}
-      >
-        {region.visible ? "Hide" : "Show"}
-      </button>
+      <div className="sct-ShellBottom-bar">
+        <button
+          data-testid="shell-bottom-toggle"
+          className="sct-ShellRegion-toggle sct-ShellBottom-toggle"
+          aria-label={`${region.visible ? "Collapse" : "Expand"} bottom panel`}
+          aria-expanded={region.visible}
+          onClick={() => setRegion((prev) => ({ ...prev, visible: !prev.visible }))}
+        >
+          {region.visible ? (
+            <ChevronDown size={14} aria-hidden />
+          ) : (
+            <ChevronUp size={14} aria-hidden />
+          )}
+          {region.visible ? "Hide" : "Show"}
+        </button>
+      </div>
       {sorted.map((item) => (
         <RegionItemRenderer key={item.id} item={item} />
       ))}

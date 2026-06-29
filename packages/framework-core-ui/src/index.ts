@@ -48,15 +48,22 @@ export {
   ApplicationShell,
   applyNonTogglableCorrection,
   type ApplicationShellProps,
+  type ShellAIConfig,
   type ShellClassNames,
 } from "./ApplicationShell";
+export { AppRoot, type AppRootProps } from "./AppRoot";
 export {
   LayoutDiffViewer,
   type LayoutDiffViewerProps,
 } from "./components/LayoutDiffViewer";
 export {
+  ParamDiffViewer,
+  type ParamDiffViewerProps,
+} from "./components/ParamDiffViewer";
+export {
   AIChatPanel,
   type AIChatPanelProps,
+  type AISnapshot,
   type ChatMessage,
 } from "./components/AIChatPanel";
 export {
@@ -78,6 +85,7 @@ export type {
   EventHeaders,
   WireEvent,
   WebSocketFactory,
+  WebSocketLike,
 } from "./client";
 
 /**

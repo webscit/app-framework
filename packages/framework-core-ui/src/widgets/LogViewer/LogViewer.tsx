@@ -32,6 +32,12 @@ export interface LogViewerProps {
   showTimestamps?: boolean;
   /** Allow long lines to wrap. When false, lines are clipped. Default: false. */
   wrapLines?: boolean;
+  /**
+   * Optional heading shown as a pinned title bar above the log lines, so the
+   * widget is labelled like the Chart and DataTable widgets. When omitted, no
+   * title bar is rendered. Default: undefined.
+   */
+  title?: string;
 }
 
 const LOG_VIEWER_PREFIX = "sct-LogViewer";
@@ -55,7 +61,7 @@ const LOG_VIEWER_PREFIX = "sct-LogViewer";
  * @returns A scrolling log viewer element.
  * @example
  * ```tsx
- * <LogViewerComponent channel="log/app" maxLines={500} showTimestamps />
+ * <LogViewerComponent channel="log/app" maxLines={500} showTimestamps title="Logs" />
  * ```
  */
 export const LogViewerComponent: ComponentType<LogViewerProps> = ({
@@ -63,6 +69,7 @@ export const LogViewerComponent: ComponentType<LogViewerProps> = ({
   maxLines = 1000,
   showTimestamps = true,
   wrapLines = false,
+  title,
 }) => {
   const client = useEventBusClient();
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -109,9 +116,14 @@ export const LogViewerComponent: ComponentType<LogViewerProps> = ({
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
   }, [logs]);
 
+  const titleBar = title ? (
+    <div className={`${LOG_VIEWER_PREFIX}-title`}>{title}</div>
+  ) : null;
+
   if (logs.length === 0) {
     return (
       <div className={`${LOG_VIEWER_PREFIX}-empty`} data-testid="log-viewer">
+        {titleBar}
         No logs yet
       </div>
     );
@@ -119,6 +131,7 @@ export const LogViewerComponent: ComponentType<LogViewerProps> = ({
 
   return (
     <div className={`${LOG_VIEWER_PREFIX}-container`} data-testid="log-viewer">
+      {titleBar}
       {logs.map((entry) => (
         <div
           key={entry.id}

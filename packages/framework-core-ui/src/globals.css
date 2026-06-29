@@ -128,3 +128,137 @@
     @apply font-sans;
   }
 }
+
+/* Accessible skip link rendered by ApplicationShell: off-screen until focused,
+   then pinned to the top-left so keyboard users can jump past the chrome. */
+.sct-SkipLink {
+  position: absolute;
+  left: 8px;
+  top: -100px;
+  z-index: 1000;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 14px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.sct-SkipLink:focus {
+  top: 8px;
+}
+
+/* ─── Region collapse controls ───
+   Shared styling for the sidebar/bottom collapse toggles. A slim rounded
+   "notch" handle on the sidebar's inner edge replaces the old "<<"/">>" text;
+   the bottom panel gets a labelled pill. Both are icon + ARIA labelled. */
+.sct-ShellRegion-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  border-radius: 999px;
+  line-height: 1;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.sct-ShellRegion-toggle:hover {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+.sct-ShellRegion-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 45%, transparent);
+}
+
+/* Sidebar collapse handle: a vertical "notch" tab anchored to the sidebar's
+   inner edge and centred on the divider — click to collapse/expand. Replaces
+   the old top-corner chevron button. Needs the sidebar as a positioning
+   context (see `position: relative` below). */
+.sct-ShellSidebar {
+  position: relative;
+  /* Lift above the sibling main panel so the edge notch stays clickable —
+     react-resizable-panels paints the later main panel over the shared edge. */
+  z-index: 2;
+}
+
+/* A collapsed sidebar clips its content to the thin rail (only the notch shows);
+   the rail width itself comes from the parent panel's `collapsedSize`. */
+.sct-ShellSidebar--collapsed {
+  overflow: hidden;
+}
+
+/* Resizable panel groups (sidebar row, main stack) fill their parent panel. */
+.sct-ShellPanelGroup {
+  height: 100%;
+}
+
+.sct-ShellSidebar-toggle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 56px;
+  padding: 0;
+  z-index: 6;
+  box-shadow: 0 1px 5px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+/* Pin to the inner edge and round only the protruding (outer) corners so the
+   tab reads as a notch growing out of the divider. */
+.sct-ShellSidebar-toggle--left {
+  right: 3px;
+  border-radius: 8px 4px 4px 8px;
+}
+
+.sct-ShellSidebar-toggle--right {
+  left: 3px;
+  border-radius: 4px 8px 8px 4px;
+}
+
+/* When collapsed the rail is a thin strip; centre the notch within it and hide
+   the (clipped) widget content so only the notch shows. Widgets stay mounted —
+   `display: none` preserves their React state for when the rail re-expands. */
+.sct-ShellSidebar--collapsed .sct-ShellSidebar-toggle {
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+
+.sct-ShellSidebar--collapsed > :not(.sct-ShellSidebar-toggle) {
+  /* !important so a widget's own inline `display` can't keep it painting in the
+     rail (e.g. a card with inline `display: flex`). */
+  display: none !important;
+}
+
+/* A collapsed bottom region keeps its toggle bar visible (as a thin rail, sized
+   by the parent panel's `collapsedSize`) so the "Show" control stays reachable;
+   only the panel content is hidden. */
+.sct-ShellBottom--collapsed > :not(.sct-ShellBottom-bar) {
+  display: none;
+}
+
+/* Bottom panel: a labelled pill, right-aligned, always fully visible. */
+.sct-ShellBottom-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.sct-ShellBottom-toggle {
+  height: 24px;
+  padding: 2px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}

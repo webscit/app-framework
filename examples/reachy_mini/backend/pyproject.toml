@@ -1,0 +1,18 @@
+[project]
+name = "reachy-mini-example"
+version = "0.1.0"
+# Pinned to 3.11: this backend runs an in-process MuJoCo simulation, and
+# mujoco / reachy-mini[mujoco] only ship wheels for the Python the Reachy
+# Mini stack targets (3.11 at time of writing) — not the repo's 3.14 venv.
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "framework-core",
+    "fastapi",
+    "uvicorn",
+    "mujoco",
+    "reachy-mini",
+    "pillow",
+]
+
+[tool.uv.sources]
+framework-core = { workspace = true }

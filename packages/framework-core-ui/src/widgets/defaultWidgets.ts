@@ -27,6 +27,11 @@ export const LOG_VIEWER: WidgetDefinition = {
     maxLines: { type: "integer", default: 1000, minimum: 100, maximum: 10000 },
     showTimestamps: { type: "boolean", default: true },
     wrapLines: { type: "boolean", default: false },
+    title: {
+      type: "string",
+      default: "",
+      description: "Optional title shown as a pinned bar above the log lines.",
+    },
   },
   factory: () => LogViewerComponent,
 };
@@ -142,7 +147,8 @@ export const DATA_TABLE: WidgetDefinition = {
   name: "DataTable",
   description:
     "Live tabular data viewer. Subscribes to an EventBus channel and appends " +
-    "incoming row objects into a paginated, sortable, searchable table. " +
+    "incoming row objects into a paginated, sortable, searchable table. Rows " +
+    "can be severity-highlighted via statusKey. " +
     "Suitable for solver iteration logs, parameter sweeps, and results grids.",
   channelPattern: "table/*",
   consumes: ["application/x-tabular+json"],
@@ -167,6 +173,14 @@ export const DATA_TABLE: WidgetDefinition = {
       minimum: 100,
       maximum: 10000,
       description: "Maximum rows retained in the rolling buffer.",
+    },
+    statusKey: {
+      type: "string",
+      default: "",
+      description:
+        "Row field whose value classifies severity for per-row highlighting " +
+        '(e.g. "status"). Pair with statusVariants in the layout JSON to map ' +
+        "raw values to error/warning/success/info styles.",
     },
   },
   factory: () => DataTableComponent as ComponentType,
