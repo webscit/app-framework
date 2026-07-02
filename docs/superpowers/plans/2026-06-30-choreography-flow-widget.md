@@ -9,18 +9,21 @@ node/edge UI pattern.
 
 **Architecture:** A Reachy **example** widget (`examples/reachy_mini/frontend/src/`),
 registered into the shell like `RobotViewWidget`. It renders a React Flow canvas
-of step-nodes flowing into a terminal "Robot" node, and publishes the assembled
-sequence to the existing `reachy/control` channel as
-`{ sequence: StepSpecPayload[] }`. **No framework or backend changes are
-required** — the backend already consumes a frontend-authored sequence
-(`examples/reachy_mini/backend/consumers.py:_set_sequence`, anticipated in
-`producers.py` StepSpec docstring).
+of step-nodes each flowing **directly into a single "Robot" node** (which shows
+the live MuJoCo render). **Send to robot** publishes the assembled sequence plus
+a `start` command to the existing `reachy/control` channel
+(`{ sequence: StepSpecPayload[], command: "start" }`). **No framework or backend
+changes are required** — the backend already consumes a frontend-authored
+sequence and runs it (`consumers.py`: `_set_sequence` then `_handle_command`).
 
 **Tech Stack:** TypeScript — React 19, `@xyflow/react` (new dependency, added to
-the example frontend only), the framework's `usePublish` hook, CSS class names
-prefixed with `reachy-choreo-` in the example's `shell.css`.
+the example frontend only), the framework's `usePublish` / `useChannel` hooks,
+CSS class names prefixed with `reachy-choreo-` in a co-located
+`ChoreographyFlowWidget.css`.
 
-**Status:** Specification for review. Implementation follows once approved.
+**Status:** Implemented; spec updated to match. The layout evolved during
+implementation review from the originally-approved chain model to a fan-in model
+(see §13).
 
 ---
 
@@ -61,7 +64,7 @@ no code, no restart.
 
 **What this does NOT solve (out of scope — see §12):**
 
-- Branching, parallel, or looping sequences (v1 is a single linear chain)
+- Branching, parallel, or looping sequences (v1 is a flat ordered list)
 - Persisting the authored sequence to disk or across reloads
 - A generic, framework-level node-canvas primitive (deliberate future step)
 - Any backend or framework-package change
@@ -77,9 +80,10 @@ no code, no restart.
   canvas that renders step-nodes + a terminal Robot node
 - A custom **step node** type with an editable label and three factor controls
   (`roll_factor`, `z_factor`, `antenna_factor`)
-- Add / edit / delete / reorder (rewire) steps on a single linear chain
-- **Send to robot** action that linearizes the graph and publishes
-  `{ sequence }` to `reachy/control` via `usePublish`
+- Add / edit / delete / reorder (by vertical position) steps that fan into the
+  robot
+- **Send to robot** action that serializes the steps and publishes
+  `{ sequence, command: "start" }` to `reachy/control` via `usePublish`
 - Initialization from a configurable default sequence (the backend's
   `DEFAULT_SEQUENCE`, mirrored in the example)
 - `CHOREOGRAPHY_FLOW` `WidgetDefinition` registered in the example's `main.tsx`
@@ -93,42 +97,47 @@ no code, no restart.
 
 ## 3. Concept & UX
 
-The dance flows **left → right** into the robot. Each step is a node; edges
-define order; one fixed terminal **Robot** node anchors the "flows into the
-robot" metaphor.
+Each step is an input node whose controls flow **directly into a single Robot
+node** — the reactflow.dev "inputs → output" layout. There is **no `start` node
+and no step-to-step chain**. The **Robot node shows the live MuJoCo render**
+(the same `reachy/frame` stream as the sidebar), so a run's motion is visible
+right in the flow.
 
 ```
-┌─ Start ─┐   ┌─ Step: tilt_right ─┐   ┌─ Step: tilt_left ──┐   ┌─ Robot ──┐
-│  ●──────┼──▶│ label  [tilt_right]│──▶│ label  [tilt_left] │──▶│  (sink)  │
-└─────────┘   │ roll    ──●──  1.0 │   │ roll    ──●── -1.0 │   │ ▶ run    │
-              │ z       ──●──  0.0 │   │ z       ──●──  0.0 │   └──────────┘
-              │ antenna ──●──  0.0 │   │ antenna ──●──  0.0 │
-              └────────────────────┘   └────────────────────┘
-              (each step node = label + 3 factor sliders/inputs)
+┌─ Step: tilt_right ─┐
+│ label [tilt_right] │╌╌╌╮
+│ roll    ──●──  1.0 │   ╎
+│ antenna ──●──  0.0 │   ╎    ┌────────────┐
+└────────────────────┘   ├╌╌▶ │   Robot    │
+┌─ Step: tilt_left ──┐   ╎    │ [live      │
+│ label [tilt_left]  │╌╌╌┤    │  render]   │
+│ roll    ──●── -1.0 │   ╎    └────────────┘
+└────────────────────┘   ╎
+┌─ Step: … ──────────┐   ╎
+│ …                  │╌╌╌╯
+└────────────────────┘
+  (faint dashed "imaginary" guide lines fan into the robot)
 ```
 
-**Canvas affordances (from React Flow):** pan, zoom, a minimap and controls
-(optional), draggable nodes, and edges drawn between node handles.
+**Editing actions:**
 
-**Editing actions (v1):**
+| Action        | How                                                                                      |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| Add step      | "Add step" toolbar button → appends a step below the others                              |
+| Edit factors  | Sliders inside the node (range −1…1), marked `nodrag` so they adjust the value           |
+| Edit label    | Inline text field in the node header (`nodrag`)                                          |
+| Reorder       | Drag a node up/down — order is top-to-bottom vertical position                           |
+| Delete step   | Per-node `×` control (`nodrag`)                                                          |
+| Send to robot | Toolbar button → publishes the sequence **and a start command** so the robot runs it now |
 
-| Action        | How                                                       |
-| ------------- | --------------------------------------------------------- |
-| Add step      | "Add step" toolbar button → appends a default step node   |
-| Edit factors  | Slider/number controls inside the node (range −1…1)       |
-| Edit label    | Inline text field in the node header                      |
-| Reorder       | Drag an edge to rewire, or drag nodes; order = edge chain |
-| Delete step   | Per-node delete control (or select + Backspace)           |
-| Send to robot | Toolbar button → publishes the linearized sequence        |
+**Order semantics:** the sequence order is the steps' **top-to-bottom vertical
+position** — `serializeSequence` sorts step nodes by their `y`. The edges are
+faint dashed guide lines showing each step flows into the robot; they do not
+encode order. (Interactive node controls carry React Flow's `nodrag` class so
+using a slider adjusts its value instead of dragging the node box.)
 
-**Order semantics:** the sequence is the **single linear path** from the Start
-node to the Robot node, walked edge-by-edge. If the graph is not one valid path
-(a branch, cycle, or disconnected node), **Send to robot** is disabled with an
-inline hint ("Connect all steps into a single chain"). This keeps "the graph IS
-the sequence" honest and demonstrates React Flow's wiring meaningfully.
-
-**Empty state:** if configured with an empty default sequence, the canvas shows
-just `Start → Robot` and an "Add step" prompt.
+**Empty state:** an empty default sequence shows just the Robot node and an
+"Add step" prompt.
 
 ---
 
@@ -137,8 +146,8 @@ just `Start → Robot` and an "Add step" prompt.
 ### 4.1 Node types
 
 ```typescript
-/** Discriminator for the widget's React Flow node types. */
-type ChoreoNodeType = "start" | "step" | "robot";
+/** The widget's React Flow node types. */
+type ChoreoNodeType = "step" | "robot";
 
 /** Data carried by a `step` node — one StepSpec the user is editing. */
 interface StepNodeData {
@@ -153,42 +162,43 @@ interface StepNodeData {
 }
 ```
 
-`start` and `robot` are fixed, single-instance anchor nodes with no editable
-data (the `robot` node hosts the **Send to robot** affordance; the `start` node
-is the chain's head).
+`robot` is a fixed, single-instance sink node that renders the live MuJoCo
+frame. There is no `start` node.
 
 ### 4.2 Edges
 
-Plain default React Flow edges. Each step node exposes exactly **one target
-handle** (left) and **one source handle** (right); `start` has a source only,
-`robot` a target only. This handle topology naturally constrains the graph
-toward a single chain (a node can sit in only one position in the path).
+One edge per step, `step → robot` (fan-in). Each step node has a single **source
+handle** (right); `robot` has a single **target handle** (left). Edges are
+decorative (they show flow into the robot); the sequence order comes from node
+position, not the edges.
 
 ### 4.3 Serialization (graph → sequence)
 
 ```typescript
-/** Walk start→robot, emitting one StepSpecPayload per step node in path order. */
-function serializeSequence(nodes, edges): StepSpecPayload[];
+/** Emit one StepSpecPayload per step node, ordered top-to-bottom by y. */
+function serializeSequence(nodes): StepSpecPayload[];
 ```
 
-Maps each `step` node on the path to the existing wire type
+Maps each `step` node (sorted by vertical position) to the existing wire type
 (`useReachy.ts` `StepSpecPayload`):
 
 ```typescript
 { label, roll_factor: rollFactor, z_factor: zFactor, antenna_factor: antennaFactor }
 ```
 
-`start`/`robot` nodes contribute nothing to the payload.
+The `robot` node contributes nothing to the payload.
 
 ---
 
 ## 5. Data Contract
 
 **Publishes** to `reachy/control` (the existing control channel) on **Send to
-robot**:
+robot** — the sequence **plus a `start` command**, so the robot immediately runs
+the edited choreography:
 
 ```json
 {
+  "command": "start",
   "sequence": [
     {
       "label": "tilt_right",
@@ -206,16 +216,20 @@ robot**:
 }
 ```
 
-This is the existing `ReachyControlPayload.sequence` field. The backend's
-`_set_sequence` (`consumers.py`) validates and applies it — **already
-implemented, no change needed**. The ws-bridge fans the publish back to all
-subscribers, so other widgets (and `useReachy`) stay consistent automatically.
+These are existing `ReachyControlPayload` fields. The backend's control handler
+applies params (`_set_sequence`) **then** the command (`_handle_command`) in one
+message, so the sequence is applied and a run is launched — **already
+implemented, no backend change needed**. The ws-bridge fans the publish back to
+all subscribers, so other widgets (and `useReachy`) stay consistent.
+
+**Why auto-run:** the widget is a dedicated "send this dance to the robot"
+action, so publishing the sequence without running it left users seeing no
+change. Bundling `command: "start"` makes Send visibly perform the edited
+choreography.
 
 **Publish trigger:** explicit **Send to robot** button only — NOT on every node
 edit. Authoring a dance is a deliberate, multi-edit act; publishing on each
-keystroke would flood the backend and apply half-built sequences. (Contrast with
-`ParameterController`, which publishes per-change because each control is an
-independent live value.)
+keystroke would flood the backend and apply half-built sequences.
 
 **No read-back in v1:** the widget initializes from a static default sequence,
 not from the backend's current sequence. Reading the active sequence back is an
@@ -227,8 +241,8 @@ open question (§13) deferred until there is a channel that carries it.
 
 ### 6.1 Mount
 
-Initialize nodes/edges from the `defaultSequence` prop: build a `start` node, one
-`step` node per entry, a `robot` node, and edges linking them into a chain. Does
+Initialize nodes/edges from the `defaultSequence` prop: one `step` node per
+entry stacked vertically, a `robot` node, and one `step → robot` edge each. Does
 **not** publish on mount.
 
 ### 6.2 Edit
@@ -238,18 +252,26 @@ Node edits update local React Flow state only (controlled `nodes`/`edges` via
 
 ### 6.3 Add / delete / reorder
 
-- **Add:** append a new `step` node with a default label (`step_N`) and zero
-  factors; auto-connect it before the `robot` node.
-- **Delete:** remove the node and heal the chain (reconnect its neighbours).
-- **Reorder:** user rewires edges; the path is recomputed from edges on publish.
+- **Add:** append a new `step` node (label `step_N`, zero factors) below the
+  others, wired into the robot.
+- **Delete:** remove the node and its edge into the robot.
+- **Reorder:** drag a node up/down — order is recomputed from vertical position
+  on Send.
 
 ### 6.4 Send to robot
 
-Validate the graph is a single `start → … → robot` path. If valid, serialize and
-`publish("reachy/control", { sequence })`. If invalid, the button is disabled
-with an inline hint; no publish occurs.
+Serialize the step nodes (by `y`) and `publish("reachy/control", { sequence,
+command: "start" })`. Always enabled — there is no chain to validate.
 
-### 6.5 Disconnected EventBus
+### 6.5 Robot node (live render)
+
+The `robot` node subscribes to `reachy/frame` via `useChannel` and shows the
+latest frame, so a run's motion appears in the flow. Before any frame it shows a
+"Send a choreography and press Start" placeholder. (Note: frames only stream
+while a run executes, so there is no instant per-slider preview — a live-preview
+renderer would be a backend follow-up.)
+
+### 6.6 Disconnected EventBus
 
 `usePublish` is a no-op when the bus is down (same as every other widget) — no
 special handling.
@@ -321,7 +343,7 @@ opens showing the dance the robot already performs.
   fresh, so exact pins avoid drift). Latest `@xyflow/react` 12.x at
   implementation time.
 - Import its stylesheet (`@xyflow/react/dist/style.css`) once in the widget
-  module, then override with brand tokens in `shell.css`.
+  module, then override with brand tokens in the co-located CSS.
 
 ---
 
@@ -329,32 +351,30 @@ opens showing the dance the robot already performs.
 
 ```
 examples/reachy_mini/frontend/src/
-  ChoreographyFlowWidget.tsx        # CHOREOGRAPHY_FLOW def + ChoreographyFlowComponent
-  ChoreographyFlowWidget.test.tsx   # Vitest unit tests
-  nodes/
-    StepNode.tsx                    # custom React Flow node (label + 3 factor controls)
-    StartNode.tsx, RobotNode.tsx    # fixed anchor nodes (Robot hosts "Send to robot")
-  shell.css                         # add reachy-choreo-* rules + React Flow theming
+  choreography.ts                   # pure graph logic (build/serialize/add/remove)
+  choreography.test.ts              # pure-logic unit tests
+  ChoreographyFlowWidget.tsx        # CHOREOGRAPHY_FLOW def + component + Step/Robot nodes
+  ChoreographyFlowWidget.test.tsx   # component unit tests
+  ChoreographyFlowWidget.css        # co-located reachy-choreo-* rules + React Flow theming
   main.tsx                          # register + place CHOREOGRAPHY_FLOW
 package.json                        # add @xyflow/react
 ```
 
-Separating `nodes/` (the React Flow plumbing) from the widget shell keeps the
-choreography-specific node content isolated — making a **future extraction of a
-generic flow primitive low-friction** (§12).
+The pure graph logic lives in `choreography.ts` (no React/React Flow runtime),
+so it is unit-testable without a DOM and a **future generic flow primitive is a
+low-friction extraction** (§12).
 
 ---
 
 ## 11. Accessibility & Styling
 
-- **Styling:** override React Flow's default CSS with the brand tokens already
-  in `shell.css` (`--card`, `--border`, `--ring`, `--primary`, `--radius`).
-  Node bodies use `--card`; edges/handles use `--ring`/`--primary`. Respect the
-  existing `prefers-reduced-motion` block.
+- **Styling:** override React Flow's default CSS with the brand tokens in the
+  co-located `ChoreographyFlowWidget.css` (`--card`, `--border`, `--ring`,
+  `--primary`, `--radius`). Node bodies use `--card`; edges are faint dashed
+  brand lines. Co-located (not `shell.css`) so it loads in tests too.
 - **Class naming:** `reachy-choreo-node`, `reachy-choreo-node-header`,
-  `reachy-choreo-factor`, `reachy-choreo-toolbar`, etc. Per the CSS-not-inline
-  convention established earlier, dynamic values (if any) go through CSS custom
-  properties; static rules live in `shell.css`.
+  `reachy-choreo-factor`, `reachy-choreo-toolbar`, `reachy-choreo-robot`, etc.
+  Interactive controls also carry React Flow's `nodrag` class.
 - **Selectors / `data-testid`:** prefer accessible selectors (`getByRole`,
   `getByLabelText`) for the editable controls (label input, factor
   sliders/inputs, toolbar buttons). The React Flow **canvas** has no semantic
@@ -373,8 +393,8 @@ generic flow primitive low-friction** (§12).
   designing that abstraction against a single consumer risks baking in wrong
   assumptions. Revisit once the **drone example** exists to challenge the design
   (per the agreed "first version, revisit when we have more material" approach).
-  The `nodes/` separation (§10) keeps the extraction cheap when that time comes.
-- **Branching / parallel / looping sequences.** v1 is a single linear chain.
+  The `choreography.ts` pure-logic split (§10) keeps the extraction cheap.
+- **Branching / parallel / looping sequences.** v1 is a flat ordered list.
 - **Persistence** of authored sequences (disk or `localStorage`).
 - **Per-step duration / easing.** Duration stays global (`step_duration_s`).
 - **Read-back of the active sequence — HIGH-PRIORITY follow-up (not v1).**
@@ -389,14 +409,18 @@ generic flow primitive low-friction** (§12).
 
 ## 13. Resolved Decisions (reviewed)
 
-These were open questions during review; the answers below are the agreed
-decisions the implementation follows.
+These were open questions during review; the answers below are the decisions the
+implementation follows. **Note:** the layout evolved during implementation review
+from the originally-approved `Start → chain → Robot` model to a **fan-in** model
+(no `Start`, each step → robot, order by position) — see decision 1 and §3.
 
-1. **Order source → edge-chain traversal with a single-path constraint.** Edges
-   carry the meaning (the graph _is_ the sequence). Each step node has exactly
-   one target + one source handle, so branches are hard to create by
-   construction; **Send to robot** is disabled with an inline hint if the graph
-   is not a single `Start → … → Robot` path. (Not position-based ordering.)
+1. **Order source → vertical position (fan-in), not an edge chain.** The
+   originally-approved edge-chain model (`Start → step → … → Robot`) proved
+   confusing in review — the `Start` node and internal chaining read as
+   misleading. Final model: **no `Start` node**; each step wires **directly into
+   the robot**, and order is the steps' top-to-bottom `y` position. Edges are
+   faint dashed guide lines. This matches the reactflow.dev "inputs → output"
+   layout the widget is modelled on.
 2. **Factor range → −1…1, kept non-configurable for v1.** The `DEFAULT_SEQUENCE`
    only uses values in −1…1, and factors multiply the max safe amplitudes, so
    ±1 is the sane envelope. Hard-coded (no config prop) to keep the first
@@ -406,6 +430,14 @@ decisions the implementation follows.
    feedback.
 4. **Placement → `main` region.** The canvas needs width to pan/zoom and show
    several steps; a sidebar is too narrow. It is the interactive centerpiece.
+5. **Send auto-runs.** Send publishes `{ sequence, command: "start" }` so the
+   robot immediately performs the edited dance — publishing without running left
+   users seeing no change.
+6. **Robot node shows the live render.** The output node displays the live
+   `reachy/frame` MuJoCo image, so motion is visible in the flow during a run.
+7. **Interactive controls carry `nodrag`.** Sliders/inputs/buttons inside nodes
+   use React Flow's `nodrag` class so interacting with them adjusts the value
+   instead of dragging the node.
 
 ---
 
@@ -414,14 +446,13 @@ decisions the implementation follows.
 Vitest unit tests (`ChoreographyFlowWidget.test.tsx`), following
 `SafetyStatusWidget.test.tsx` / `RunControlsWidget.test.tsx`:
 
-- renders the default sequence as N step nodes + Start + Robot
-- "Add step" appends a node connected before Robot
-- editing a factor control updates that node's data (clamped to −1…1)
-- editing a label updates the node header
-- delete removes a node and heals the chain
-- **Send to robot** publishes `{ sequence }` with steps in path order
-- Send is disabled (no publish) when the graph is not a single valid chain
-- does NOT publish on mount or on edit — only on Send
+- pure logic (`choreography.test.ts`): `buildInitialGraph` makes a step node per
+  entry + one robot (no start) with `step → robot` edges; `serializeSequence`
+  returns steps top-to-bottom; `addStep`/`removeStep` grow/shrink the graph;
+  `clampFactor` bounds to −1…1
+- component (`ChoreographyFlowWidget.test.tsx`): renders Add step / Send to robot;
+  **Send** publishes `{ sequence, command: "start" }` with steps in order;
+  "Add step" grows the published sequence by one; does NOT publish on mount
 - serialized payload matches `StepSpecPayload[]` shape exactly
 
 React Flow rendering is mounted in the test runtime; assertions target the
@@ -432,30 +463,28 @@ accessible controls and (for canvas-level checks) `data-testid` hooks.
 ## 15. Implementation Checklist
 
 ```
-- [ ] Task 1: Dependency + scaffolding
-      - [ ] Add @xyflow/react (exact pin) to example frontend package.json
-      - [ ] Import @xyflow/react/dist/style.css in the widget module
+- [x] Task 1: Dependency + scaffolding
+      - [x] Add @xyflow/react (exact pin) to example frontend package.json
+      - [x] Import @xyflow/react/dist/style.css in the widget module
 
-- [ ] Task 2: Node components (nodes/)
-      - [ ] StepNode: label input + roll/z/antenna controls (clamp −1…1), handles
-      - [ ] StartNode (source handle), RobotNode (target handle + Send button)
+- [x] Task 2: Pure graph logic (choreography.ts, TDD)
+      - [x] buildInitialGraph: step nodes + robot, step → robot edges (no start)
+      - [x] serializeSequence: step nodes ordered by vertical position
+      - [x] addStep / removeStep; clampFactor (−1…1)
 
-- [ ] Task 3: ChoreographyFlowComponent
-      - [ ] Props: channel, defaultSequence
-      - [ ] Build initial nodes/edges from defaultSequence
-      - [ ] useNodesState/useEdgesState; add/delete/reorder handlers
-      - [ ] serializeSequence (walk start→robot)
-      - [ ] validateSinglePath; disable Send + hint when invalid
-      - [ ] Send to robot → usePublish(channel, { sequence })
+- [x] Task 3: ChoreographyFlowComponent + nodes
+      - [x] StepNode (label + roll/z/antenna sliders, all `nodrag`), RobotNode
+            (live reachy/frame render via useChannel)
+      - [x] Props: channel, defaultSequence
+      - [x] useNodesState/useEdgesState; add/delete/reorder handlers
+      - [x] Send to robot → publish(channel, { sequence, command: "start" })
 
-- [ ] Task 4: CHOREOGRAPHY_FLOW WidgetDefinition + register in main.tsx
-      - [ ] Place in main region with the default greeting sequence
+- [x] Task 4: CHOREOGRAPHY_FLOW WidgetDefinition + register in main.tsx (main region)
 
-- [ ] Task 5: Styling (shell.css)
-      - [ ] reachy-choreo-* classes; React Flow brand theming; reduced-motion
+- [x] Task 5: Styling (co-located ChoreographyFlowWidget.css)
+      - [x] reachy-choreo-* classes; dashed edges; brand theming
 
-- [ ] Task 6: Tests (see §14)
+- [x] Task 6: Tests (see §14)
 
-- [ ] Task 7: Quality gate
-      - [ ] npm run typecheck / lint / test:ui / format:check
+- [x] Task 7: Quality gate — typecheck / lint / test:ui / format:check
 ```
