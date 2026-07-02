@@ -66,6 +66,9 @@ function FactorRow({
       <span className="reachy-choreo-factor-label">{label}</span>
       <input
         type="range"
+        // `nodrag` so dragging the slider adjusts the value instead of moving
+        // the React Flow node.
+        className="nodrag"
         aria-label={label}
         min={FACTOR_MIN}
         max={FACTOR_MAX}
@@ -89,14 +92,14 @@ function StepNode({ data }: NodeProps) {
     <div className="reachy-choreo-node">
       <div className="reachy-choreo-node-header">
         <input
-          className="reachy-choreo-node-label"
+          className="reachy-choreo-node-label nodrag"
           aria-label="Step label"
           value={step.label}
           onChange={(e) => patch({ label: e.currentTarget.value })}
         />
         <button
           type="button"
-          className="reachy-choreo-node-delete"
+          className="reachy-choreo-node-delete nodrag"
           aria-label={`Delete step ${step.label}`}
           onClick={() => id && deleteStep(id)}
         >
@@ -201,8 +204,13 @@ function ChoreographyFlowInner({
     setEdges(next.edges);
   }, [setNodes, setEdges]);
 
+  // Publish the authored sequence *and* start a run, so the robot immediately
+  // performs the edited choreography (the backend applies params then command).
   const handleSend = useCallback(() => {
-    publish(channel, { sequence: serializeSequence(nodesRef.current) });
+    publish(channel, {
+      sequence: serializeSequence(nodesRef.current),
+      command: "start",
+    });
   }, [channel, publish]);
 
   const nodeTypes = useMemo<NodeTypes>(

@@ -140,7 +140,10 @@
   border: 1px solid var(--primary);
 }
 
+/* Faint dashed "imaginary" guide lines from each step into the robot. */
 .reachy-choreo .react-flow__edge-path {
-  stroke: color-mix(in srgb, var(--primary) 55%, var(--ring));
-  stroke-width: 2;
+  stroke: color-mix(in srgb, var(--primary) 40%, var(--ring));
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+  opacity: 0.65;
 }

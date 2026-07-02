@@ -47,14 +47,17 @@ async function renderWidget(defaultSequence: StepSpecPayload[] = SEQ) {
   return { socket };
 }
 
-/** Extract the `sequence` payloads published to reachy/control. */
-function publishedSequences(socket: FakeWebSocket): StepSpecPayload[][] {
+/** Full sequence-carrying payloads published to reachy/control. */
+function publishedPayloads(
+  socket: FakeWebSocket,
+): { sequence: StepSpecPayload[]; command?: string }[] {
   return socket.sent
     .map((raw) => JSON.parse(raw) as Record<string, unknown>)
     .filter((m) => m.action === "publish" && m.channel === "reachy/control")
-    .map((m) => m.payload as { sequence?: StepSpecPayload[] })
-    .filter((p): p is { sequence: StepSpecPayload[] } => Array.isArray(p.sequence))
-    .map((p) => p.sequence);
+    .map((m) => m.payload as { sequence?: StepSpecPayload[]; command?: string })
+    .filter((p): p is { sequence: StepSpecPayload[]; command?: string } =>
+      Array.isArray(p.sequence),
+    );
 }
 
 describe("ChoreographyFlow widget", () => {
@@ -73,17 +76,20 @@ describe("ChoreographyFlow widget", () => {
       .toBeInTheDocument();
   });
 
-  it("publishes the default sequence to reachy/control on Send", async () => {
+  it("publishes the sequence and a start command on Send (so the robot runs it)", async () => {
     const { socket } = await renderWidget();
 
     await page.getByRole("button", { name: "Send to robot" }).click();
 
-    const sequences = publishedSequences(socket);
-    expect(sequences).toHaveLength(1);
-    expect(sequences[0]).toEqual([
-      { label: "tilt_right", roll_factor: 1, z_factor: 0, antenna_factor: 0 },
-      { label: "tilt_left", roll_factor: 0, z_factor: 0, antenna_factor: 0 },
-    ]);
+    const payloads = publishedPayloads(socket);
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toEqual({
+      command: "start",
+      sequence: [
+        { label: "tilt_right", roll_factor: 1, z_factor: 0, antenna_factor: 0 },
+        { label: "tilt_left", roll_factor: 0, z_factor: 0, antenna_factor: 0 },
+      ],
+    });
   });
 
   it("adds a step so the published sequence grows by one", async () => {
@@ -92,12 +98,11 @@ describe("ChoreographyFlow widget", () => {
     await page.getByRole("button", { name: "Add step" }).click();
     await page.getByRole("button", { name: "Send to robot" }).click();
 
-    const sequences = publishedSequences(socket);
-    expect(sequences[0]).toHaveLength(3);
+    expect(publishedPayloads(socket)[0].sequence).toHaveLength(3);
   });
 
   it("does not publish on mount", async () => {
     const { socket } = await renderWidget();
-    expect(publishedSequences(socket)).toHaveLength(0);
+    expect(publishedPayloads(socket)).toHaveLength(0);
   });
 });
