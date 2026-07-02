@@ -376,25 +376,36 @@ generic flow primitive low-friction** (§12).
   The `nodes/` separation (§10) keeps the extraction cheap when that time comes.
 - **Branching / parallel / looping sequences.** v1 is a single linear chain.
 - **Persistence** of authored sequences (disk or `localStorage`).
-- **Read-back** of the backend's currently-active sequence into the canvas.
 - **Per-step duration / easing.** Duration stays global (`step_duration_s`).
+- **Read-back of the active sequence — HIGH-PRIORITY follow-up (not v1).**
+  There is no channel today that carries the full resolved sequence, and adding
+  one is a backend change we keep out of v1. But this is the top follow-up right
+  after merge: the backend should echo its resolved sequence on a channel (e.g.
+  `reachy/choreography`) that the widget subscribes to, so the canvas visibly
+  updates when the **AI** (or a preset) rewrites the choreography. That visual
+  feedback is a strong AI demo, so it should land soon after this PR.
 
 ---
 
-## 13. Open Questions (for review)
+## 13. Resolved Decisions (reviewed)
 
-1. **Order source:** edge-chain traversal (proposed) vs. a simpler
-   left-to-right-by-position ordering. Edge traversal is more "React Flow,"
-   position is simpler/less error-prone. Recommendation: edge traversal with the
-   single-path constraint.
-2. **Factor range:** confirm −1…1 is the intended multiplier range (the
-   `DEFAULT_SEQUENCE` uses 1.0 / −1.0 / 0.5). Should it be configurable per
-   deployment?
-3. **Read-back:** is it worth adding a channel that carries the active sequence
-   so the widget reflects AI/preset changes, or is "author-and-send" enough for
-   v1?
-4. **Placement:** `main` region (large canvas, proposed) vs. a sidebar. The
-   canvas wants width, so `main` is recommended.
+These were open questions during review; the answers below are the agreed
+decisions the implementation follows.
+
+1. **Order source → edge-chain traversal with a single-path constraint.** Edges
+   carry the meaning (the graph _is_ the sequence). Each step node has exactly
+   one target + one source handle, so branches are hard to create by
+   construction; **Send to robot** is disabled with an inline hint if the graph
+   is not a single `Start → … → Robot` path. (Not position-based ordering.)
+2. **Factor range → −1…1, kept non-configurable for v1.** The `DEFAULT_SEQUENCE`
+   only uses values in −1…1, and factors multiply the max safe amplitudes, so
+   ±1 is the sane envelope. Hard-coded (no config prop) to keep the first
+   version simple — lift the limit later only if it proves too restrictive.
+3. **Read-back → out of v1; high-priority follow-up.** See §12 — author-and-send
+   for now, backend echo channel to follow soon after merge for AI visual
+   feedback.
+4. **Placement → `main` region.** The canvas needs width to pan/zoom and show
+   several steps; a sidebar is too narrow. It is the interactive centerpiece.
 
 ---
 

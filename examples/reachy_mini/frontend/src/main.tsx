@@ -16,6 +16,7 @@ import { ROBOT_VIEW } from "./RobotViewWidget";
 import { RUN_CONTROLS } from "./RunControlsWidget";
 import { SAFETY_STATUS } from "./SafetyStatusWidget";
 import { CONNECTION_STATUS } from "./ConnectionStatusWidget";
+import { CHOREOGRAPHY_FLOW } from "./ChoreographyFlowWidget";
 // globals.css first so the example's shell.css :root brand overrides win.
 import "@/globals.css";
 import "./shell.css";
@@ -29,6 +30,7 @@ registry.register(ROBOT_VIEW);
 registry.register(RUN_CONTROLS);
 registry.register(SAFETY_STATUS);
 registry.register(CONNECTION_STATUS);
+registry.register(CHOREOGRAPHY_FLOW);
 
 /** Choreography parameter sliders, published to ``reachy/control``. */
 const CHOREOGRAPHY_PARAMETERS: Record<string, ParameterConfig> = {
@@ -138,7 +140,7 @@ const initialLayout: ShellLayout = {
           order: 0,
           // Compact banner: keep this slim so the chart starts right below it
           // instead of leaving dead space under the status card.
-          size: 12,
+          size: 10,
         },
         {
           id: "telemetry-chart",
@@ -164,7 +166,29 @@ const initialLayout: ShellLayout = {
             ],
           },
           order: 1,
-          size: 54,
+          size: 30,
+        },
+        {
+          id: "choreography-flow",
+          type: "ChoreographyFlow",
+          props: {
+            channel: "reachy/control",
+            // Mirrors the backend's DEFAULT_SEQUENCE so the canvas opens on the
+            // dance the robot already performs.
+            defaultSequence: [
+              { label: "tilt_right", roll_factor: 1.0 },
+              { label: "tilt_left", roll_factor: -1.0 },
+              {
+                label: "raise_tilt_wiggle",
+                roll_factor: 0.5,
+                z_factor: 1.0,
+                antenna_factor: 1.0,
+              },
+              { label: "home" },
+            ],
+          },
+          order: 2,
+          size: 36,
         },
         {
           id: "safety-table",
@@ -191,8 +215,8 @@ const initialLayout: ShellLayout = {
               },
             ],
           },
-          order: 2,
-          size: 34,
+          order: 3,
+          size: 24,
         },
       ],
     },

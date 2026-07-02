@@ -1,0 +1,146 @@
+/* Choreography Flow widget. Co-located with the component (imported there) so
+   the layout/theming loads wherever the widget renders — app and tests alike.
+   Brand tokens (--card/--border/--ring/--primary/--radius) match the rest of
+   the example; React Flow's own classes are re-skinned to the brand palette. */
+
+.reachy-choreo {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  font-family: var(--font-sans, sans-serif);
+}
+
+/* ─── Toolbar ─── */
+.reachy-choreo-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reachy-choreo-hint {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+/* ─── Step node card ─── */
+.reachy-choreo-node {
+  min-width: 190px;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--primary) 12%, transparent);
+  font-size: 12px;
+  color: var(--foreground);
+}
+
+.reachy-choreo-node-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.reachy-choreo-node-label {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input);
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 600;
+}
+
+.reachy-choreo-node-delete {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.reachy-choreo-node-delete:hover {
+  border-color: var(--destructive, #ef4444);
+  color: var(--destructive, #ef4444);
+}
+
+/* ─── Factor rows ─── */
+.reachy-choreo-factor {
+  display: grid;
+  grid-template-columns: 56px 1fr 34px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.reachy-choreo-factor-label {
+  color: var(--muted-foreground);
+}
+
+.reachy-choreo-factor input[type="range"] {
+  width: 100%;
+  accent-color: var(--ring);
+}
+
+.reachy-choreo-factor-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+/* ─── Robot sink node (live render) ─── */
+.reachy-choreo-robot {
+  width: 180px;
+  padding: 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--primary);
+  background: color-mix(in srgb, var(--ring) 22%, var(--card));
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.reachy-choreo-robot-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+
+.reachy-choreo-robot-img {
+  width: 100%;
+  display: block;
+  border-radius: 6px;
+  background: #000;
+}
+
+.reachy-choreo-robot-placeholder {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary) 8%, var(--card));
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+/* ─── React Flow re-skin ─── */
+.reachy-choreo .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--ring);
+  border: 1px solid var(--primary);
+}
+
+.reachy-choreo .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--primary) 55%, var(--ring));
+  stroke-width: 2;
+}
