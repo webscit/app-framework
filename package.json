@@ -1,5 +1,5 @@
 {
-  "name": "app-framework",
+  "name": "@app-framework/meta",
   "private": true,
   "workspaces": [
     "packages/*",

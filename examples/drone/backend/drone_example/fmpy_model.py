@@ -79,8 +79,7 @@ def load_fmu() -> Fmu | None:
     """
     if not FMU_PATH.exists():
         logger.error(
-            "Drone.fmu not found at %s — run `python -m "
-            "examples.drone.backend.fetch_fmu` first",
+            "Drone.fmu not found at %s — run `python -m drone_example.fetch_fmu` first",
             FMU_PATH,
         )
         return None

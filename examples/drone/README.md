@@ -24,7 +24,7 @@ completely different physics backend (an FMU rather than a bespoke simulator).
 **The FMU is not committed** (it is a ~3.5 MB binary). Fetch it once:
 
 ```bash
-python -m examples.drone.backend.fetch_fmu
+python -m drone_example.fetch_fmu
 ```
 
 FMPy publishes wheels for CPython **3.11–3.12**, and on macOS/Linux it
@@ -50,7 +50,7 @@ which the frontend dev server proxies to:
 
 ```bash
 export OPENROUTER_API_KEY=...        # required for the AI assistant
-PYTHONPATH=. python -m uvicorn examples.drone.backend.main:app --port 8002
+PYTHONPATH=. python -m uvicorn drone_example.main:app --port 8002
 ```
 
 **2. Frontend** (repo root, in another terminal):

@@ -4,7 +4,7 @@ The FMU (~3.5 MB) is a binary runtime asset, so it is **not** committed to this
 repo — it is downloaded on demand into ``examples/drone/backend/`` (gitignored).
 Run this once before starting the backend::
 
-    python -m examples.drone.backend.fetch_fmu
+    python -m drone_example.fetch_fmu
 
 The source is the MIT-licensed ALSETLab/Modelica-Drone-3D-FMI model; see
 ``examples/drone/README.md`` for provenance and licensing.

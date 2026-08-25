@@ -3,15 +3,13 @@ from __future__ import annotations
 import math
 
 import pytest
-from framework_core.bus import EventBus
-
-from examples.drone.backend import fmu_runner
-from examples.drone.backend.events import (
+from drone_example import fmu_runner
+from drone_example.events import (
     DroneStabilityEvent,
     DroneStateEvent,
     DroneTelemetryEvent,
 )
-from examples.drone.backend.fmu_runner import (
+from drone_example.fmu_runner import (
     VR_ATTITUDE,
     VR_POSITION,
     VR_PROP,
@@ -19,7 +17,8 @@ from examples.drone.backend.fmu_runner import (
     VR_VELOCITY,
     run_manoeuvre,
 )
-from examples.drone.backend.manoeuvre import ManoeuvreParams
+from drone_example.manoeuvre import ManoeuvreParams
+from framework_core.bus import EventBus
 
 
 class StubFmu:

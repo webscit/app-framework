@@ -83,7 +83,6 @@ class ChoreographySimulator:
         from importlib.resources import files
 
         import mujoco
-
         import reachy_mini
         from reachy_mini.kinematics import AnalyticalKinematics
         from reachy_mini.utils import create_head_pose

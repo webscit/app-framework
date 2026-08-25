@@ -4,7 +4,7 @@ requires-python = "==3.11.*"
 
 [manifest]
 members = [
-    "app-framework",
+    "app-framework-meta",
     "drone-example",
     "framework-core",
     "reachy-mini-example",
@@ -115,9 +115,15 @@ trio = [
 ]
 
 [[package]]
-name = "app-framework"
+name = "app-framework-meta"
 version = "0.0.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "drone-example" },
+    { name = "framework-core" },
+    { name = "reachy-mini-example" },
+    { name = "simple-example" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -133,6 +139,12 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "drone-example", editable = "examples/drone" },
+    { name = "framework-core", editable = "pypackages/framework-core" },
+    { name = "reachy-mini-example", editable = "examples/reachy_mini" },
+    { name = "simple-example", editable = "examples/simple" },
+]
 
 [package.metadata.requires-dev]
 dev = [

@@ -36,7 +36,7 @@ port 8001, which the frontend dev server proxies to:
 
 ```bash
 export OPENROUTER_API_KEY=...        # required for the AI assistant
-PYTHONPATH=. python -m uvicorn examples.reachy_mini.backend.main:app --port 8001
+PYTHONPATH=. python -m uvicorn reachy_mini_example.main:app --port 8001
 ```
 
 **2. Frontend** (from the repo root, in another terminal):

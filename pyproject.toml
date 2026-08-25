@@ -1,11 +1,16 @@
-[tool.uv.workspace]
-members = ["pypackages/*", "examples/*"]
+
 
 [project]
-name = "app-framework"
+name = "app-framework-meta"
 version = "0.0.0"
 requires-python = ">=3.11"
 readme = "README.md"
+dependencies = [
+  "framework-core",
+  "drone-example",
+  "reachy-mini-example",
+  "simple-example",
+]
 
 [dependency-groups]
 dev = [
@@ -20,19 +25,14 @@ dev = [
   "ruff>=0.4.4",
 ]
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
+[tool.uv.workspace]
+members = ["pypackages/*", "examples/*"]
 
-[tool.ruff]
-line-length = 88
-target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
-
-[tool.ruff.lint.per-file-ignores]
-# AI prompt strings contain intentionally long lines that must not be wrapped.
-"pypackages/framework-core/src/framework_core/ai_layout.py" = ["E501"]
+[tool.uv.sources]
+framework-core = { workspace = true }
+drone-example = { workspace = true }
+reachy-mini-example = { workspace = true }
+simple-example = { workspace = true }
 
 [tool.mypy]
 strict = true
@@ -40,14 +40,17 @@ python_version = "3.11"
 exclude = ["tests/", "examples/"]
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-module = ["tests.*", "examples.*"]
-ignore_errors = true
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
-# FastAPI route/websocket decorators are not fully typed in all FastAPI/mypy
-# version combinations. Suppressing [misc] here avoids false-positive
-# "Untyped decorator makes function untyped" errors without silencing the
-# rest of strict checking in these modules.
-[[tool.mypy.overrides]]
-module = ["framework_core.ws_bridge", "framework_core"]
-disable_error_code = []
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# AI prompt strings contain intentionally long lines that must not be wrapped.
+"pypackages/framework-core/src/framework_core/ai_layout.py" = ["E501"]
