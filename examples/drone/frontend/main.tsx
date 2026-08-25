@@ -9,8 +9,8 @@ import {
   LOG_VIEWER,
   DATA_TABLE,
   createDefaultShellLayout,
-} from "@app-framework/core-ui";
-import type { ParameterConfig, ShellLayout } from "@app-framework/core-ui";
+} from "@sci-framework/core-ui";
+import type { ParameterConfig, ShellLayout } from "@sci-framework/core-ui";
 import { useDrone } from "./useDrone";
 import { TRAJECTORY_VIEW } from "./TrajectoryViewWidget";
 import { RUN_CONTROLS } from "./RunControlsWidget";

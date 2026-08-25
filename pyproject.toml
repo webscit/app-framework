@@ -1,12 +1,12 @@
 
 
 [project]
-name = "app-framework-meta"
+name = "sci-framework-meta"
 version = "0.0.0"
 requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
-  "framework-core",
+  "sci-framework-core",
   "drone-example",
   "reachy-mini-example",
   "simple-example",
@@ -29,7 +29,7 @@ dev = [
 members = ["pypackages/*", "examples/*"]
 
 [tool.uv.sources]
-framework-core = { workspace = true }
+sci-framework-core = { workspace = true }
 drone-example = { workspace = true }
 reachy-mini-example = { workspace = true }
 simple-example = { workspace = true }

@@ -1,6 +1,6 @@
 # Drone — Flight Manoeuvre Stability Validator
 
-A worked example built on the app-framework. It flies a commanded **manoeuvre**
+A worked example built on the sci-framework. It flies a commanded **manoeuvre**
 (a profile of position setpoints) on a quadcopter **FMI co-simulation**
 (`Drone.fmu`, driven by [FMPy](https://github.com/CATIA-Systems/FMPy)), assesses
 each segment against stability/responsiveness limits, streams live telemetry to
@@ -17,7 +17,7 @@ completely different physics backend (an FMU rather than a bespoke simulator).
   per-segment stability assessment (`stability.py`), manoeuvre definition
   (`manoeuvre.py`), the `drone/control` consumer, and the FMPy adapter
   (`fmpy_model.py`).
-- `frontend/` — React dashboard built on `@app-framework/core-ui`.
+- `frontend/` — React dashboard built on `@sci-framework/core-ui`.
 
 ## Prerequisites
 
@@ -97,7 +97,7 @@ run in the repo's default environment:
 
 ```bash
 uv run pytest examples/drone/tests -q      # backend
-npm run test -w @app-framework/drone-frontend -- --run   # frontend
+npm run test -w @sci-framework/drone-frontend -- --run   # frontend
 ```
 
 The FMPy adapter itself (`fmpy_model.py`) is not unit-tested — it requires the

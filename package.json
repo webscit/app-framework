@@ -1,14 +1,14 @@
 {
-  "name": "@app-framework/meta",
+  "name": "@sci-framework/meta",
   "private": true,
   "workspaces": [
     "packages/*",
     "examples/*"
   ],
   "scripts": {
-    "dev:simple": "npm run dev -w @app-framework/simple-example",
-    "dev:reachy-mini": "npm run dev -w @app-framework/reachy-mini-example",
-    "dev:drone": "npm run dev -w @app-framework/drone-example",
+    "dev:simple": "npm run dev -w @sci-framework/simple-example",
+    "dev:reachy-mini": "npm run dev -w @sci-framework/reachy-mini-example",
+    "dev:drone": "npm run dev -w @sci-framework/drone-example",
     "build": "npm run build --workspaces --if-present",
     "format": "prettier --write \"{e2e,examples,packages}/**/*{.ts,.tsx,.js,.jsx,.css,.json}\"",
     "format:check": "prettier --check \"{e2e,examples,packages}/**/*{.ts,.tsx,.js,.jsx,.css,.json}\"",

@@ -6,7 +6,7 @@ version = "0.1.0"
 # Mini stack targets (3.11 at time of writing) — not the repo's 3.14 venv.
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    "framework-core",
+    "sci-framework-core",
     "fastapi",
     "uvicorn",
     "mujoco",
@@ -16,7 +16,7 @@ dependencies = [
 readme = "README.md"
 
 [tool.uv.sources]
-framework-core = { workspace = true }
+sci-framework-core = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

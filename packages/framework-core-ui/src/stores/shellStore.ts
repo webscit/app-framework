@@ -151,7 +151,7 @@ function migrate(): PersistedShape {
 /**
  * Zustand store for saved layout profiles, persisted to `localStorage`.
  *
- * Storage key: `"app-framework:shell-layout"`. **Only `profiles` and
+ * Storage key: `"sci-framework:shell-layout"`. **Only `profiles` and
  * `activeProfileId` are persisted** — the live `workingLayout` is intentionally
  * not, so unsaved drags never touch storage. On load, `workingLayout` is
  * restored from the active profile's snapshot.
@@ -250,7 +250,7 @@ export const useShellLayoutStore = create<ShellLayoutStore>()(
         }),
     }),
     {
-      name: "app-framework:shell-layout",
+      name: "sci-framework:shell-layout",
       version: SHELL_LAYOUT_STORAGE_VERSION,
       // Persist only the saved snapshots + active id. The live working layout is
       // deliberately excluded so unsaved edits never reach localStorage.

@@ -1,5 +1,5 @@
-import { useChannel } from "@app-framework/core-ui";
-import type { WidgetDefinition } from "@app-framework/core-ui";
+import { useChannel } from "@sci-framework/core-ui";
+import type { WidgetDefinition } from "@sci-framework/core-ui";
 import type { ReachySafety } from "./useReachy";
 
 /** Visual treatment for each safety status. */

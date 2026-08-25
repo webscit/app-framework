@@ -1,5 +1,5 @@
-import { useEventBusStatus } from "@app-framework/core-ui";
-import type { WidgetDefinition } from "@app-framework/core-ui";
+import { useEventBusStatus } from "@sci-framework/core-ui";
+import type { WidgetDefinition } from "@sci-framework/core-ui";
 
 const APPEARANCE: Record<string, { label: string; color: string }> = {
   connected: { label: "Connected", color: "#34d399" },

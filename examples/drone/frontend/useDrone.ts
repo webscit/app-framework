@@ -5,8 +5,8 @@ import {
   useEventBusClient,
   useEventBusStatus,
   usePublish,
-} from "@app-framework/core-ui";
-import type { BaseEvent } from "@app-framework/core-ui";
+} from "@sci-framework/core-ui";
+import type { BaseEvent } from "@sci-framework/core-ui";
 
 /**
  * Live flight sample published to ``drone/telemetry`` after each simulation
@@ -121,7 +121,7 @@ const AGGRESSIVE_PRESET: ManoeuvreParams = {
 
 /**
  * Buffers the last `max` merged messages on a channel, oldest first. Lives here
- * (not in `@app-framework/core-ui`) because only the example needs a rolling
+ * (not in `@sci-framework/core-ui`) because only the example needs a rolling
  * window — `useChannel` (latest value only) covers the framework's other uses.
  */
 function useChannelHistory<T>(channel: string, max: number): T[] {

@@ -1,5 +1,5 @@
 {
-  "name": "@app-framework/reachy-mini-example",
+  "name": "@sci-framework/reachy-mini-example",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@app-framework/core-ui": "0.1.0",
+    "@sci-framework/core-ui": "0.1.0",
     "@fontsource-variable/geist": "^5.2.8",
     "@tailwindcss/vite": "^4.2.4",
     "@xyflow/react": "12.11.1",

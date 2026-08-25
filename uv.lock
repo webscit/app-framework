@@ -4,10 +4,10 @@ requires-python = "==3.11.*"
 
 [manifest]
 members = [
-    "app-framework-meta",
     "drone-example",
-    "framework-core",
     "reachy-mini-example",
+    "sci-framework-core",
+    "sci-framework-meta",
     "simple-example",
 ]
 
@@ -112,51 +112,6 @@ wheels = [
 [package.optional-dependencies]
 trio = [
     { name = "trio" },
-]
-
-[[package]]
-name = "app-framework-meta"
-version = "0.0.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "drone-example" },
-    { name = "framework-core" },
-    { name = "reachy-mini-example" },
-    { name = "simple-example" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "anyio", extra = ["trio"] },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pydantic" },
-    { name = "pytest" },
-    { name = "pytest-anyio" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "drone-example", editable = "examples/drone" },
-    { name = "framework-core", editable = "pypackages/framework-core" },
-    { name = "reachy-mini-example", editable = "examples/reachy_mini" },
-    { name = "simple-example", editable = "examples/simple" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "anyio", extras = ["trio"], specifier = ">=4.0" },
-    { name = "fastapi", specifier = ">=0.111" },
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "mypy", specifier = ">=1.10" },
-    { name = "pre-commit", specifier = ">=3.7" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-anyio", specifier = ">=0.0.0" },
-    { name = "ruff", specifier = ">=0.4.4" },
 ]
 
 [[package]]
@@ -366,7 +321,7 @@ source = { editable = "examples/drone" }
 dependencies = [
     { name = "fastapi" },
     { name = "fmpy" },
-    { name = "framework-core" },
+    { name = "sci-framework-core" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -374,7 +329,7 @@ dependencies = [
 requires-dist = [
     { name = "fastapi" },
     { name = "fmpy" },
-    { name = "framework-core", editable = "pypackages/framework-core" },
+    { name = "sci-framework-core", editable = "pypackages/framework-core" },
     { name = "uvicorn", extras = ["standard"] },
 ]
 
@@ -452,23 +407,6 @@ dependencies = [
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/da/29/8d262a6407b8c0ed32fe390aaa67419ec1d48a312777157fdaad9af23daf/fmpy-0.3.31-py3-none-any.whl", hash = "sha256:bed9603d1dc51984150ac00a18b9351f4ed4eced88a5e1eff39b88f99c8bcd4a", size = 6429579, upload-time = "2026-08-13T12:51:46.29Z" },
-]
-
-[[package]]
-name = "framework-core"
-version = "0.1.0"
-source = { editable = "pypackages/framework-core" }
-dependencies = [
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", specifier = ">=0.111" },
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "pydantic", specifier = ">=2.0" },
 ]
 
 [[package]]
@@ -1576,20 +1514,20 @@ version = "0.1.0"
 source = { editable = "examples/reachy_mini" }
 dependencies = [
     { name = "fastapi" },
-    { name = "framework-core" },
     { name = "mujoco" },
     { name = "pillow" },
     { name = "reachy-mini" },
+    { name = "sci-framework-core" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi" },
-    { name = "framework-core", editable = "pypackages/framework-core" },
     { name = "mujoco" },
     { name = "pillow" },
     { name = "reachy-mini" },
+    { name = "sci-framework-core", editable = "pypackages/framework-core" },
     { name = "uvicorn" },
 ]
 
@@ -1763,6 +1701,68 @@ wheels = [
 ]
 
 [[package]]
+name = "sci-framework-core"
+version = "0.1.0"
+source = { editable = "pypackages/framework-core" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.111" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic", specifier = ">=2.0" },
+]
+
+[[package]]
+name = "sci-framework-meta"
+version = "0.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "drone-example" },
+    { name = "reachy-mini-example" },
+    { name = "sci-framework-core" },
+    { name = "simple-example" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "anyio", extra = ["trio"] },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pydantic" },
+    { name = "pytest" },
+    { name = "pytest-anyio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "drone-example", editable = "examples/drone" },
+    { name = "reachy-mini-example", editable = "examples/reachy_mini" },
+    { name = "sci-framework-core", editable = "pypackages/framework-core" },
+    { name = "simple-example", editable = "examples/simple" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "anyio", extras = ["trio"], specifier = ">=4.0" },
+    { name = "fastapi", specifier = ">=0.111" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pre-commit", specifier = ">=3.7" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-anyio", specifier = ">=0.0.0" },
+    { name = "ruff", specifier = ">=0.4.4" },
+]
+
+[[package]]
 name = "scipy"
 version = "1.17.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1797,11 +1797,11 @@ name = "simple-example"
 version = "0.1.0"
 source = { editable = "examples/simple" }
 dependencies = [
-    { name = "framework-core" },
+    { name = "sci-framework-core" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "framework-core", editable = "pypackages/framework-core" }]
+requires-dist = [{ name = "sci-framework-core", editable = "pypackages/framework-core" }]
 
 [[package]]
 name = "sniffio"

@@ -1,6 +1,6 @@
 # Backend Example
 
-Demo backend app built on `framework-core`. Runs a sine-wave producer, a log producer, and mounts the AI layout generation endpoint (`POST /ai/layout`).
+Demo backend app built on `sci-framework-core`. Runs a sine-wave producer, a log producer, and mounts the AI layout generation endpoint (`POST /ai/layout`).
 
 ## Quick start
 

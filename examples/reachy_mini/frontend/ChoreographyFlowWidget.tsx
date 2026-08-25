@@ -13,8 +13,8 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import type { NodeProps, NodeTypes } from "@xyflow/react";
-import { useChannel, useProfileState, usePublish } from "@app-framework/core-ui";
-import type { WidgetDefinition } from "@app-framework/core-ui";
+import { useChannel, useProfileState, usePublish } from "@sci-framework/core-ui";
+import type { WidgetDefinition } from "@sci-framework/core-ui";
 import "@xyflow/react/dist/style.css";
 import "./ChoreographyFlowWidget.css";
 

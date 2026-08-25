@@ -2,9 +2,9 @@ import { act } from "react";
 import { render } from "vitest-browser-react";
 import { page } from "vitest/browser";
 import { describe, expect, it } from "vitest";
-import { EventBusProvider } from "@app-framework/core-ui";
+import { EventBusProvider } from "@sci-framework/core-ui";
 import type { ComponentType } from "react";
-import type { WebSocketLike } from "@app-framework/core-ui";
+import type { WebSocketLike } from "@sci-framework/core-ui";
 
 import { STABILITY_STATUS } from "./StabilityStatusWidget";
 

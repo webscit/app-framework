@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { toPayloadWithHeaders, useEventBusClient } from "@app-framework/core-ui";
-import type { WidgetDefinition } from "@app-framework/core-ui";
+import { toPayloadWithHeaders, useEventBusClient } from "@sci-framework/core-ui";
+import type { WidgetDefinition } from "@sci-framework/core-ui";
 import type { DroneTelemetry } from "./useDrone";
 
 /** How many recent telemetry points the trajectory trail retains. */

@@ -9,7 +9,7 @@ import {
   useShellLayoutStore,
 } from "./shellStore";
 
-const STORAGE_KEY = "app-framework:shell-layout";
+const STORAGE_KEY = "sci-framework:shell-layout";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
-import { useChannel } from "@app-framework/core-ui";
-import type { BaseEvent } from "@app-framework/core-ui";
+import { useChannel } from "@sci-framework/core-ui";
+import type { BaseEvent } from "@sci-framework/core-ui";
 
 /**
  * Sine wave sample published to the ``data/sine`` channel every 100 ms

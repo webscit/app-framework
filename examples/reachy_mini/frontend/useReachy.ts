@@ -4,8 +4,8 @@ import {
   useChannel,
   useEventBusClient,
   usePublish,
-} from "@app-framework/core-ui";
-import type { BaseEvent } from "@app-framework/core-ui";
+} from "@sci-framework/core-ui";
+import type { BaseEvent } from "@sci-framework/core-ui";
 
 /**
  * Live head pose sample published to ``reachy/telemetry`` after each
@@ -122,7 +122,7 @@ const AGGRESSIVE_PRESET: ChoreographyParams = {
 /**
  * Buffers the last `max` merged messages on a channel, oldest first.
  *
- * Lives here rather than in `@app-framework/core-ui` because no other
+ * Lives here rather than in `@sci-framework/core-ui` because no other
  * example currently needs a rolling window — `useChannel` (latest value
  * only) covers every other use case in the framework today.
  */

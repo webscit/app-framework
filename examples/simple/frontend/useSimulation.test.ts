@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWebSocketUrl } from "@app-framework/core-ui";
+import { buildWebSocketUrl } from "@sci-framework/core-ui";
 
 /**
  * Smoke tests for the example frontend wiring.

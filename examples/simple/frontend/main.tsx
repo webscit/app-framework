@@ -9,8 +9,8 @@ import {
   LOG_VIEWER,
   DATA_TABLE,
   createDefaultShellLayout,
-} from "@app-framework/core-ui";
-import type { ShellLayout } from "@app-framework/core-ui";
+} from "@sci-framework/core-ui";
+import type { ShellLayout } from "@sci-framework/core-ui";
 import "./shell.css";
 import "@/globals.css";
 

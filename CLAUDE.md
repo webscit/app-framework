@@ -7,7 +7,7 @@
   - `src/framework_core/bus.py`: `BaseEvent` and in-process `EventBus`.
   - `src/framework_core/ws_bridge.py`: WebSocket bridge (`/ws`) for subscribe/unsubscribe/publish.
   - `src/framework_core/__init__.py`: `create_app()` FastAPI app factory entry point.
-  - `tests/`: framework-core unit tests.
+  - `tests/`: sci-framework-core unit tests.
 - `packages/framework-core-ui/`
   - Reusable TypeScript/React frontend primitives.
   - `src/EventBusContext.tsx`: `EventBusProvider`, URL derivation, context access hook.
@@ -17,12 +17,12 @@
   - `src/useEventBusStatus.ts`: connection status hook.
   - `src/index.ts`: public package exports.
 - `examples/backend/`
-  - Backend demo app using framework-core.
+  - Backend demo app using sci-framework-core.
   - `main.py`: app wiring with lifespan and background tasks.
   - `producers.py`: sine/log demo event producers.
   - `consumers.py`: backend log consumer example.
 - `examples/frontend/`
-  - Frontend demo app using `@app-framework/core-ui`.
+  - Frontend demo app using `@sci-framework/core-ui`.
   - `src/main.tsx`: app entry and provider usage.
   - `src/useSimulation.ts`: app-specific data hook built on top of `useChannel`.
 - `tests/`

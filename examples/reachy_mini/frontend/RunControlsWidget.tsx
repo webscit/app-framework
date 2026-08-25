@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useChannel, usePublish } from "@app-framework/core-ui";
-import type { WidgetDefinition } from "@app-framework/core-ui";
+import { useChannel, usePublish } from "@sci-framework/core-ui";
+import type { WidgetDefinition } from "@sci-framework/core-ui";
 import type { ReachyControlPayload, ReachyState } from "./useReachy";
 
 const PHASE_LABELS: Record<string, string> = {

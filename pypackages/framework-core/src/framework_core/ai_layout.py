@@ -241,8 +241,8 @@ async def call_openrouter(
     headers = {
         "Authorization": f"Bearer {resolved_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/app-framework",
-        "X-Title": "app-framework AI Layout",
+        "HTTP-Referer": "https://github.com/sci-framework",
+        "X-Title": "sci-framework AI Layout",
     }
 
     client_kwargs: dict[str, Any] = {}
