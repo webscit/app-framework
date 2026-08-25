@@ -5,8 +5,8 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from framework_core import create_app
-from framework_core.ai_layout import mount_ai_routes
+from sci_framework_core import create_app
+from sci_framework_core.ai_layout import mount_ai_routes
 
 from .consumers import register_consumers
 from .producers import (

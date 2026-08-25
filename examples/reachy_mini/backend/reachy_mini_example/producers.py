@@ -19,7 +19,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from framework_core.bus import BaseEvent, EventBus
+from sci_framework_core.bus import BaseEvent, EventBus
 
 logger = logging.getLogger(__name__)
 

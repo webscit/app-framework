@@ -13,7 +13,7 @@ import asyncio
 import logging
 from typing import Any
 
-from framework_core.bus import BaseEvent, EventBus
+from sci_framework_core.bus import BaseEvent, EventBus
 
 from .producers import (
     AGGRESSIVE_PRESET,

@@ -23,7 +23,7 @@ from drone_example.manoeuvre import (
     GENTLE_PRESET,
     ManoeuvreParams,
 )
-from framework_core.bus import EventBus
+from sci_framework_core.bus import EventBus
 
 
 class StubFmu:

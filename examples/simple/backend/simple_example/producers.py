@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 from typing import Literal
 
-from framework_core.bus import BaseEvent, EventBus
+from sci_framework_core.bus import BaseEvent, EventBus
 
 
 class SineReading(BaseEvent):  # type: ignore[misc]

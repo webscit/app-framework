@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from framework_core import create_app
-from framework_core.ai_layout import mount_ai_routes
+from sci_framework_core import create_app
+from sci_framework_core.ai_layout import mount_ai_routes
 
 # ─── Fixtures and shared test data ────────────────────────────────────────────
 
@@ -75,7 +75,7 @@ def test_layout_endpoint_returns_layout(
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
     with patch(
-        "framework_core.ai_layout.call_openrouter",
+        "sci_framework_core.ai_layout.call_openrouter",
         new_callable=AsyncMock,
         return_value=_VALID_AI_RESPONSE,
     ):
@@ -103,7 +103,7 @@ def test_layout_endpoint_rejects_unknown_widget(
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
     with patch(
-        "framework_core.ai_layout.call_openrouter",
+        "sci_framework_core.ai_layout.call_openrouter",
         new_callable=AsyncMock,
         return_value=_INVALID_WIDGET_RESPONSE,
     ):
@@ -136,7 +136,7 @@ def test_layout_endpoint_returns_suggested_params_with_snapshot(
     )
 
     with patch(
-        "framework_core.ai_layout.call_openrouter",
+        "sci_framework_core.ai_layout.call_openrouter",
         new_callable=AsyncMock,
         return_value=diagnosis_response,
     ) as mock_call:
@@ -176,7 +176,7 @@ def test_layout_endpoint_without_context_has_no_suggested_params(
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
     with patch(
-        "framework_core.ai_layout.call_openrouter",
+        "sci_framework_core.ai_layout.call_openrouter",
         new_callable=AsyncMock,
         return_value=_VALID_AI_RESPONSE,
     ) as mock_call:
@@ -213,7 +213,7 @@ def test_layout_endpoint_combined_diagnosis_and_layout_change(
     )
 
     with patch(
-        "framework_core.ai_layout.call_openrouter",
+        "sci_framework_core.ai_layout.call_openrouter",
         new_callable=AsyncMock,
         return_value=combined_response,
     ):

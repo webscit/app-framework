@@ -4,7 +4,6 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from framework_core.bus import EventBus
 from reachy_mini_example.consumers import (
     ControlConsumer,
     _set_float,
@@ -18,6 +17,7 @@ from reachy_mini_example.producers import (
     ChoreographyParams,
     ReachyStateEvent,
 )
+from sci_framework_core.bus import EventBus
 
 # run_choreography paces via producers._pace; patch it so lifecycle tests can
 # make a run complete instantly or hang on demand, without touching the global

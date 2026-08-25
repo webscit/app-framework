@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from functools import partial
 
-from framework_core.bus import BaseEvent, EventBus
+from sci_framework_core.bus import BaseEvent, EventBus
 
 from .producers import SineParams
 

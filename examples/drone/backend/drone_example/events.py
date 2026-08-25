@@ -8,7 +8,7 @@ fields) so the same ``DataTable`` row-colouring and status banner work unchanged
 
 from __future__ import annotations
 
-from framework_core.bus import BaseEvent
+from sci_framework_core.bus import BaseEvent
 
 
 class DroneTelemetryEvent(BaseEvent):

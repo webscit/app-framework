@@ -19,7 +19,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from typing import Any
 
-from framework_core.bus import BaseEvent, EventBus
+from sci_framework_core.bus import BaseEvent, EventBus
 
 from .events import DroneLogEvent, DroneStateEvent
 from .fmu_runner import Fmu, run_manoeuvre

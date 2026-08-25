@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from framework_core import create_app
+from sci_framework_core import create_app
 
 
 def test_health_returns_ok() -> None:

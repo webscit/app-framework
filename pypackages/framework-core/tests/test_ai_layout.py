@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 import pytest
-from framework_core.ai_layout import (
+from sci_framework_core.ai_layout import (
     _MAX_TOOL_ROUNDS,
     DEFAULT_MODEL,
     GET_WIDGET_DETAILS_TOOL,

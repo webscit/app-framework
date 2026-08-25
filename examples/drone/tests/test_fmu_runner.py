@@ -18,7 +18,7 @@ from drone_example.fmu_runner import (
     run_manoeuvre,
 )
 from drone_example.manoeuvre import ManoeuvreParams
-from framework_core.bus import EventBus
+from sci_framework_core.bus import EventBus
 
 
 class StubFmu:

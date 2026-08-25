@@ -19,7 +19,7 @@ import logging
 import math
 from typing import Protocol
 
-from framework_core.bus import EventBus
+from sci_framework_core.bus import EventBus
 
 from .events import (
     DroneLogEvent,

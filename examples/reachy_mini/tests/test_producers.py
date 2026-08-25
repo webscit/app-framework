@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from framework_core.bus import EventBus
 from reachy_mini_example.producers import (
     AGGRESSIVE_PRESET,
     DEFAULT_SEQUENCE,
@@ -26,6 +25,7 @@ from reachy_mini_example.producers import (
     publish_idle_frame,
     run_choreography,
 )
+from sci_framework_core.bus import EventBus
 
 if TYPE_CHECKING:
     from conftest import FakeRenderer

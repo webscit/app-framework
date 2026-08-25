@@ -2,7 +2,7 @@
 name = "simple-example"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["sci-framework-core"]
+dependencies = ["sci-framework-core", "fastapi", "uvicorn[standard]"]
 
 [tool.uv.sources]
 sci-framework-core = { workspace = true }
