@@ -280,7 +280,9 @@ async def test_stop_command_cancels_running_task() -> None:
 async def test_start_replaces_running_task() -> None:
     """A second 'start' cancels the first task and starts a fresh one."""
     bus = EventBus()
-    params = ChoreographyParams()
+    # Safe sequence so the run reaches the paced loop instead of returning
+    # immediately on a safety violation (the default sequence is unsafe).
+    params = ChoreographyParams(sequence=list(SAFE_PRESET.sequence))
     consumer = ControlConsumer(bus, params)
 
     async def hang(*_: object, **__: object) -> None:
