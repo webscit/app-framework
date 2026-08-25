@@ -14,15 +14,11 @@ jobs:
   python-quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
           enable-cache: true
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
 
       - name: Install dependencies
         run: uv sync --all-groups
@@ -42,11 +38,11 @@ jobs:
   typescript-quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -54,7 +50,9 @@ jobs:
         # macOS (arm64) and CI runs on Linux (x64). npm ci fails due to a known npm bug
         # with optional dependencies (https://github.com/npm/cli/issues/4828) where
         # platform-specific binaries like @rollup/rollup-linux-x64-gnu are missing.
-        run: rm -f package-lock.json && npm install
+        run: |
+          npm ci || npm install
+          git diff --exit-code package-lock.json
 
       - name: Prettier check
         run: npm run format:check
@@ -68,7 +66,7 @@ jobs:
         run: echo "PLAYWRIGHT_VERSION=$(npx playwright --version | awk '{print $2}')" >> $GITHUB_ENV
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
@@ -81,30 +79,27 @@ jobs:
   package-and-e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
           enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
 
       - name: Install JS dependencies
         # npm install is used instead of npm ci because the lock file is generated on
         # macOS (arm64) and CI runs on Linux (x64). npm ci fails due to a known npm bug
         # with optional dependencies (https://github.com/npm/cli/issues/4828) where
         # platform-specific binaries like @rollup/rollup-linux-x64-gnu are missing.
-        run: rm -f package-lock.json && npm install
+        run: |
+          npm ci || npm install
+          git diff --exit-code package-lock.json
 
       - name: Build Python package
         run: |
@@ -123,7 +118,7 @@ jobs:
         run: echo "PLAYWRIGHT_VERSION=$(npx playwright --version | awk '{print $2}')" >> $GITHUB_ENV
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
@@ -154,7 +149,7 @@ jobs:
 
       - name: Upload Playwright traces
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: playwright-traces
           path: test-results/
@@ -162,14 +157,14 @@ jobs:
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
 
       - name: Upload package wheel
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: package-wheel
           path: pypackages/framework-core/dist/*.whl
