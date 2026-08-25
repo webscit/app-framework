@@ -4,27 +4,26 @@ import math
 from unittest.mock import MagicMock
 
 import pytest
-from framework_core.bus import EventBus
-
-from examples.drone.backend import fmu_runner
-from examples.drone.backend.consumers import (
+from drone_example import fmu_runner
+from drone_example.consumers import (
     ControlConsumer,
     _set_float,
     _set_int,
 )
-from examples.drone.backend.events import DroneStateEvent
-from examples.drone.backend.fmu_runner import (
+from drone_example.events import DroneStateEvent
+from drone_example.fmu_runner import (
     VR_ATTITUDE,
     VR_POSITION,
     VR_PROP,
     VR_TARGET,
     VR_VELOCITY,
 )
-from examples.drone.backend.manoeuvre import (
+from drone_example.manoeuvre import (
     AGGRESSIVE_PRESET,
     GENTLE_PRESET,
     ManoeuvreParams,
 )
+from sci_framework_core.bus import EventBus
 
 
 class StubFmu:

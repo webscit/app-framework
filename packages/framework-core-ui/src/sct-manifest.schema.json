@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://app-framework/schemas/sct-manifest.json",
+  "$id": "https://sci-framework/schemas/sct-manifest.json",
   "title": "SctManifest",
   "description": "Manifest file declaring the widget types provided by a framework-core-ui plugin.",
   "type": "object",
@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "$schema": {
-      "const": "https://app-framework/schemas/sct-manifest.json"
+      "const": "https://sci-framework/schemas/sct-manifest.json"
     },
     "version": {
       "type": "string",

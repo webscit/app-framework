@@ -1,1 +1,10 @@
-examples/frontend/dist
+.*
+**/backend
+**/node_modules
+**/*.md
+dist
+node_modules
+playwright-report
+test-results
+package-lock.json
+site

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import pytest
-
-from examples.drone.backend.manoeuvre import (
+from drone_example.manoeuvre import (
     AGGRESSIVE_PRESET,
     GENTLE_PRESET,
     ManoeuvreParams,

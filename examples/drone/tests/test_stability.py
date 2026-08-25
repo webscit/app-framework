@@ -3,9 +3,8 @@ from __future__ import annotations
 import math
 
 import pytest
-
-from examples.drone.backend.events import DroneStabilityEvent
-from examples.drone.backend.stability import (
+from drone_example.events import DroneStabilityEvent
+from drone_example.stability import (
     SETTLING_VIOLATION_S,
     TILT_VIOLATION_DEG,
     SegmentSample,

@@ -1,6 +1,6 @@
 # Reachy Mini — Head Choreography Safety Validator
 
-A worked example built on the app-framework. It runs a head-movement
+A worked example built on the sci-framework. It runs a head-movement
 choreography against an **in-process MuJoCo simulation** of the Reachy Mini,
 checks each step against safety limits, renders the robot straight into the
 dashboard, and lets an engineer ask the AI assistant to diagnose a failed run
@@ -13,7 +13,7 @@ renders the robot itself and streams frames to the browser over the EventBus.
 
 - `backend/` — FastAPI app: choreography runner, safety checks, and the
   in-process MuJoCo simulator/renderer (`sim.py`).
-- `frontend/` — React dashboard built on `@app-framework/core-ui`.
+- `frontend/` — React dashboard built on `@sci-framework/core-ui`.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ port 8001, which the frontend dev server proxies to:
 
 ```bash
 export OPENROUTER_API_KEY=...        # required for the AI assistant
-PYTHONPATH=. python -m uvicorn examples.reachy_mini.backend.main:app --port 8001
+PYTHONPATH=. python -m uvicorn reachy_mini_example.main:app --port 8001
 ```
 
 **2. Frontend** (from the repo root, in another terminal):

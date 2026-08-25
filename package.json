@@ -1,21 +1,20 @@
 {
-  "name": "app-framework",
+  "name": "@sci-framework/meta",
   "private": true,
   "workspaces": [
-    "packages/framework-core-ui",
-    "examples/frontend",
-    "examples/reachy_mini/frontend",
-    "examples/drone/frontend"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w @app-framework/examples-frontend",
-    "dev:reachy-mini": "npm run dev -w @app-framework/reachy-mini-frontend",
-    "dev:drone": "npm run dev -w @app-framework/drone-frontend",
+    "dev:simple": "npm run dev -w @sci-framework/simple-example",
+    "dev:reachy-mini": "npm run dev -w @sci-framework/reachy-mini-example",
+    "dev:drone": "npm run dev -w @sci-framework/drone-example",
     "build": "npm run build --workspaces --if-present",
-    "format:check": "prettier --check .",
-    "lint": "eslint packages examples/frontend examples/reachy_mini/frontend examples/drone/frontend",
-    "typecheck": "tsc -b packages/framework-core-ui/tsconfig.json examples/frontend/tsconfig.json examples/reachy_mini/frontend/tsconfig.json examples/drone/frontend/tsconfig.json",
-    "test:ui": "npm run test -w @app-framework/core-ui -- --run && npm run test -w @app-framework/examples-frontend -- --run && npm run test -w @app-framework/reachy-mini-frontend -- --run && npm run test -w @app-framework/drone-frontend -- --run",
+    "format": "prettier --write \"{e2e,examples,packages}/**/*{.ts,.tsx,.js,.jsx,.css,.json}\"",
+    "format:check": "prettier --check \"{e2e,examples,packages}/**/*{.ts,.tsx,.js,.jsx,.css,.json}\"",
+    "lint": "eslint packages examples",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "test:e2e": "playwright test"
   },
   "devDependencies": {

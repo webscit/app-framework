@@ -7,7 +7,7 @@
   - `src/framework_core/bus.py`: `BaseEvent` and in-process `EventBus`.
   - `src/framework_core/ws_bridge.py`: WebSocket bridge (`/ws`) for subscribe/unsubscribe/publish.
   - `src/framework_core/__init__.py`: `create_app()` FastAPI app factory entry point.
-  - `tests/`: framework-core unit tests.
+  - `tests/`: sci-framework-core unit tests.
 - `packages/framework-core-ui/`
   - Reusable TypeScript/React frontend primitives.
   - `src/EventBusContext.tsx`: `EventBusProvider`, URL derivation, context access hook.
@@ -17,12 +17,12 @@
   - `src/useEventBusStatus.ts`: connection status hook.
   - `src/index.ts`: public package exports.
 - `examples/backend/`
-  - Backend demo app using framework-core.
+  - Backend demo app using sci-framework-core.
   - `main.py`: app wiring with lifespan and background tasks.
   - `producers.py`: sine/log demo event producers.
   - `consumers.py`: backend log consumer example.
 - `examples/frontend/`
-  - Frontend demo app using `@app-framework/core-ui`.
+  - Frontend demo app using `@sci-framework/core-ui`.
   - `src/main.tsx`: app entry and provider usage.
   - `src/useSimulation.ts`: app-specific data hook built on top of `useChannel`.
 - `tests/`
@@ -48,7 +48,7 @@
   - Frontend example: `npm run dev`
   - Backend example: `uv run uvicorn examples.backend.main:app --reload`
 - Run tests:
-  - TypeScript UI tests: `npm run test:ui`
+  - TypeScript UI tests: `npm run test`
   - Python tests: `pytest -q` (or `uv run pytest`)
   - E2E tests: `npm run test:e2e`
 - Code quality:
@@ -56,7 +56,8 @@
   - TypeScript typecheck: `npm run typecheck`
   - Python lint: `ruff check .`
   - Python typecheck: `mypy pypackages/framework-core/src`
-  - Formatting check: `npm run format:check`
+  - TypeScript Formatting: `npm run format`
+  - TypeScript Formatting check: `npm run format:check`
 
 ## Key Libraries Used
 
@@ -116,6 +117,7 @@
 - Run the full local quality bar before finishing:
   - `ruff check .`
   - `pytest -q`
+  - `npm run format`
   - `npm run lint`
   - `npm run typecheck`
-  - `npm run test:ui`
+  - `npm run test`

@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 import pytest
-from framework_core.ai_layout import (
+from sci_framework_core.ai_layout import (
     _MAX_TOOL_ROUNDS,
     DEFAULT_MODEL,
     GET_WIDGET_DETAILS_TOOL,
@@ -394,7 +394,7 @@ async def test_call_openrouter_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(captured) == 1
     assert "openrouter.ai" in str(captured[0].url)
     assert captured[0].headers["Authorization"] == "Bearer test-key"
-    assert captured[0].headers["HTTP-Referer"] == "https://github.com/app-framework"
+    assert captured[0].headers["HTTP-Referer"] == "https://github.com/sci-framework"
 
     body = json.loads(captured[0].content)
     assert body["model"] == DEFAULT_MODEL

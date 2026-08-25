@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from framework_core import create_app
-from framework_core.bus import BaseEvent
+from sci_framework_core import create_app
+from sci_framework_core.bus import BaseEvent
 
 
 class TemperatureReading(BaseEvent):

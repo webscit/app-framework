@@ -4,26 +4,25 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from framework_core.bus import EventBus
-
-from examples.reachy_mini.backend.consumers import (
+from reachy_mini_example.consumers import (
     ControlConsumer,
     _set_float,
     _set_int,
     _set_sequence,
     register_consumers,
 )
-from examples.reachy_mini.backend.producers import (
+from reachy_mini_example.producers import (
     AGGRESSIVE_PRESET,
     SAFE_PRESET,
     ChoreographyParams,
     ReachyStateEvent,
 )
+from sci_framework_core.bus import EventBus
 
 # run_choreography paces via producers._pace; patch it so lifecycle tests can
 # make a run complete instantly or hang on demand, without touching the global
 # asyncio.sleep the tests themselves use.
-_PACE_TARGET = "examples.reachy_mini.backend.producers._pace"
+_PACE_TARGET = "reachy_mini_example.producers._pace"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -281,7 +280,9 @@ async def test_stop_command_cancels_running_task() -> None:
 async def test_start_replaces_running_task() -> None:
     """A second 'start' cancels the first task and starts a fresh one."""
     bus = EventBus()
-    params = ChoreographyParams()
+    # Safe sequence so the run reaches the paced loop instead of returning
+    # immediately on a safety violation (the default sequence is unsafe).
+    params = ChoreographyParams(sequence=list(SAFE_PRESET.sequence))
     consumer = ControlConsumer(bus, params)
 
     async def hang(*_: object, **__: object) -> None:

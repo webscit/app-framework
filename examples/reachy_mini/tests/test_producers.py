@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from framework_core.bus import EventBus
-
-from examples.reachy_mini.backend.producers import (
+from reachy_mini_example.producers import (
     AGGRESSIVE_PRESET,
     DEFAULT_SEQUENCE,
     DURATION_VIOLATION_S,
@@ -26,11 +25,14 @@ from examples.reachy_mini.backend.producers import (
     publish_idle_frame,
     run_choreography,
 )
-from examples.reachy_mini.tests.conftest import FakeRenderer
+from sci_framework_core.bus import EventBus
+
+if TYPE_CHECKING:
+    from conftest import FakeRenderer
 
 # run_choreography paces itself via producers._pace(step.duration_s); patch it to
 # a no-op so the suite stays fast regardless of preset durations.
-_PACE_TARGET = "examples.reachy_mini.backend.producers._pace"
+_PACE_TARGET = "reachy_mini_example.producers._pace"
 _NO_SLEEP = patch(_PACE_TARGET, new=AsyncMock(return_value=None))
 
 # ─── compute_safety ───────────────────────────────────────────────────────────

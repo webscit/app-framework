@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from framework_core.bus import BaseEvent, EventBus
+from sci_framework_core.bus import BaseEvent, EventBus
 
 
 class TemperatureReading(BaseEvent):

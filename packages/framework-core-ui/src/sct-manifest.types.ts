@@ -8,7 +8,7 @@
  * Manifest file declaring the widget types provided by a framework-core-ui plugin.
  */
 export interface SctManifest {
-  $schema?: "https://app-framework/schemas/sct-manifest.json";
+  $schema?: "https://sci-framework/schemas/sct-manifest.json";
   /**
    * Manifest format version.
    */

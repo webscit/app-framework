@@ -31,12 +31,12 @@ test-results/
 .env
 .env.local
 .env.*
+!.env.example
 examples/**/.env
 
 # Tooling caches
 .cache/
 .e2e-venv/
-uv.lock
 **/.vitest-attachments/
 **/__screenshots__/
 
