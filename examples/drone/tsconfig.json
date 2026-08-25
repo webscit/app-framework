@@ -7,5 +7,5 @@
       "@/*": ["../../packages/framework-core-ui/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["frontend"]
 }

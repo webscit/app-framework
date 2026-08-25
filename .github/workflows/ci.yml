@@ -76,7 +76,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       - name: Run Vitest
-        run: npm run test:ui
+        run: npm run test
 
   package-and-e2e:
     runs-on: ubuntu-latest

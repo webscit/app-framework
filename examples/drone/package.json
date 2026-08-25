@@ -1,5 +1,5 @@
 {
-  "name": "@app-framework/drone-frontend",
+  "name": "@app-framework/drone-example",
   "private": true,
   "version": "0.1.0",
   "type": "module",

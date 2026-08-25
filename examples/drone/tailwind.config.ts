@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 export default {
   content: [
-    "./src/**/*.{ts,tsx}",
+    "./frontend/**/*.{ts,tsx}",
     "../../packages/framework-core-ui/src/**/*.{ts,tsx}",
   ],
 } satisfies Config;

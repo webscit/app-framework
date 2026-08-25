@@ -5,7 +5,7 @@ import { playwright } from "@vitest/browser-playwright";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "../../../packages/framework-core-ui/src"),
+      "@": path.resolve(__dirname, "../../packages/framework-core-ui/src"),
     },
     dedupe: ["react", "react-dom"],
   },
@@ -20,7 +20,7 @@ export default defineConfig({
       instances: [{ browser: "chromium" }],
     },
     globals: true,
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["frontend/**/*.test.{ts,tsx}"],
     exclude: ["dist/**"],
   },
 });

@@ -17,7 +17,7 @@ export default defineConfig({
       configureServer(server) {
         server.middlewares.use("/sct-manifest.json", (_req, res) => {
           const manifest = readFileSync(
-            resolve(__dirname, "../../../packages/framework-core-ui/sct-manifest.json"),
+            resolve(__dirname, "../../packages/framework-core-ui/sct-manifest.json"),
             "utf-8",
           );
           res.setHeader("Content-Type", "application/json");
@@ -28,13 +28,13 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": resolve(__dirname, "../../../packages/framework-core-ui/src"),
+      "@": resolve(__dirname, "../../packages/framework-core-ui/src"),
     },
     dedupe: ["react", "react-dom"],
   },
   server: {
     fs: {
-      allow: [resolve(__dirname, "../../../")],
+      allow: [resolve(__dirname, "../../")],
     },
     proxy: {
       // Port 8000 is taken by the Reachy Mini daemon's own API server

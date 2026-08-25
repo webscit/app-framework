@@ -1,10 +1,11 @@
 [tool.uv.workspace]
-members = ["pypackages/framework-core", "examples/backend"]
+members = ["pypackages/*", "examples/*"]
 
 [project]
 name = "app-framework"
 version = "0.0.0"
 requires-python = ">=3.11"
+readme = "README.md"
 
 [dependency-groups]
 dev = [

@@ -48,7 +48,7 @@
   - Frontend example: `npm run dev`
   - Backend example: `uv run uvicorn examples.backend.main:app --reload`
 - Run tests:
-  - TypeScript UI tests: `npm run test:ui`
+  - TypeScript UI tests: `npm run test`
   - Python tests: `pytest -q` (or `uv run pytest`)
   - E2E tests: `npm run test:e2e`
 - Code quality:
@@ -56,7 +56,8 @@
   - TypeScript typecheck: `npm run typecheck`
   - Python lint: `ruff check .`
   - Python typecheck: `mypy pypackages/framework-core/src`
-  - Formatting check: `npm run format:check`
+  - TypeScript Formatting: `npm run format`
+  - TypeScript Formatting check: `npm run format:check`
 
 ## Key Libraries Used
 
@@ -116,6 +117,7 @@
 - Run the full local quality bar before finishing:
   - `ruff check .`
   - `pytest -q`
+  - `npm run format`
   - `npm run lint`
   - `npm run typecheck`
-  - `npm run test:ui`
+  - `npm run test`
