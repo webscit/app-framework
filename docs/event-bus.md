@@ -1,6 +1,5 @@
 # Event Bus & Real-Time Communication — API Specification
 
-> **Status:** Draft — open for review before implementation  
 > **Context:** Resolves the specification requirement raised in PR #4 review feedback.
 
 ---
