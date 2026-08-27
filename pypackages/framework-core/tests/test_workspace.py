@@ -3,10 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sci_framework_core.workspace import (
     Workspace,
     WorkspaceStore,
     default_workspace_dir,
+    mount_workspace_routes,
 )
 
 
@@ -115,3 +118,84 @@ def test_create_writes_atomically_no_tmp_file_left_behind(
 def test_default_workspace_dir_resolves_under_home() -> None:
     resolved = default_workspace_dir("my-app")
     assert resolved == Path.home() / ".my-app" / "workspaces"
+
+
+@pytest.fixture()
+def client(tmp_path: Path) -> TestClient:
+    """TestClient wired with mount_workspace_routes pointed at a temp dir."""
+    app = FastAPI()
+    mount_workspace_routes(
+        app, app_name="test-app", workspace_dir=tmp_path / "workspaces"
+    )
+    return TestClient(app)
+
+
+def test_post_creates_workspace(client: TestClient) -> None:
+    response = client.post(
+        "/workspaces",
+        json={"name": "My Workspace", "goal": "Test goal"},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "My Workspace"
+    assert body["goal"] == "Test goal"
+    assert "id" in body and "created_at" in body and "updated_at" in body
+
+
+def test_get_list_returns_summaries_sorted_desc(client: TestClient) -> None:
+    first = client.post("/workspaces", json={"name": "First"}).json()
+    client.post("/workspaces", json={"name": "Second"}).json()
+    client.put(f"/workspaces/{first['id']}", json=first)
+
+    response = client.get("/workspaces")
+    assert response.status_code == 200
+    names = [w["name"] for w in response.json()]
+    assert names == ["First", "Second"]
+
+
+def test_get_by_id_returns_created(client: TestClient) -> None:
+    created = client.post("/workspaces", json={"name": "My Workspace"}).json()
+    response = client.get(f"/workspaces/{created['id']}")
+    assert response.status_code == 200
+    assert response.json() == created
+
+
+def test_get_unknown_id_returns_404(client: TestClient) -> None:
+    response = client.get("/workspaces/does-not-exist")
+    assert response.status_code == 404
+
+
+def test_put_updates_and_refreshes_updated_at(client: TestClient) -> None:
+    created = client.post("/workspaces", json={"name": "Old Name"}).json()
+    payload = {**created, "id": "ignored-mismatch", "name": "New Name"}
+
+    response = client.put(f"/workspaces/{created['id']}", json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == created["id"]
+    assert body["name"] == "New Name"
+    assert body["updated_at"] >= created["updated_at"]
+
+
+def test_put_unknown_id_returns_404(client: TestClient) -> None:
+    created = client.post("/workspaces", json={"name": "X"}).json()
+    response = client.put("/workspaces/does-not-exist", json=created)
+    assert response.status_code == 404
+
+
+def test_delete_removes_and_subsequent_get_404s(client: TestClient) -> None:
+    created = client.post("/workspaces", json={"name": "To Delete"}).json()
+    delete_response = client.delete(f"/workspaces/{created['id']}")
+    assert delete_response.status_code == 204
+    assert client.get(f"/workspaces/{created['id']}").status_code == 404
+
+
+def test_delete_unknown_id_returns_404(client: TestClient) -> None:
+    response = client.delete("/workspaces/does-not-exist")
+    assert response.status_code == 404
+
+
+def test_malformed_body_returns_422(client: TestClient) -> None:
+    response = client.post("/workspaces", json={"goal": "missing name"})
+    assert response.status_code == 422

@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 # ─── Data model ───────────────────────────────────────────────────────────────
@@ -193,3 +194,126 @@ class WorkspaceStore:
             return False
         path.unlink()
         return True
+
+
+# ─── Request models ───────────────────────────────────────────────────────────
+
+
+class CreateWorkspaceRequest(BaseModel):
+    """Request body for ``POST /workspaces``.
+
+    Attributes:
+        name: Display name for the new workspace.
+        goal: Optional free-text goal description.
+    """
+
+    name: str
+    goal: str | None = None
+
+
+# ─── Route mounting ───────────────────────────────────────────────────────────
+
+
+def mount_workspace_routes(
+    app: FastAPI, app_name: str, workspace_dir: Path | None = None
+) -> None:
+    """Mount workspace persistence CRUD endpoints onto the given FastAPI app.
+
+    Call once after ``create_app()``:
+
+    .. code-block:: python
+
+        app = create_app(lifespan=lifespan)
+        mount_workspace_routes(app, app_name="drone")
+
+    Args:
+        app: FastAPI application instance to attach routes to.
+        app_name: Application identifier used to derive the default storage
+            directory (``~/.{app_name}/workspaces``) when ``workspace_dir``
+            is not given. Each example app should supply its own so sibling
+            apps never collide on the same machine.
+        workspace_dir: Explicit storage directory, overriding the default
+            derived from ``app_name``. Primarily for tests.
+    """
+    store = WorkspaceStore(workspace_dir or default_workspace_dir(app_name))
+
+    @app.post(
+        "/workspaces",
+        response_model=Workspace,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def create_workspace(request: CreateWorkspaceRequest) -> Workspace:
+        """Create a new workspace.
+
+        Args:
+            request: Name and optional goal for the new workspace.
+
+        Returns:
+            The newly created ``Workspace``, with generated ``id`` and
+            timestamps.
+        """
+        return store.create(name=request.name, goal=request.goal)
+
+    @app.get("/workspaces", response_model=list[WorkspaceSummary])
+    async def list_workspaces() -> list[WorkspaceSummary]:
+        """List all workspaces as lightweight summaries.
+
+        Returns:
+            Summaries sorted by ``updated_at`` descending.
+        """
+        return store.list_summaries()
+
+    @app.get("/workspaces/{workspace_id}", response_model=Workspace)
+    async def get_workspace(workspace_id: str) -> Workspace:
+        """Fetch one workspace by id.
+
+        Args:
+            workspace_id: The workspace's ``id``.
+
+        Returns:
+            The full ``Workspace`` record.
+
+        Raises:
+            HTTPException: 404 if no workspace with this id exists.
+        """
+        workspace = store.get(workspace_id)
+        if workspace is None:
+            detail = f"Workspace '{workspace_id}' not found"
+            raise HTTPException(status_code=404, detail=detail)
+        return workspace
+
+    @app.put("/workspaces/{workspace_id}", response_model=Workspace)
+    async def update_workspace(workspace_id: str, workspace: Workspace) -> Workspace:
+        """Save changes to an existing workspace.
+
+        Args:
+            workspace_id: The workspace's ``id`` (path parameter wins over
+                any ``id`` present in the request body).
+            workspace: The full record to save.
+
+        Returns:
+            The saved ``Workspace``, with ``updated_at`` refreshed.
+
+        Raises:
+            HTTPException: 404 if no workspace with this id exists.
+        """
+        updated = store.update(workspace_id, workspace)
+        if updated is None:
+            detail = f"Workspace '{workspace_id}' not found"
+            raise HTTPException(status_code=404, detail=detail)
+        return updated
+
+    @app.delete("/workspaces/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
+    async def delete_workspace(workspace_id: str) -> None:
+        """Delete a workspace.
+
+        Args:
+            workspace_id: The workspace's ``id``.
+
+        Raises:
+            HTTPException: 404 if no workspace with this id exists.
+        """
+        deleted = store.delete(workspace_id)
+        if not deleted:
+            detail = f"Workspace '{workspace_id}' not found"
+            raise HTTPException(status_code=404, detail=detail)
