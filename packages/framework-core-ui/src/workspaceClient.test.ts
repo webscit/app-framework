@@ -116,7 +116,9 @@ describe("getWorkspace", () => {
     const result = await getWorkspace("w1", LOCATION);
 
     expect(result).toEqual(WORKSPACE);
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith("http://localhost:5173/workspaces/w1");
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "http://localhost:5173/workspaces/w1",
+    );
   });
 
   it("throws WorkspaceApiError with status 404 when missing", async () => {
@@ -145,14 +147,19 @@ describe("deleteWorkspace", () => {
     mockFetchOnce(204, undefined);
 
     await expect(deleteWorkspace("w1", LOCATION)).resolves.toBeUndefined();
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith("http://localhost:5173/workspaces/w1", {
-      method: "DELETE",
-    });
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "http://localhost:5173/workspaces/w1",
+      {
+        method: "DELETE",
+      },
+    );
   });
 
   it("throws WorkspaceApiError on failure", async () => {
     mockFetchOnce(404, { detail: "not found" });
 
-    await expect(deleteWorkspace("w1", LOCATION)).rejects.toBeInstanceOf(WorkspaceApiError);
+    await expect(deleteWorkspace("w1", LOCATION)).rejects.toBeInstanceOf(
+      WorkspaceApiError,
+    );
   });
 });
