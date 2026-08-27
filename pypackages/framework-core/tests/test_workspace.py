@@ -199,3 +199,51 @@ def test_delete_unknown_id_returns_404(client: TestClient) -> None:
 def test_malformed_body_returns_422(client: TestClient) -> None:
     response = client.post("/workspaces", json={"goal": "missing name"})
     assert response.status_code == 422
+
+
+def test_update_crash_before_replace_leaves_original_file_untouched(
+    store: WorkspaceStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If os.replace() never runs, the original file must be unaffected."""
+    created = store.create(name="Original", goal=None)
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("simulated crash before replace")
+
+    monkeypatch.setattr("sci_framework_core.workspace.os.replace", _boom)
+
+    changed = created.model_copy(update={"name": "Should Not Persist"})
+    with pytest.raises(OSError):
+        store.update(created.id, changed)
+
+    # Original file is untouched — the store never saw the crash-time write.
+    monkeypatch.undo()
+    refetched = store.get(created.id)
+    assert refetched is not None
+    assert refetched.name == "Original"
+
+
+def test_create_crash_before_replace_leaves_no_file(
+    store: WorkspaceStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If os.replace() never runs during create, no final file should exist."""
+    monkeypatch.setattr(
+        "sci_framework_core.workspace.os.replace",
+        lambda *_a, **_k: (_ for _ in ()).throw(OSError("simulated crash")),
+    )
+
+    with pytest.raises(OSError):
+        store.create(name="Never Persisted", goal=None)
+
+    workspace_dir = tmp_path / "workspaces"
+    json_files = list(workspace_dir.glob("*.json"))
+    assert json_files == []
+
+
+def test_public_api_importable_from_workspace_module() -> None:
+    """The spec's documented import path resolves without error."""
+    from sci_framework_core.workspace import (  # noqa: F401
+        Workspace,
+        WorkspaceSummary,
+        mount_workspace_routes,
+    )
