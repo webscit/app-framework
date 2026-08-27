@@ -181,6 +181,29 @@ describe("WorkspaceMenu", () => {
     expect(localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY)).toBe("w1");
   });
 
+  it("renames the active workspace through the Rename form", async () => {
+    vi.mocked(workspaceClient.listWorkspaces).mockResolvedValue([SUMMARY]);
+    vi.mocked(workspaceClient.getWorkspace).mockResolvedValue(WORKSPACE);
+
+    await render(<WorkspaceMenu />);
+    await openMenu();
+    await page.getByRole("menuitemradio", { name: "Drone survey" }).click();
+    await openMenu();
+    await page.getByRole("menuitem", { name: "Rename" }).click();
+
+    vi.mocked(workspaceClient.updateWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      name: "Renamed survey",
+    });
+
+    await page.getByRole("textbox", { name: "Workspace name" }).fill("Renamed survey");
+    await page.getByRole("button", { name: "Save name" }).click();
+
+    await expect
+      .element(page.getByRole("button", { name: /workspace/i }))
+      .toHaveTextContent("Renamed survey");
+  });
+
   it("keeps the menu open and shows the error when Save fails", async () => {
     vi.mocked(workspaceClient.listWorkspaces).mockResolvedValue([SUMMARY]);
     vi.mocked(workspaceClient.getWorkspace).mockResolvedValue(WORKSPACE);

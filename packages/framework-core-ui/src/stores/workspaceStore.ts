@@ -6,10 +6,17 @@ import {
   getWorkspace,
   listWorkspaces,
   updateWorkspace,
-  WorkspaceApiError,
 } from "../workspaceClient";
 import type { Workspace, WorkspaceSummary } from "../workspaceClient";
+import { SHELL_LAYOUT_STORAGE_VERSION } from "../shellTypes";
 import { useShellLayoutStore } from "./shellStore";
+
+/**
+ * `metadata` key under which {@link SHELL_LAYOUT_STORAGE_VERSION} is stamped
+ * when saving a workspace's `layout_snapshot`, so it can be compared against
+ * the running app's version before being applied on open.
+ */
+const SHELL_LAYOUT_VERSION_METADATA_KEY = "shellLayoutVersion";
 
 /** `localStorage` key under which the active workspace id is persisted. */
 export const ACTIVE_WORKSPACE_STORAGE_KEY = "sci-framework:active-workspace-id";
@@ -57,7 +64,6 @@ export function clearStoredActiveWorkspaceId(): void {
 }
 
 function describeError(error: unknown): string {
-  if (error instanceof WorkspaceApiError) return error.message;
   if (error instanceof Error) return error.message;
   return "Unknown error";
 }
@@ -86,36 +92,63 @@ export interface WorkspaceStore {
   /** Human-readable message for the last failed action, or `null`. */
   error: string | null;
 
-  /** Re-fetches {@link WorkspaceStore.workspaces} from the backend. */
-  refreshList: () => Promise<void>;
+  /**
+   * Re-fetches {@link WorkspaceStore.workspaces} from the backend.
+   *
+   * @returns `true` if the list was refreshed; `false` if the request failed
+   *   (in which case `error` describes the failure).
+   */
+  refreshList: () => Promise<boolean>;
   /**
    * Creates a new workspace and makes it active. A successful create also
    * writes its id to `localStorage`.
+   *
+   * @returns `true` if the workspace was created; `false` if the request
+   *   failed (in which case `error` describes the failure).
    */
-  createWorkspace: (name: string, goal?: string) => Promise<void>;
+  createWorkspace: (name: string, goal?: string) => Promise<boolean>;
   /**
-   * Fetches workspace `id`, makes it active, and — if it has a saved
-   * `layout_snapshot` — applies it to {@link useShellLayoutStore}'s working
-   * layout. A workspace with no saved snapshot leaves the shell layout as-is.
+   * Fetches workspace `id`, makes it active, and — if it has a saved,
+   * version-compatible `layout_snapshot` — applies it to
+   * {@link useShellLayoutStore}'s working layout. A workspace with no saved
+   * snapshot, or one whose snapshot's stamped version doesn't match the
+   * running app's, leaves the shell layout as-is.
+   *
+   * @returns `true` if the workspace was fetched and made active; `false` if
+   *   the request failed (in which case `error` describes the failure).
    */
-  openWorkspace: (id: string) => Promise<void>;
+  openWorkspace: (id: string) => Promise<boolean>;
   /**
    * Saves the active workspace with the shell's current working layout as
    * its `layout_snapshot`. No-op if no workspace is active.
+   *
+   * @returns `true` if the save succeeded or there was no active workspace
+   *   to save (a no-op); `false` if the request failed (in which case
+   *   `error` describes the failure).
    */
-  save: () => Promise<void>;
-  /** Renames the active workspace. No-op if no workspace is active or `name` is blank. */
-  rename: (name: string) => Promise<void>;
+  save: () => Promise<boolean>;
+  /**
+   * Renames the active workspace. No-op if no workspace is active or `name`
+   * is blank.
+   *
+   * @returns `true` if the rename succeeded or was a no-op; `false` if the
+   *   request failed (in which case `error` describes the failure).
+   */
+  rename: (name: string) => Promise<boolean>;
   /**
    * Clears the active workspace (store state + `localStorage`) and resets
-   * the shell's working layout back to its default.
+   * the shell's working layout back to its default. Also resets `status`
+   * and `error` to their idle defaults.
    */
   close: () => void;
   /**
    * Deletes workspace `id`. If it was the active workspace, behaves like
    * {@link WorkspaceStore.close} afterward.
+   *
+   * @returns `true` if the delete succeeded; `false` if the request failed
+   *   (in which case `error` describes the failure).
    */
-  deleteWorkspace: (id: string) => Promise<void>;
+  deleteWorkspace: (id: string) => Promise<boolean>;
 }
 
 /**
@@ -139,9 +172,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
     set({ status: "loading", error: null });
     try {
       const workspaces = await listWorkspaces();
-      set({ workspaces, status: "idle" });
+      set({ workspaces, status: "idle", error: null });
+      return true;
     } catch (error) {
       set({ status: "error", error: describeError(error) });
+      return false;
     }
   },
 
@@ -163,9 +198,12 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
         activeWorkspaceId: workspace.id,
         activeWorkspace: workspace,
         status: "idle",
+        error: null,
       }));
+      return true;
     } catch (error) {
       set({ status: "error", error: describeError(error) });
+      return false;
     }
   },
 
@@ -178,23 +216,38 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
         activeWorkspaceId: workspace.id,
         activeWorkspace: workspace,
         status: "idle",
+        error: null,
       });
       const snapshot = workspace.layout_snapshot;
-      if (snapshot) {
+      // layout_snapshot and the shell's own persisted layout are two
+      // independent channels for the same ShellLayout shape; only apply the
+      // snapshot when it was stamped by a compatible app version, so we
+      // never splice an incompatible/foreign snapshot into the live layout.
+      const snapshotVersion = workspace.metadata[SHELL_LAYOUT_VERSION_METADATA_KEY];
+      if (snapshot && snapshotVersion === SHELL_LAYOUT_STORAGE_VERSION) {
         useShellLayoutStore.getState().setLayout(() => structuredClone(snapshot));
       }
+      return true;
     } catch (error) {
       set({ status: "error", error: describeError(error) });
+      return false;
     }
   },
 
   save: async () => {
     const { activeWorkspace } = get();
-    if (!activeWorkspace) return;
+    if (!activeWorkspace) return true;
     set({ status: "loading", error: null });
     try {
       const layout = useShellLayoutStore.getState().workingLayout;
-      const record: Workspace = { ...activeWorkspace, layout_snapshot: layout };
+      const record: Workspace = {
+        ...activeWorkspace,
+        layout_snapshot: layout,
+        metadata: {
+          ...activeWorkspace.metadata,
+          [SHELL_LAYOUT_VERSION_METADATA_KEY]: SHELL_LAYOUT_STORAGE_VERSION,
+        },
+      };
       const saved = await updateWorkspace(activeWorkspace.id, record);
       set((state) => ({
         activeWorkspace: saved,
@@ -204,16 +257,19 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
             : w,
         ),
         status: "idle",
+        error: null,
       }));
+      return true;
     } catch (error) {
       set({ status: "error", error: describeError(error) });
+      return false;
     }
   },
 
   rename: async (name) => {
     const { activeWorkspace } = get();
     const trimmed = name.trim();
-    if (!activeWorkspace || !trimmed) return;
+    if (!activeWorkspace || !trimmed) return true;
     set({ status: "loading", error: null });
     try {
       const record: Workspace = { ...activeWorkspace, name: trimmed };
@@ -226,15 +282,23 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
             : w,
         ),
         status: "idle",
+        error: null,
       }));
+      return true;
     } catch (error) {
       set({ status: "error", error: describeError(error) });
+      return false;
     }
   },
 
   close: () => {
     clearStoredActiveWorkspaceId();
-    set({ activeWorkspaceId: null, activeWorkspace: null });
+    set({
+      activeWorkspaceId: null,
+      activeWorkspace: null,
+      status: "idle",
+      error: null,
+    });
     useShellLayoutStore.getState().resetActiveProfile();
   },
 
@@ -248,13 +312,16 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
         activeWorkspaceId: closingActive ? null : state.activeWorkspaceId,
         activeWorkspace: closingActive ? null : state.activeWorkspace,
         status: "idle",
+        error: null,
       }));
       if (closingActive) {
         clearStoredActiveWorkspaceId();
         useShellLayoutStore.getState().resetActiveProfile();
       }
+      return true;
     } catch (error) {
       set({ status: "error", error: describeError(error) });
+      return false;
     }
   },
 }));

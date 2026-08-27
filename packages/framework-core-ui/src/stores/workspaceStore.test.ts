@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createDefaultShellLayout } from "../shellTypes";
+import { createDefaultShellLayout, SHELL_LAYOUT_STORAGE_VERSION } from "../shellTypes";
 import * as workspaceClient from "../workspaceClient";
 import type { Workspace, WorkspaceSummary } from "../workspaceClient";
 import { useShellLayoutStore } from "./shellStore";
@@ -92,6 +92,7 @@ describe("useWorkspaceStore", () => {
     vi.mocked(workspaceClient.getWorkspace).mockResolvedValue({
       ...WORKSPACE,
       layout_snapshot: layout,
+      metadata: { shellLayoutVersion: SHELL_LAYOUT_STORAGE_VERSION },
     });
 
     await useWorkspaceStore.getState().openWorkspace("w1");
@@ -245,5 +246,81 @@ describe("useWorkspaceStore", () => {
     expect(state.status).toBe("error");
     expect(state.error).toBe("server exploded");
     expect(state.workspaces).toEqual([SUMMARY]);
+  });
+
+  it("a success action clears a previously-set error", async () => {
+    useWorkspaceStore.setState({ status: "error", error: "stale" });
+    vi.mocked(workspaceClient.listWorkspaces).mockResolvedValue([SUMMARY]);
+
+    await useWorkspaceStore.getState().refreshList();
+
+    expect(useWorkspaceStore.getState().error).toBeNull();
+  });
+
+  it("close resets status and error", () => {
+    useWorkspaceStore.setState({ status: "error", error: "stale" });
+
+    useWorkspaceStore.getState().close();
+
+    expect(useWorkspaceStore.getState().status).toBe("idle");
+    expect(useWorkspaceStore.getState().error).toBeNull();
+  });
+
+  it("refreshList returns false on failure and true on success", async () => {
+    vi.mocked(workspaceClient.listWorkspaces).mockRejectedValue(
+      new Error("network down"),
+    );
+    await expect(useWorkspaceStore.getState().refreshList()).resolves.toBe(false);
+
+    vi.mocked(workspaceClient.listWorkspaces).mockResolvedValue([SUMMARY]);
+    await expect(useWorkspaceStore.getState().refreshList()).resolves.toBe(true);
+  });
+
+  it("save stamps the current SHELL_LAYOUT_STORAGE_VERSION into the record it sends", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+    vi.mocked(workspaceClient.updateWorkspace).mockResolvedValue(WORKSPACE);
+
+    await useWorkspaceStore.getState().save();
+
+    expect(workspaceClient.updateWorkspace).toHaveBeenCalledWith(
+      "w1",
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          ["shellLayoutVersion"]: SHELL_LAYOUT_STORAGE_VERSION,
+        }),
+      }),
+    );
+  });
+
+  it("openWorkspace skips applying a layout_snapshot with a mismatched version stamp", async () => {
+    const layout = createDefaultShellLayout();
+    layout.regions.header.visible = false;
+    const before = useShellLayoutStore.getState().workingLayout;
+    vi.mocked(workspaceClient.getWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      layout_snapshot: layout,
+      metadata: { ["shellLayoutVersion"]: SHELL_LAYOUT_STORAGE_VERSION - 1 },
+    });
+
+    await useWorkspaceStore.getState().openWorkspace("w1");
+
+    expect(useShellLayoutStore.getState().workingLayout).toEqual(before);
+    expect(useWorkspaceStore.getState().status).not.toBe("error");
+  });
+
+  it("openWorkspace skips applying a layout_snapshot with no version stamp at all", async () => {
+    const layout = createDefaultShellLayout();
+    layout.regions.header.visible = false;
+    const before = useShellLayoutStore.getState().workingLayout;
+    vi.mocked(workspaceClient.getWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      layout_snapshot: layout,
+      metadata: {},
+    });
+
+    await useWorkspaceStore.getState().openWorkspace("w1");
+
+    expect(useShellLayoutStore.getState().workingLayout).toEqual(before);
+    expect(useWorkspaceStore.getState().status).not.toBe("error");
   });
 });

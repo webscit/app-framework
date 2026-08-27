@@ -33,7 +33,9 @@ type Draft =
  *
  * On mount, the workspace list is fetched and, if `localStorage` names a
  * workspace still present in that list, it is opened automatically; a stale
- * id (a workspace deleted elsewhere) is cleared silently.
+ * id (a workspace deleted elsewhere) is cleared silently. If the initial
+ * list fetch itself fails, the stored id is left untouched (rather than
+ * cleared) since we don't yet know whether it's actually stale.
  *
  * The component is a thin consumer of the workspace store and holds no
  * workspace state of its own — {@link useWorkspaceStore} is the single
@@ -51,6 +53,7 @@ type Draft =
 export function WorkspaceMenu(): React.ReactElement {
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
   const error = useWorkspaceStore((s) => s.error);
   const refreshList = useWorkspaceStore((s) => s.refreshList);
   const createWorkspace = useWorkspaceStore((s) => s.createWorkspace);
@@ -81,7 +84,7 @@ export function WorkspaceMenu(): React.ReactElement {
     // Runs once on mount only; refreshList/openWorkspace are stable store actions.
   }, []);
 
-  const active = workspaces.find((w) => w.id === activeWorkspaceId);
+  const active = activeWorkspace ?? workspaces.find((w) => w.id === activeWorkspaceId);
   const hasActive = active !== undefined;
 
   function closeMenu(): void {
@@ -90,28 +93,29 @@ export function WorkspaceMenu(): React.ReactElement {
   }
 
   async function handleSelect(id: string): Promise<void> {
-    await openWorkspace(id);
-    if (useWorkspaceStore.getState().status !== "error") closeMenu();
+    const ok = await openWorkspace(id);
+    if (ok) closeMenu();
   }
 
   async function handleSave(): Promise<void> {
-    await save();
-    if (useWorkspaceStore.getState().status !== "error") closeMenu();
+    const ok = await save();
+    if (ok) closeMenu();
   }
 
   async function handleDelete(): Promise<void> {
     if (!activeWorkspaceId) return;
-    await deleteWorkspace(activeWorkspaceId);
-    if (useWorkspaceStore.getState().status !== "error") closeMenu();
+    const ok = await deleteWorkspace(activeWorkspaceId);
+    if (ok) closeMenu();
   }
 
   async function submitDraft(): Promise<void> {
+    let ok = true;
     if (draft.mode === "creating") {
-      await createWorkspace(draft.name);
+      ok = await createWorkspace(draft.name);
     } else if (draft.mode === "renaming") {
-      await rename(draft.name);
+      ok = await rename(draft.name);
     }
-    if (useWorkspaceStore.getState().status !== "error") closeMenu();
+    if (ok) closeMenu();
   }
 
   return (
