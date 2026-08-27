@@ -181,7 +181,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
       });
       const snapshot = workspace.layout_snapshot;
       if (snapshot) {
-        useShellLayoutStore.getState().setLayout(() => snapshot);
+        useShellLayoutStore.getState().setLayout(() => structuredClone(snapshot));
       }
     } catch (error) {
       set({ status: "error", error: describeError(error) });

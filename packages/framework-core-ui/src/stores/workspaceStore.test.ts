@@ -6,6 +6,7 @@ import type { Workspace, WorkspaceSummary } from "../workspaceClient";
 import { useShellLayoutStore } from "./shellStore";
 import {
   ACTIVE_WORKSPACE_STORAGE_KEY,
+  clearStoredActiveWorkspaceId,
   readStoredActiveWorkspaceId,
   useWorkspaceStore,
 } from "./workspaceStore";
@@ -182,6 +183,54 @@ describe("useWorkspaceStore", () => {
     const state = useWorkspaceStore.getState();
     expect(state.workspaces).toEqual([SUMMARY]);
     expect(state.activeWorkspaceId).toBe("w1");
+  });
+
+  it("rename updates the active workspace's name", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+    vi.mocked(workspaceClient.updateWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      name: "Renamed",
+    });
+
+    await useWorkspaceStore.getState().rename("Renamed");
+
+    expect(useWorkspaceStore.getState().activeWorkspace?.name).toBe("Renamed");
+    expect(workspaceClient.updateWorkspace).toHaveBeenCalledWith(
+      "w1",
+      expect.objectContaining({ name: "Renamed" }),
+    );
+  });
+
+  it("rename is a no-op when no workspace is active", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: null, activeWorkspace: null });
+
+    await useWorkspaceStore.getState().rename("New name");
+
+    expect(workspaceClient.updateWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("rename is a no-op when given a blank name", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+
+    await useWorkspaceStore.getState().rename("   ");
+
+    expect(workspaceClient.updateWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("save is a no-op when no workspace is active", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: null, activeWorkspace: null });
+
+    await useWorkspaceStore.getState().save();
+
+    expect(workspaceClient.updateWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("clearStoredActiveWorkspaceId clears the stored key", () => {
+    localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, "w1");
+
+    clearStoredActiveWorkspaceId();
+
+    expect(readStoredActiveWorkspaceId()).toBeNull();
   });
 
   it("a failed action sets status to error and leaves prior state intact", async () => {
