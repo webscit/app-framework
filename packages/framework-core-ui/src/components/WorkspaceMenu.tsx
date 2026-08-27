@@ -68,9 +68,9 @@ export function WorkspaceMenu(): React.ReactElement {
       await refreshList();
       const storedId = readStoredActiveWorkspaceId();
       if (!storedId) return;
-      const exists = useWorkspaceStore
-        .getState()
-        .workspaces.some((w) => w.id === storedId);
+      const state = useWorkspaceStore.getState();
+      if (state.status === "error") return;
+      const exists = state.workspaces.some((w) => w.id === storedId);
       if (exists) {
         await openWorkspace(storedId);
       } else {
@@ -89,18 +89,29 @@ export function WorkspaceMenu(): React.ReactElement {
     setDraft({ mode: "idle" });
   }
 
-  function handleSelect(id: string): void {
-    void openWorkspace(id);
-    closeMenu();
+  async function handleSelect(id: string): Promise<void> {
+    await openWorkspace(id);
+    if (useWorkspaceStore.getState().status !== "error") closeMenu();
   }
 
-  function submitDraft(): void {
+  async function handleSave(): Promise<void> {
+    await save();
+    if (useWorkspaceStore.getState().status !== "error") closeMenu();
+  }
+
+  async function handleDelete(): Promise<void> {
+    if (!activeWorkspaceId) return;
+    await deleteWorkspace(activeWorkspaceId);
+    if (useWorkspaceStore.getState().status !== "error") closeMenu();
+  }
+
+  async function submitDraft(): Promise<void> {
     if (draft.mode === "creating") {
-      void createWorkspace(draft.name);
+      await createWorkspace(draft.name);
     } else if (draft.mode === "renaming") {
-      void rename(draft.name);
+      await rename(draft.name);
     }
-    closeMenu();
+    if (useWorkspaceStore.getState().status !== "error") closeMenu();
   }
 
   return (
@@ -132,7 +143,7 @@ export function WorkspaceMenu(): React.ReactElement {
                   role="menuitemradio"
                   aria-checked={w.id === activeWorkspaceId}
                   className="sct-WorkspaceMenu-item"
-                  onClick={() => handleSelect(w.id)}
+                  onClick={() => void handleSelect(w.id)}
                 >
                   {w.name}
                 </button>
@@ -153,10 +164,7 @@ export function WorkspaceMenu(): React.ReactElement {
                 role="menuitem"
                 className="sct-WorkspaceMenu-item"
                 disabled={!hasActive}
-                onClick={() => {
-                  void save();
-                  closeMenu();
-                }}
+                onClick={() => void handleSave()}
               >
                 Save
               </button>
@@ -186,10 +194,7 @@ export function WorkspaceMenu(): React.ReactElement {
                 role="menuitem"
                 className="sct-WorkspaceMenu-item"
                 disabled={!hasActive}
-                onClick={() => {
-                  if (activeWorkspaceId) void deleteWorkspace(activeWorkspaceId);
-                  closeMenu();
-                }}
+                onClick={() => void handleDelete()}
               >
                 Delete
               </button>
@@ -211,14 +216,14 @@ export function WorkspaceMenu(): React.ReactElement {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    submitDraft();
+                    void submitDraft();
                   } else if (e.key === "Escape") {
                     setDraft({ mode: "idle" });
                   }
                 }}
               />
               <div className="sct-WorkspaceMenu-formActions">
-                <Button size="sm" onClick={submitDraft}>
+                <Button size="sm" onClick={() => void submitDraft()}>
                   {draft.mode === "creating" ? "Create workspace" : "Save name"}
                 </Button>
                 <Button

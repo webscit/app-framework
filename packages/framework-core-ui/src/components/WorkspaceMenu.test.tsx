@@ -168,4 +168,35 @@ describe("WorkspaceMenu", () => {
 
     await expect.element(page.getByRole("alert")).toHaveTextContent("network down");
   });
+
+  it("does not clear a valid stored id when the initial fetch fails", async () => {
+    localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, "w1");
+    vi.mocked(workspaceClient.listWorkspaces).mockRejectedValue(
+      new Error("network down"),
+    );
+
+    await render(<WorkspaceMenu />);
+
+    expect(workspaceClient.getWorkspace).not.toHaveBeenCalled();
+    expect(localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY)).toBe("w1");
+  });
+
+  it("keeps the menu open and shows the error when Save fails", async () => {
+    vi.mocked(workspaceClient.listWorkspaces).mockResolvedValue([SUMMARY]);
+    vi.mocked(workspaceClient.getWorkspace).mockResolvedValue(WORKSPACE);
+    vi.mocked(workspaceClient.updateWorkspace).mockRejectedValue(
+      new Error("save failed"),
+    );
+
+    await render(<WorkspaceMenu />);
+    await openMenu();
+    await page.getByRole("menuitemradio", { name: "Drone survey" }).click();
+    await openMenu();
+    await page.getByRole("menuitem", { name: "Save" }).click();
+
+    await expect.element(page.getByRole("alert")).toHaveTextContent("save failed");
+    await expect
+      .element(page.getByRole("menuitem", { name: "Save" }))
+      .toBeInTheDocument();
+  });
 });
