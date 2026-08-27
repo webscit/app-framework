@@ -1,7 +1,7 @@
 import React, { act } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApplicationShell } from "./ApplicationShell";
 import { createDefaultShellLayout } from "./shellTypes";
@@ -16,6 +16,14 @@ import type { WidgetDefinition } from "./widgetRegistry";
 // the test's initialLayout.
 beforeEach(() => {
   clearPersistedLayout();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) }),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,6 +59,18 @@ describe("ShellHeader", () => {
     const registry = new WidgetRegistry();
     await renderWithShell(registry);
     expect(page.getByRole("banner").query()).not.toBeNull();
+  });
+
+  it("renders the WorkspaceMenu trigger alongside LayoutProfilesMenu", async () => {
+    const registry = new WidgetRegistry();
+    await renderWithShell(registry);
+
+    await expect
+      .element(page.getByRole("button", { name: /layout profile/i }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: /workspace/i }))
+      .toBeInTheDocument();
   });
 });
 
