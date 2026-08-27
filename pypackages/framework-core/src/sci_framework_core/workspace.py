@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -111,7 +111,7 @@ class WorkspaceStore:
             The newly created :class:`Workspace`, with a generated ``id``
             and ``created_at``/``updated_at`` both set to the current time.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         workspace = Workspace(
             id=str(uuid.uuid4()),
             name=name,
@@ -173,7 +173,7 @@ class WorkspaceStore:
             update={
                 "id": workspace_id,
                 "created_at": existing.created_at,
-                "updated_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(UTC),
             }
         )
         self._write(updated)
