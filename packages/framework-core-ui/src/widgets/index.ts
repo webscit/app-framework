@@ -17,10 +17,17 @@ export type { DataTableProps, ColumnDef } from "./DataTable";
 export { StatusIndicatorComponent } from "./StatusIndicator";
 export type { StatusIndicatorProps, SimulationStatus } from "./StatusIndicator";
 
+export { SimulationControlsComponent } from "./SimulationControls";
+export type {
+  SimulationControlsProps,
+  SimulationStatePayload,
+} from "./SimulationControls";
+
 export {
   LOG_VIEWER,
   STATUS_INDICATOR,
   PARAMETER_CONTROLLER,
   CHART,
   DATA_TABLE,
+  SIMULATION_CONTROLS,
 } from "./defaultWidgets";

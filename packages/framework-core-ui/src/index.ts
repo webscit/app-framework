@@ -21,6 +21,7 @@ export {
   PARAMETER_CONTROLLER,
   CHART,
   DATA_TABLE,
+  SIMULATION_CONTROLS,
 } from "./widgets/defaultWidgets";
 export {
   ParameterControllerComponent,
@@ -35,6 +36,11 @@ export { DataTableComponent } from "./widgets/DataTable";
 export type { DataTableProps, ColumnDef } from "./widgets/DataTable";
 export { StatusIndicatorComponent } from "./widgets/StatusIndicator";
 export type { StatusIndicatorProps, SimulationStatus } from "./widgets/StatusIndicator";
+export { SimulationControlsComponent } from "./widgets/SimulationControls";
+export type {
+  SimulationControlsProps,
+  SimulationStatePayload,
+} from "./widgets/SimulationControls";
 export type { IDisposable } from "./disposable";
 export {
   type WidgetDefinition,

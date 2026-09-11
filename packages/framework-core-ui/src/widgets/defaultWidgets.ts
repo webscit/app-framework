@@ -6,6 +6,7 @@ import { ParameterControllerComponent } from "./ParameterController/ParameterCon
 import { ChartComponent } from "./Chart/Chart";
 import { DataTableComponent } from "./DataTable/DataTable";
 import { StatusIndicatorComponent } from "./StatusIndicator/StatusIndicator";
+import { SimulationControlsComponent } from "./SimulationControls/SimulationControls";
 
 /**
  * Built-in widget that displays live log entries arriving on log channels.
@@ -184,4 +185,33 @@ export const DATA_TABLE: WidgetDefinition = {
     },
   },
   factory: () => DataTableComponent as ComponentType,
+};
+
+/**
+ * Built-in widget that renders generic start/stop controls for a
+ * start/stop-shaped simulation run.
+ *
+ * Reads `phase`/`message` from a configurable state channel and publishes
+ * `{ command: "start" | "stop" }` to a configurable control channel. Does
+ * not render `phase` itself — pair with `STATUS_INDICATOR` for status
+ * display. Not auto-registered by default, since not every app has a
+ * start/stop-shaped simulation. Defaults to the `"header"` layout region.
+ */
+export const SIMULATION_CONTROLS: WidgetDefinition = {
+  name: "SimulationControls",
+  description:
+    "Generic start/stop controls for a simulation run. Reads phase/message " +
+    "from a state channel and publishes start/stop commands to a control " +
+    "channel.",
+  channelPattern: "*/state",
+  consumes: [],
+  priority: 10,
+  defaultRegion: "header",
+  parameters: {
+    stateChannel: { type: "string", default: "sim/state" },
+    controlChannel: { type: "string", default: "sim/control" },
+    runningPhase: { type: "string", default: "running" },
+    title: { type: "string", default: "Simulation Controls" },
+  },
+  factory: () => SimulationControlsComponent as ComponentType,
 };
