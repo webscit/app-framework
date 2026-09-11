@@ -77,6 +77,7 @@ export {
 export { LayoutProfilesMenu } from "./components/LayoutProfilesMenu";
 export { WorkspaceMenu } from "./components/WorkspaceMenu";
 export { useWorkspaceStore, type WorkspaceStore } from "./stores/workspaceStore";
+export { useScenarios, type Scenario } from "./useScenarios";
 export {
   buildWorkspaceApiUrl,
   WorkspaceApiError,
