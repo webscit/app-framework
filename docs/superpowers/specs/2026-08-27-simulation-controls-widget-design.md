@@ -37,8 +37,8 @@ note that example retrofits depend on this one):
   a default preset; not part of this issue's start/stop scope).
 - Preset selection (both examples have preset buttons; parameter tuning is
   already covered by the existing `PARAMETER_CONTROLLER` widget).
-- Rich phase styling (colored dot, phase→label map). The new widget renders
-  the raw `phase` string; a domain wanting richer status styling pairs this
+- The new widget don't renders
+  the `phase` string; a domain wanting richer status styling pairs this
   widget with `STATUS_INDICATOR`.
 
 ## Backend: `sci_framework_core.lifecycle`
@@ -150,7 +150,7 @@ export interface SimulationControlsProps {
   /** Value of `phase` that means "a run is in flight". */
   runningPhase: string;
   /** Title shown above the controls. */
-  title: string;
+  title?: string;
 }
 ```
 
@@ -159,8 +159,7 @@ Behavior:
 - `usePublish()` to send `{ command: "start" }` / `{ command: "stop" }` to
   `controlChannel`.
 - `isRunning = state?.phase === runningPhase`.
-- Renders: `title`, the raw `phase` string (falls back to `"idle"` when no
-  state has arrived yet) and `message` if present, a Start button (disabled
+- Renders: `title` (optionally), a Start button (disabled
   when `isRunning`), a Stop button (disabled when `!isRunning`).
 - Accessible labels on both buttons (`aria-label="Start simulation"` /
   `"Stop simulation"`), matching the project's accessibility-selector
@@ -201,12 +200,10 @@ simulation.
 
 `SimulationControls.test.tsx` (Vitest + `react-test-renderer`, matching
 `StatusIndicator.test.tsx`/`ParameterController.test.tsx` patterns):
-- Renders `phase`/`message` from a mocked `useChannel` state.
 - Start button disabled when `phase === runningPhase`, enabled otherwise
   (and vice versa for Stop).
 - Clicking Start/Stop calls `usePublish`'s publish function with
   `{ command: "start" }` / `{ command: "stop" }` on `controlChannel`.
-- Renders `"idle"` fallback and no `message` line when no state has arrived.
 
 ## Documentation
 
