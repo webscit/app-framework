@@ -90,6 +90,7 @@ class LifecycleConsumer(ABC):
         if command == "start":
             await self._cancel_running()
             self._task = asyncio.create_task(self.run())
+            self._task.add_done_callback(self._log_unretrieved_exception)
         elif command == "stop":
             await self._cancel_running()
 
@@ -108,6 +109,32 @@ class LifecycleConsumer(ABC):
             except Exception:
                 logger.exception("Simulation task raised during cancellation")
         self._task = None
+
+    @staticmethod
+    def _log_unretrieved_exception(task: asyncio.Task[None]) -> None:
+        """Surface an exception from a run task that nothing else awaited.
+
+        Attached as a done-callback on the task created for a ``"start"``
+        command. Without this, an exception raised by ``run()`` and never
+        retrieved (because no subsequent ``"stop"``/``"start"`` awaited the
+        task via ``_cancel_running``) would only surface as an asyncio
+        "exception was never retrieved" warning when the task is garbage
+        collected.
+
+        Args:
+            task: The completed task, passed by asyncio's done-callback
+                protocol.
+
+        Returns:
+            None.
+        """
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            logger.error(
+                "Simulation run task raised an unhandled exception", exc_info=exc
+            )
 
     @abstractmethod
     def apply_params(self, payload: dict[str, Any]) -> None:

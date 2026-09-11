@@ -121,6 +121,45 @@ async def test_malformed_non_dict_payload_is_ignored_not_raised() -> None:
     assert consumer.run_calls == 0
 
 
+class _RaisingConsumer(LifecycleConsumer):
+    """Concrete subclass whose run() raises immediately, to exercise the
+    unretrieved-exception done-callback."""
+
+    def __init__(self, bus: EventBus, state_channel: str) -> None:
+        super().__init__(bus, state_channel)
+        self.raised_event = asyncio.Event()
+
+    def apply_params(self, payload: dict[str, Any]) -> None:
+        pass
+
+    async def run(self) -> None:
+        self.raised_event.set()
+        raise RuntimeError("boom")
+
+
+@pytest.mark.anyio
+async def test_run_exception_is_logged_when_nothing_awaits_task(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    bus = EventBus()
+    consumer = _RaisingConsumer(bus, "sim/state")
+
+    with caplog.at_level("ERROR", logger="sci_framework_core.lifecycle"):
+        await consumer("sim/control", _ClientPublishEvent(payload={"command": "start"}))
+        await asyncio.wait_for(consumer.raised_event.wait(), timeout=1)
+        # Give the event loop a chance to finish the task and run the
+        # done-callback after run() raises.
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+    assert consumer._task is not None
+    # The done-callback already retrieved the exception; calling .exception()
+    # again must not raise asyncio.InvalidStateError, and must not raise the
+    # original RuntimeError either.
+    assert isinstance(consumer._task.exception(), RuntimeError)
+    assert "unhandled exception" in caplog.text
+
+
 def test_simulation_state_event_defaults() -> None:
     event = SimulationStateEvent(phase="idle")
 

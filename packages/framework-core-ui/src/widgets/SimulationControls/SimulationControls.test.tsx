@@ -70,6 +70,27 @@ describe("SimulationControlsComponent", () => {
       .toBeDisabled();
   });
 
+  it("defaults to sane initial state when rendered with no props (registry/layout path)", async () => {
+    const socket = new FakeWebSocket();
+
+    const screen = await render(
+      <EventBusProvider path="/ws" webSocketFactory={() => socket}>
+        <SimulationControlsComponent />
+      </EventBusProvider>,
+    );
+
+    await act(async () => {
+      socket.open();
+    });
+
+    await expect
+      .element(screen.getByRole("button", { name: "Start simulation" }))
+      .toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Stop simulation" }))
+      .toBeDisabled();
+  });
+
   it("Start disabled and Stop enabled when phase equals runningPhase", async () => {
     const socket = new FakeWebSocket();
 

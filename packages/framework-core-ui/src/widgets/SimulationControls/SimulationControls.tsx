@@ -27,12 +27,21 @@ export interface SimulationStatePayload {
  * All props correspond to the `parameters` schema declared in `SIMULATION_CONTROLS`.
  */
 export interface SimulationControlsProps {
-  /** Channel to read simulation state (`{ phase, message }`) from. */
-  stateChannel: string;
-  /** Channel to publish `{ command: "start" | "stop" }` to. */
-  controlChannel: string;
-  /** Value of `phase` that means "a run is in flight". */
-  runningPhase: string;
+  /**
+   * Channel to read simulation state (`{ phase, message }`) from.
+   * Default: `"sim/state"`
+   */
+  stateChannel?: string;
+  /**
+   * Channel to publish `{ command: "start" | "stop" }` to.
+   * Default: `"sim/control"`
+   */
+  controlChannel?: string;
+  /**
+   * Value of `phase` that means "a run is in flight".
+   * Default: `"running"`
+   */
+  runningPhase?: string;
   /** Title shown above the controls. Omit to render no title. */
   title?: string;
 }
@@ -66,9 +75,9 @@ const PREFIX = "sct-SimulationControls";
  * ```
  */
 export const SimulationControlsComponent: ComponentType<SimulationControlsProps> = ({
-  stateChannel,
-  controlChannel,
-  runningPhase,
+  stateChannel = "sim/state",
+  controlChannel = "sim/control",
+  runningPhase = "running",
   title,
 }) => {
   const state = useChannel<SimulationStatePayload>(stateChannel);
