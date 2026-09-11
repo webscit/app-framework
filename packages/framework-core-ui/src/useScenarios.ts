@@ -5,6 +5,17 @@ import { useWorkspaceStore } from "./stores/workspaceStore";
 /** `metadata` key under which the active workspace's scenario list is stored. */
 const SCENARIOS_METADATA_KEY = "scenarios";
 
+/** Generate a stable unique scenario id. */
+function newId(): string {
+  // Prefer Web Crypto when available (browsers, modern runtimes); fall back for
+  // environments that don't expose a global `crypto` (e.g. some node test
+  // runtimes) so the hook still initialises everywhere.
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 /**
  * A single simulation scenario definition, persisted inside a workspace's
  * `metadata.scenarios` array.
@@ -91,16 +102,20 @@ export function useScenarios(): {
   const scenarios = useMemo(() => readScenariosFromMetadata(metadata), [metadata]);
 
   const add = useCallback((name: string, data: unknown) => {
-    const next: Scenario = { id: crypto.randomUUID(), name, data };
+    const next: Scenario = { id: newId(), name, data };
     writeScenarios([...readScenarios(), next]);
   }, []);
 
   const update = useCallback((id: string, patch: Partial<Omit<Scenario, "id">>) => {
-    writeScenarios(readScenarios().map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    const current = readScenarios();
+    if (!current.some((s) => s.id === id)) return;
+    writeScenarios(current.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }, []);
 
   const remove = useCallback((id: string) => {
-    writeScenarios(readScenarios().filter((s) => s.id !== id));
+    const current = readScenarios();
+    if (!current.some((s) => s.id === id)) return;
+    writeScenarios(current.filter((s) => s.id !== id));
   }, []);
 
   const setScenarios = useCallback((next: Scenario[]) => {

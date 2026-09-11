@@ -166,13 +166,53 @@ describe("useScenarios", () => {
     expect(useWorkspaceStore.getState().activeWorkspace).toBeNull();
   });
 
-  it("does not call the backend on mutation", async () => {
+  it("falls back to an empty list when metadata.scenarios is not an array", async () => {
+    seedActiveWorkspace({
+      ...WORKSPACE,
+      metadata: { scenarios: "not-an-array" },
+    });
+    await render(<Harness />);
+
+    await expect.element(page.getByRole("list")).toBeEmptyDOMElement();
+
+    await page.getByRole("button", { name: "Add A" }).click();
+
+    await expect.element(page.getByRole("listitem")).toHaveTextContent("Scenario A");
+  });
+
+  it("reads pre-existing scenarios from metadata", async () => {
+    seedActiveWorkspace({
+      ...WORKSPACE,
+      metadata: {
+        scenarios: [{ id: "seed-1", name: "Preexisting", data: null }],
+      },
+    });
+    await render(<Harness />);
+
+    await expect.element(page.getByRole("listitem")).toHaveTextContent("Preexisting");
+  });
+
+  it("does not call the backend on mutation, but persists to backend via save()", async () => {
+    vi.mocked(workspaceClient.updateWorkspace).mockImplementation(async (id, ws) => ws);
+
     await render(<Harness />);
 
     await page.getByRole("button", { name: "Add A" }).click();
+    await page.getByRole("button", { name: "Add B" }).click();
     await page.getByRole("button", { name: "Update First" }).click();
-    await page.getByRole("button", { name: "Remove First" }).click();
 
+    // Mutations do not call the backend directly
     expect(workspaceClient.updateWorkspace).not.toHaveBeenCalled();
+
+    // But save() persists the mutated scenarios to the backend
+    await useWorkspaceStore.getState().save();
+
+    expect(workspaceClient.updateWorkspace).toHaveBeenCalledOnce();
+    const call = vi.mocked(workspaceClient.updateWorkspace).mock.calls[0];
+    const workspaceArg = call[1];
+    const scenarios = workspaceArg.metadata.scenarios as { id: string; name: string }[];
+    expect(scenarios).toHaveLength(2);
+    expect(scenarios[0].name).toBe("Renamed");
+    expect(scenarios[1].name).toBe("Scenario B");
   });
 });
