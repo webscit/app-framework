@@ -138,6 +138,18 @@ describe("useScenarios", () => {
     await expect.element(page.getByRole("listitem")).toHaveTextContent("Scenario A");
   });
 
+  it("update/remove on missing id does not create metadata.scenarios key", async () => {
+    await render(<Harness />);
+
+    // Call remove on a missing id without ever adding a scenario
+    // This should not create metadata.scenarios if the workspace starts with empty metadata
+    await page.getByRole("button", { name: "Remove Missing" }).click();
+
+    expect(useWorkspaceStore.getState().activeWorkspace?.metadata).not.toHaveProperty(
+      "scenarios",
+    );
+  });
+
   it("setScenarios replaces the list wholesale", async () => {
     await render(<Harness />);
     await page.getByRole("button", { name: "Add A" }).click();

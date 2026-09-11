@@ -27,7 +27,7 @@ function newId(): string {
  * validating it.
  */
 export interface Scenario {
-  /** Stable identifier, generated client-side (`crypto.randomUUID()`). */
+  /** Stable identifier, generated client-side via `newId()` (prefers `crypto.randomUUID()`). */
   id: string;
   /** Human-readable name shown in scenario lists/pickers. */
   name: string;
