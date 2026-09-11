@@ -22,6 +22,16 @@ const SHELL_LAYOUT_VERSION_METADATA_KEY = "shellLayoutVersion";
 export const ACTIVE_WORKSPACE_STORAGE_KEY = "sci-framework:active-workspace-id";
 
 /**
+ * Monotonic counter guarding {@link WorkspaceStore.openWorkspace} against
+ * out-of-order resolution: an auto-open (e.g. restoring the last-used
+ * workspace on mount) can race a manual selection the user makes while that
+ * fetch is still in flight. Each call captures the counter's value at start;
+ * if a newer call has since started by the time it resolves, its result is
+ * discarded instead of clobbering the newer selection.
+ */
+let latestOpenWorkspaceRequestId = 0;
+
+/**
  * Reads the active workspace id last written to `localStorage`, if any.
  *
  * @returns The stored workspace id, or `null` if none is stored or
@@ -66,6 +76,22 @@ export function clearStoredActiveWorkspaceId(): void {
 function describeError(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Unknown error";
+}
+
+/**
+ * Resets the shell's working layout to the app's hardcoded default,
+ * discarding whatever workspace `layout_snapshot` was applied on top of it by
+ * {@link openWorkspace}, and points `activeProfileId` back at the first saved
+ * profile (the same fallback {@link ShellLayoutStore.deleteProfile} uses),
+ * so the layout-profiles menu never shows a stale profile as active for a
+ * layout it no longer reflects.
+ */
+function resetShellLayoutForWorkspaceExit(): void {
+  const { profiles, resetActiveProfile } = useShellLayoutStore.getState();
+  if (profiles[0]) {
+    useShellLayoutStore.setState({ activeProfileId: profiles[0].id });
+  }
+  resetActiveProfile();
 }
 
 /**
@@ -137,8 +163,10 @@ export interface WorkspaceStore {
   rename: (name: string) => Promise<boolean>;
   /**
    * Clears the active workspace (store state + `localStorage`) and resets
-   * the shell's working layout back to its default. Also resets `status`
-   * and `error` to their idle defaults.
+   * the shell's working layout back to its hardcoded default, pointing
+   * `activeProfileId` at the first saved profile so the layout-profiles menu
+   * doesn't keep showing a stale profile as active. Also resets `status` and
+   * `error` to their idle defaults.
    */
   close: () => void;
   /**
@@ -208,9 +236,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
   },
 
   openWorkspace: async (id) => {
+    const requestId = ++latestOpenWorkspaceRequestId;
     set({ status: "loading", error: null });
     try {
       const workspace = await getWorkspace(id);
+      // A newer openWorkspace call started while this one was in flight
+      // (e.g. a manual selection racing an auto-open) — that call owns the
+      // store now, so drop this stale response instead of overwriting it.
+      if (requestId !== latestOpenWorkspaceRequestId) return true;
       writeStoredActiveWorkspaceId(workspace.id);
       set({
         activeWorkspaceId: workspace.id,
@@ -229,6 +262,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
       }
       return true;
     } catch (error) {
+      if (requestId !== latestOpenWorkspaceRequestId) return false;
       set({ status: "error", error: describeError(error) });
       return false;
     }
@@ -299,7 +333,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
       status: "idle",
       error: null,
     });
-    useShellLayoutStore.getState().resetActiveProfile();
+    resetShellLayoutForWorkspaceExit();
   },
 
   deleteWorkspace: async (id) => {
@@ -316,7 +350,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()((set, get) => ({
       }));
       if (closingActive) {
         clearStoredActiveWorkspaceId();
-        useShellLayoutStore.getState().resetActiveProfile();
+        resetShellLayoutForWorkspaceExit();
       }
       return true;
     } catch (error) {

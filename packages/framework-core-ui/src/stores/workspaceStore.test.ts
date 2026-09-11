@@ -323,4 +323,56 @@ describe("useWorkspaceStore", () => {
     expect(useShellLayoutStore.getState().workingLayout).toEqual(before);
     expect(useWorkspaceStore.getState().status).not.toBe("error");
   });
+
+  it("openWorkspace discards a stale response once a newer call has resolved", async () => {
+    let resolveStale: (workspace: Workspace) => void = () => {};
+    const stale = new Promise<Workspace>((resolve) => {
+      resolveStale = resolve;
+    });
+    vi.mocked(workspaceClient.getWorkspace).mockImplementationOnce(() => stale);
+    vi.mocked(workspaceClient.getWorkspace).mockImplementationOnce(() =>
+      Promise.resolve({ ...WORKSPACE, id: "w2", name: "Second" }),
+    );
+
+    // Simulates an auto-open (e.g. restoring the last-used workspace on
+    // mount) racing a manual selection the user makes before it resolves.
+    const staleCall = useWorkspaceStore.getState().openWorkspace("w1");
+    const freshCall = useWorkspaceStore.getState().openWorkspace("w2");
+    await freshCall;
+    resolveStale({ ...WORKSPACE, id: "w1" });
+    await staleCall;
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("w2");
+  });
+
+  it("close resets to the app's hardcoded default layout and re-points activeProfileId at the first profile", () => {
+    const profileLayout = createDefaultShellLayout();
+    profileLayout.regions.header.visible = false;
+    const defaultLayout = createDefaultShellLayout();
+    defaultLayout.regions.header.visible = true;
+    useShellLayoutStore.setState({
+      profiles: [
+        { id: "p1", name: "Default", layout: structuredClone(defaultLayout) },
+        { id: "p2", name: "Custom", layout: structuredClone(profileLayout) },
+      ],
+      activeProfileId: "p2",
+      workingLayout: structuredClone(profileLayout),
+      defaultLayout: structuredClone(defaultLayout),
+    });
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+    // Simulate the workspace's own layout_snapshot having been applied on open.
+    useShellLayoutStore.getState().setLayout((prev) => {
+      prev.regions.bottom.visible = false;
+      return prev;
+    });
+
+    useWorkspaceStore.getState().close();
+
+    expect(useShellLayoutStore.getState().workingLayout).toEqual(defaultLayout);
+    expect(useShellLayoutStore.getState().activeProfileId).toBe("p1");
+    // The "Custom" profile's own saved snapshot is untouched.
+    expect(
+      useShellLayoutStore.getState().profiles.find((p) => p.id === "p2")!.layout,
+    ).toEqual(profileLayout);
+  });
 });
