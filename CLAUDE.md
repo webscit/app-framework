@@ -99,6 +99,12 @@
 - Imports:
   - Keep imports clean, grouped, and lint/formatter compliant.
   - Prefer explicit named imports over wildcard imports.
+- Filesystem access (Python):
+  - Prefer `pathlib.Path` over `os`/`os.path` functions.
+  - For atomic file replacement, use `Path.replace()` instead of `os.replace()`.
+- Error handling (Python):
+  - Storage/domain layers should raise typed exceptions (e.g. `WorkspaceNotFound`) instead of returning sentinel values like `None`/`False` to signal "not found".
+  - Route handlers translate domain exceptions to `HTTPException`, using `fastapi.status` constants (e.g. `status.HTTP_404_NOT_FOUND`) rather than hardcoded integer status codes.
 - Testing:
   - Do not add or use `data-testid` except as a last resort when no accessible selector is possible (e.g. custom canvas-based widgets with no ARIA roles).
   - Always prefer accessibility-based selectors: `page.getByRole()`, `page.getByLabelText()`, `page.getByText()`, `page.getByPlaceholder()`.
