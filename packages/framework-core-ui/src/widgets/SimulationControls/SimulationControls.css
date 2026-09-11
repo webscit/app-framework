@@ -1,0 +1,31 @@
+.sct-SimulationControls-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 8px;
+}
+
+.sct-SimulationControls-title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground, #6b7280);
+}
+
+.sct-SimulationControls-row {
+  display: flex;
+  gap: 8px;
+}
+
+.sct-SimulationControls-button {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #d1d5db);
+  background: var(--background, #fff);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.sct-SimulationControls-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
