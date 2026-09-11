@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
 
 from .bus import BaseEvent, EventBus, EventHandler
+from .constants import API_PREFIX
 
 
 class _ClientPublishEvent(BaseEvent):
@@ -46,6 +47,10 @@ def _event_to_wire_message(channel: str, message: BaseEvent) -> dict[str, Any]:
 def _mount_ws_bridge(app: FastAPI, bus: EventBus) -> None:
     """Mount a multiplexed ``/api/ws`` WebSocket endpoint that bridges to ``bus``.
 
+    Defines a ``ws`` route on a fresh :class:`~fastapi.APIRouter` and includes
+    it on ``app`` under :data:`API_PREFIX`, so the endpoint ends up at
+    ``/api/ws``.
+
     Each connected client maintains its own subscription map.  All channel
     traffic for a single browser tab is multiplexed over one connection.
 
@@ -64,7 +69,9 @@ def _mount_ws_bridge(app: FastAPI, bus: EventBus) -> None:
     awaited (see ``EventBus.subscribe``).
     """
 
-    @app.websocket("/api/ws")
+    router = APIRouter()
+
+    @router.websocket("/ws")
     async def websocket_bridge(websocket: WebSocket) -> None:
         await websocket.accept()
 
@@ -124,3 +131,5 @@ def _mount_ws_bridge(app: FastAPI, bus: EventBus) -> None:
         finally:
             for ch, handler in list(subscriptions.items()):
                 bus.unsubscribe(ch, handler)
+
+    app.include_router(router, prefix=API_PREFIX)
