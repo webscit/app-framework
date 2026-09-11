@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type React from "react";
+import { ChevronDownIcon } from "lucide-react";
 
 import {
   clearStoredActiveWorkspaceId,
@@ -137,9 +138,7 @@ export function WorkspaceMenu(): React.ReactElement {
         <span className="sct-WorkspaceMenu-triggerLabel">
           {active ? active.name : "No workspace"}
         </span>
-        <span aria-hidden className="sct-WorkspaceMenu-caret">
-          ▾
-        </span>
+        <ChevronDownIcon aria-hidden className="sct-WorkspaceMenu-caret" />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
