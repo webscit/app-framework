@@ -1518,7 +1518,7 @@ dependencies = [
     { name = "pillow" },
     { name = "reachy-mini" },
     { name = "sci-framework-core" },
-    { name = "uvicorn" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
@@ -1528,7 +1528,7 @@ requires-dist = [
     { name = "pillow" },
     { name = "reachy-mini" },
     { name = "sci-framework-core", editable = "pypackages/framework-core" },
-    { name = "uvicorn" },
+    { name = "uvicorn", extras = ["standard"] },
 ]
 
 [[package]]
@@ -1797,11 +1797,17 @@ name = "simple-example"
 version = "0.1.0"
 source = { editable = "examples/simple" }
 dependencies = [
+    { name = "fastapi" },
     { name = "sci-framework-core" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "sci-framework-core", editable = "pypackages/framework-core" }]
+requires-dist = [
+    { name = "fastapi" },
+    { name = "sci-framework-core", editable = "pypackages/framework-core" },
+    { name = "uvicorn", extras = ["standard"] },
+]
 
 [[package]]
 name = "sniffio"

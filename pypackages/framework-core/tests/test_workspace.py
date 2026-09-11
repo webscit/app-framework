@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sci_framework_core.workspace import (
     Workspace,
+    WorkspaceNotFound,
     WorkspaceStore,
     default_workspace_dir,
     mount_workspace_routes,
@@ -53,8 +54,9 @@ def test_get_by_id_matches_created(store: WorkspaceStore) -> None:
     assert fetched == created
 
 
-def test_get_unknown_id_returns_none(store: WorkspaceStore) -> None:
-    assert store.get("does-not-exist") is None
+def test_get_unknown_id_raises_workspace_not_found(store: WorkspaceStore) -> None:
+    with pytest.raises(WorkspaceNotFound):
+        store.get("does-not-exist")
 
 
 def test_update_persists_changes_and_refreshes_updated_at(
@@ -65,13 +67,11 @@ def test_update_persists_changes_and_refreshes_updated_at(
 
     updated = store.update(created.id, changed)
 
-    assert updated is not None
     assert updated.name == "New Name"
     assert updated.updated_at >= created.updated_at
     assert updated.created_at == created.created_at
 
     refetched = store.get(created.id)
-    assert refetched is not None
     assert refetched.name == "New Name"
 
 
@@ -81,29 +81,32 @@ def test_update_ignores_mismatched_id_in_body(store: WorkspaceStore) -> None:
 
     updated = store.update(created.id, mismatched)
 
-    assert updated is not None
     assert updated.id == created.id
-    assert store.get("some-other-id") is None
+    with pytest.raises(WorkspaceNotFound):
+        store.get("some-other-id")
 
 
-def test_update_unknown_id_returns_none(store: WorkspaceStore) -> None:
+def test_update_unknown_id_raises_workspace_not_found(store: WorkspaceStore) -> None:
     fake = Workspace(
         id="does-not-exist",
         name="X",
         created_at=__import__("datetime").datetime.now(),
         updated_at=__import__("datetime").datetime.now(),
     )
-    assert store.update("does-not-exist", fake) is None
+    with pytest.raises(WorkspaceNotFound):
+        store.update("does-not-exist", fake)
 
 
 def test_delete_removes_file(store: WorkspaceStore) -> None:
     created = store.create(name="To Delete", goal=None)
-    assert store.delete(created.id) is True
-    assert store.get(created.id) is None
+    store.delete(created.id)
+    with pytest.raises(WorkspaceNotFound):
+        store.get(created.id)
 
 
-def test_delete_unknown_id_returns_false(store: WorkspaceStore) -> None:
-    assert store.delete("does-not-exist") is False
+def test_delete_unknown_id_raises_workspace_not_found(store: WorkspaceStore) -> None:
+    with pytest.raises(WorkspaceNotFound):
+        store.delete("does-not-exist")
 
 
 def test_create_writes_atomically_no_tmp_file_left_behind(
@@ -204,13 +207,13 @@ def test_malformed_body_returns_422(client: TestClient) -> None:
 def test_update_crash_before_replace_leaves_original_file_untouched(
     store: WorkspaceStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """If os.replace() never runs, the original file must be unaffected."""
+    """If Path.replace() never runs, the original file must be unaffected."""
     created = store.create(name="Original", goal=None)
 
     def _boom(*_args: object, **_kwargs: object) -> None:
         raise OSError("simulated crash before replace")
 
-    monkeypatch.setattr("sci_framework_core.workspace.os.replace", _boom)
+    monkeypatch.setattr(Path, "replace", _boom)
 
     changed = created.model_copy(update={"name": "Should Not Persist"})
     with pytest.raises(OSError):
@@ -226,9 +229,10 @@ def test_update_crash_before_replace_leaves_original_file_untouched(
 def test_create_crash_before_replace_leaves_no_file(
     store: WorkspaceStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """If os.replace() never runs during create, no final file should exist."""
+    """If Path.replace() never runs during create, no final file should exist."""
     monkeypatch.setattr(
-        "sci_framework_core.workspace.os.replace",
+        Path,
+        "replace",
         lambda *_a, **_k: (_ for _ in ()).throw(OSError("simulated crash")),
     )
 

@@ -7,7 +7,6 @@ application.
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -55,6 +54,18 @@ class Workspace(WorkspaceSummary):
     metadata: dict[str, Any] = {}
 
 
+class WorkspaceNotFound(Exception):
+    """Raised by :class:`WorkspaceStore` when a workspace id doesn't exist.
+
+    Attributes:
+        workspace_id: The id that could not be found.
+    """
+
+    def __init__(self, workspace_id: str) -> None:
+        self.workspace_id = workspace_id
+        super().__init__(f"Workspace '{workspace_id}' not found")
+
+
 # ─── Storage ──────────────────────────────────────────────────────────────────
 
 
@@ -75,8 +86,8 @@ class WorkspaceStore:
     """File-backed CRUD storage for :class:`Workspace` records.
 
     One JSON file per workspace, named ``{id}.json``, inside ``workspace_dir``.
-    Writes are atomic (temp file + ``os.replace``) so a crash mid-write never
-    corrupts an existing file. No locking is performed — concurrent writers
+    Writes are atomic (temp file + ``Path.replace``) so a crash mid-write
+    never corrupts an existing file. No locking is performed — concurrent writers
     race on "last write wins", matching the frontend's accepted layout
     persistence semantics.
     """
@@ -98,7 +109,7 @@ class WorkspaceStore:
         final_path = self._path(workspace.id)
         tmp_path = self._dir / f"{workspace.id}.json.tmp"
         tmp_path.write_text(workspace.model_dump_json())
-        os.replace(tmp_path, final_path)
+        tmp_path.replace(final_path)
 
     def create(self, name: str, goal: str | None) -> Workspace:
         """Create and persist a new workspace.
@@ -138,21 +149,24 @@ class WorkspaceStore:
         ]
         return sorted(summaries, key=lambda s: s.updated_at, reverse=True)
 
-    def get(self, workspace_id: str) -> Workspace | None:
+    def get(self, workspace_id: str) -> Workspace:
         """Fetch one workspace by id.
 
         Args:
             workspace_id: The workspace's ``id``.
 
         Returns:
-            The :class:`Workspace`, or ``None`` if no such workspace exists.
+            The :class:`Workspace`.
+
+        Raises:
+            WorkspaceNotFound: If no workspace with this id exists.
         """
         path = self._path(workspace_id)
         if not path.exists():
-            return None
+            raise WorkspaceNotFound(workspace_id)
         return Workspace.model_validate_json(path.read_text())
 
-    def update(self, workspace_id: str, workspace: Workspace) -> Workspace | None:
+    def update(self, workspace_id: str, workspace: Workspace) -> Workspace:
         """Persist changes to an existing workspace.
 
         Args:
@@ -163,12 +177,13 @@ class WorkspaceStore:
                 refreshed to now.
 
         Returns:
-            The saved :class:`Workspace`, or ``None`` if ``workspace_id``
-            does not correspond to an existing workspace.
+            The saved :class:`Workspace`.
+
+        Raises:
+            WorkspaceNotFound: If ``workspace_id`` does not correspond to an
+                existing workspace.
         """
         existing = self.get(workspace_id)
-        if existing is None:
-            return None
         updated = workspace.model_copy(
             update={
                 "id": workspace_id,
@@ -179,21 +194,19 @@ class WorkspaceStore:
         self._write(updated)
         return updated
 
-    def delete(self, workspace_id: str) -> bool:
+    def delete(self, workspace_id: str) -> None:
         """Delete a workspace's file.
 
         Args:
             workspace_id: The workspace's ``id``.
 
-        Returns:
-            ``True`` if a file was removed, ``False`` if no such workspace
-            existed.
+        Raises:
+            WorkspaceNotFound: If no workspace with this id exists.
         """
         path = self._path(workspace_id)
         if not path.exists():
-            return False
+            raise WorkspaceNotFound(workspace_id)
         path.unlink()
-        return True
 
 
 # ─── Request models ───────────────────────────────────────────────────────────
@@ -276,11 +289,12 @@ def mount_workspace_routes(
         Raises:
             HTTPException: 404 if no workspace with this id exists.
         """
-        workspace = store.get(workspace_id)
-        if workspace is None:
-            detail = f"Workspace '{workspace_id}' not found"
-            raise HTTPException(status_code=404, detail=detail)
-        return workspace
+        try:
+            return store.get(workspace_id)
+        except WorkspaceNotFound as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+            ) from exc
 
     @app.put("/workspaces/{workspace_id}", response_model=Workspace)
     async def update_workspace(workspace_id: str, workspace: Workspace) -> Workspace:
@@ -297,11 +311,12 @@ def mount_workspace_routes(
         Raises:
             HTTPException: 404 if no workspace with this id exists.
         """
-        updated = store.update(workspace_id, workspace)
-        if updated is None:
-            detail = f"Workspace '{workspace_id}' not found"
-            raise HTTPException(status_code=404, detail=detail)
-        return updated
+        try:
+            return store.update(workspace_id, workspace)
+        except WorkspaceNotFound as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+            ) from exc
 
     @app.delete("/workspaces/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_workspace(workspace_id: str) -> None:
@@ -313,7 +328,9 @@ def mount_workspace_routes(
         Raises:
             HTTPException: 404 if no workspace with this id exists.
         """
-        deleted = store.delete(workspace_id)
-        if not deleted:
-            detail = f"Workspace '{workspace_id}' not found"
-            raise HTTPException(status_code=404, detail=detail)
+        try:
+            store.delete(workspace_id)
+        except WorkspaceNotFound as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+            ) from exc
