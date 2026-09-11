@@ -44,7 +44,7 @@ def _event_to_wire_message(channel: str, message: BaseEvent) -> dict[str, Any]:
 
 
 def _mount_ws_bridge(app: FastAPI, bus: EventBus) -> None:
-    """Mount a multiplexed ``/ws`` WebSocket endpoint that bridges to ``bus``.
+    """Mount a multiplexed ``/api/ws`` WebSocket endpoint that bridges to ``bus``.
 
     Each connected client maintains its own subscription map.  All channel
     traffic for a single browser tab is multiplexed over one connection.
@@ -64,7 +64,7 @@ def _mount_ws_bridge(app: FastAPI, bus: EventBus) -> None:
     awaited (see ``EventBus.subscribe``).
     """
 
-    @app.websocket("/ws")
+    @app.websocket("/api/ws")
     async def websocket_bridge(websocket: WebSocket) -> None:
         await websocket.accept()
 

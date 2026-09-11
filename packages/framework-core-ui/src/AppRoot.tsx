@@ -12,7 +12,7 @@ import type { WebSocketFactory } from "./client";
 export interface AppRootProps {
   /** Widget registry shared with the shell and the AI assistant. */
   registry: WidgetRegistry;
-  /** Backend WebSocket path. Defaults to `"/ws"`. */
+  /** Backend WebSocket path. Defaults to `"/api/ws"`. */
   webSocketPath?: string;
   /** Reconnect delay in milliseconds, forwarded to the EventBus client. */
   reconnectDelayMs?: number;
@@ -35,14 +35,14 @@ export interface AppRootProps {
  * @returns The children wrapped in the framework's context providers.
  * @example
  * ```tsx
- * <AppRoot registry={registry} webSocketPath="/ws">
+ * <AppRoot registry={registry} webSocketPath="/api/ws">
  *   <ApplicationShell initialLayout={layout} manifestUrl="/sct-manifest.json" />
  * </AppRoot>
  * ```
  */
 export function AppRoot({
   registry,
-  webSocketPath = "/ws",
+  webSocketPath = "/api/ws",
   reconnectDelayMs,
   webSocketFactory,
   children,

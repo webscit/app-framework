@@ -40,67 +40,14 @@
 }
 
 /* ─── Popover ─────────────────────────────────────────────────────────────── */
+/*
+ * The popover shell and menu items themselves come from the shared
+ * DropdownMenu primitives (see components/ui/dropdown-menu.tsx); only the
+ * width is customized here.
+ */
 
 .sct-WorkspaceMenu-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 50;
   min-width: 224px;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background-color: var(--popover, var(--card));
-  color: var(--popover-foreground, var(--foreground));
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow:
-    0 10px 15px -3px rgb(0 0 0 / 0.12),
-    0 4px 6px -4px rgb(0 0 0 / 0.1);
-}
-
-.sct-WorkspaceMenu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 0.12s ease;
-}
-
-.sct-WorkspaceMenu-item:hover:not(:disabled) {
-  background-color: var(--muted);
-}
-
-.sct-WorkspaceMenu-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Checkmark before the active workspace via aria-checked. */
-.sct-WorkspaceMenu-item[role="menuitemradio"]::before {
-  content: "";
-  width: 14px;
-  flex-shrink: 0;
-  color: var(--primary);
-}
-
-.sct-WorkspaceMenu-item[role="menuitemradio"][aria-checked="true"]::before {
-  content: "✓";
-}
-
-.sct-WorkspaceMenu-divider {
-  height: 1px;
-  margin: 4px 2px;
-  background-color: var(--border);
 }
 
 /* ─── Inline name form (create / rename) ────────────────────────────────────── */

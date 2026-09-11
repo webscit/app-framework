@@ -41,17 +41,11 @@ export default defineConfig({
       // (started via `mjpython -m reachy_mini.daemon.app.main --sim`) — the
       // example backend must run on a different port to avoid colliding
       // with it. See examples/reachy_mini/backend/main.py for the run command.
-      "/ws": {
+      // All backend routes (ws/ai/workspaces) are scoped under /api, so one
+      // proxy rule covers them.
+      "/api": {
         target: "http://127.0.0.1:8001",
         ws: true,
-        changeOrigin: true,
-      },
-      "/ai": {
-        target: "http://127.0.0.1:8001",
-        changeOrigin: true,
-      },
-      "/workspaces": {
-        target: "http://127.0.0.1:8001",
         changeOrigin: true,
       },
     },

@@ -591,7 +591,7 @@ def mount_ai_routes(app: FastAPI) -> None:
         app: FastAPI application instance to attach routes to.
     """
 
-    @app.post("/ai/layout", response_model=LayoutResponse)
+    @app.post("/api/ai/layout", response_model=LayoutResponse)
     async def generate_layout(request: LayoutRequest) -> LayoutResponse:
         """Generate a validated ShellLayout from a natural-language prompt.
 

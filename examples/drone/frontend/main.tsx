@@ -252,7 +252,7 @@ function DroneDashboard() {
       initialLayout={initialLayout}
       manifestUrl="/sct-manifest.json"
       ai={{
-        apiUrl: "/ai/layout",
+        apiUrl: "/api/ai/layout",
         // The framework is domain-agnostic: this example supplies its own
         // context shape plus instructions describing what the data means and
         // which parameters the AI may change.
@@ -273,7 +273,7 @@ function DroneDashboard() {
 
 function App() {
   return (
-    <AppRoot registry={registry} webSocketPath="/ws">
+    <AppRoot registry={registry} webSocketPath="/api/ws">
       <DroneDashboard />
     </AppRoot>
   );

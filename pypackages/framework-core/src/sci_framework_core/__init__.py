@@ -13,7 +13,7 @@ from .ws_bridge import _mount_ws_bridge
 def create_app(lifespan: Any = None) -> FastAPI:
     """Create and return a configured FastAPI application.
 
-    Mounts the ``/ws`` WebSocket endpoint backed by a shared ``EventBus``.
+    Mounts the ``/api/ws`` WebSocket endpoint backed by a shared ``EventBus``.
     The application's ``EventBus`` is accessible via ``app.state.bus``.
 
     Args:
@@ -25,7 +25,7 @@ def create_app(lifespan: Any = None) -> FastAPI:
 
     Returns:
         Configured ``FastAPI`` application with a shared ``EventBus`` and
-        websocket bridge mounted at ``/ws``.
+        websocket bridge mounted at ``/api/ws``.
 
     Example::
 

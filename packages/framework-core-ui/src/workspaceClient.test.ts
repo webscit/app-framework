@@ -42,13 +42,13 @@ afterEach(() => {
 describe("buildWorkspaceApiUrl", () => {
   it("builds an http URL from a non-https location", () => {
     expect(buildWorkspaceApiUrl({ protocol: "http:", host: "localhost:5173" })).toBe(
-      "http://localhost:5173/workspaces",
+      "http://localhost:5173/api/workspaces",
     );
   });
 
   it("builds an https URL from an https location", () => {
     expect(buildWorkspaceApiUrl({ protocol: "https:", host: "app.example.com" })).toBe(
-      "https://app.example.com/workspaces",
+      "https://app.example.com/api/workspaces",
     );
   });
 });
@@ -60,7 +60,9 @@ describe("listWorkspaces", () => {
     const result = await listWorkspaces(LOCATION);
 
     expect(result).toEqual([WORKSPACE]);
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith("http://localhost:5173/workspaces");
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "http://localhost:5173/api/workspaces",
+    );
   });
 
   it("throws WorkspaceApiError with the parsed detail on failure", async () => {
@@ -99,7 +101,7 @@ describe("createWorkspace", () => {
 
     expect(result).toEqual(WORKSPACE);
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      "http://localhost:5173/workspaces",
+      "http://localhost:5173/api/workspaces",
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,7 +119,7 @@ describe("getWorkspace", () => {
 
     expect(result).toEqual(WORKSPACE);
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      "http://localhost:5173/workspaces/w1",
+      "http://localhost:5173/api/workspaces/w1",
     );
   });
 
@@ -136,7 +138,7 @@ describe("updateWorkspace", () => {
 
     expect(result).toEqual(WORKSPACE);
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      "http://localhost:5173/workspaces/w1",
+      "http://localhost:5173/api/workspaces/w1",
       expect.objectContaining({ method: "PUT", body: JSON.stringify(WORKSPACE) }),
     );
   });
@@ -148,7 +150,7 @@ describe("deleteWorkspace", () => {
 
     await expect(deleteWorkspace("w1", LOCATION)).resolves.toBeUndefined();
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      "http://localhost:5173/workspaces/w1",
+      "http://localhost:5173/api/workspaces/w1",
       {
         method: "DELETE",
       },

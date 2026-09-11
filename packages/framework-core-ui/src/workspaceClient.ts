@@ -73,19 +73,19 @@ async function throwIfNotOk(response: Response): Promise<void> {
 // ─── URL building ─────────────────────────────────────────────────────────────
 
 /**
- * Builds the base `/workspaces` REST API URL from a browser location-like object.
+ * Builds the base `/api/workspaces` REST API URL from a browser location-like object.
  *
  * @param locationLike Current location containing protocol and host.
  * @returns Absolute `http://` or `https://` base URL for the workspaces API.
  * @example
  * ```ts
  * const url = buildWorkspaceApiUrl(window.location);
- * // http://localhost:5173/workspaces
+ * // http://localhost:5173/api/workspaces
  * ```
  */
 export function buildWorkspaceApiUrl(locationLike: LocationLike): string {
   const scheme = locationLike.protocol === "https:" ? "https" : "http";
-  return `${scheme}://${locationLike.host}/workspaces`;
+  return `${scheme}://${locationLike.host}/api/workspaces`;
 }
 
 // ─── CRUD functions ─────────────────────────────────────────────────────────────

@@ -80,7 +80,7 @@ def test_layout_endpoint_returns_layout(
         return_value=_VALID_AI_RESPONSE,
     ):
         response = client.post(
-            "/ai/layout",
+            "/api/ai/layout",
             json={
                 "prompt": "Build a sine wave dashboard",
                 "history": [],
@@ -108,7 +108,7 @@ def test_layout_endpoint_rejects_unknown_widget(
         return_value=_INVALID_WIDGET_RESPONSE,
     ):
         response = client.post(
-            "/ai/layout",
+            "/api/ai/layout",
             json={
                 "prompt": "Build a dashboard",
                 "history": [],
@@ -141,7 +141,7 @@ def test_layout_endpoint_returns_suggested_params_with_snapshot(
         return_value=diagnosis_response,
     ) as mock_call:
         response = client.post(
-            "/ai/layout",
+            "/api/ai/layout",
             json={
                 "prompt": "What's wrong with this run?",
                 "history": [],
@@ -181,7 +181,7 @@ def test_layout_endpoint_without_context_has_no_suggested_params(
         return_value=_VALID_AI_RESPONSE,
     ) as mock_call:
         response = client.post(
-            "/ai/layout",
+            "/api/ai/layout",
             json={
                 "prompt": "Build a sine wave dashboard",
                 "history": [],
@@ -218,7 +218,7 @@ def test_layout_endpoint_combined_diagnosis_and_layout_change(
         return_value=combined_response,
     ):
         response = client.post(
-            "/ai/layout",
+            "/api/ai/layout",
             json={
                 "prompt": "Fix it and show me the margin",
                 "history": [],
@@ -241,7 +241,7 @@ def test_layout_endpoint_missing_api_key(monkeypatch: pytest.MonkeyPatch) -> Non
     mount_ai_routes(app)
     with TestClient(app) as c:
         response = c.post(
-            "/ai/layout",
+            "/api/ai/layout",
             json={
                 "prompt": "Build a dashboard",
                 "history": [],

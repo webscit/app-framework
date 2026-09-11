@@ -7,6 +7,15 @@ import {
   useWorkspaceStore,
 } from "../stores/workspaceStore";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import "./WorkspaceMenu.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,7 +50,8 @@ type Draft =
  * workspace state of its own — {@link useWorkspaceStore} is the single
  * source of truth. It is placed in the shell header by `ShellRegions`, next
  * to `LayoutProfilesMenu` (which continues to manage local layout presets
- * independently of workspaces).
+ * independently of workspaces). Its menu is built on the shared
+ * {@link DropdownMenu} primitives rather than a bespoke popover.
  *
  * @returns The workspace menu element.
  * @example
@@ -119,14 +129,10 @@ export function WorkspaceMenu(): React.ReactElement {
   }
 
   return (
-    <div className="sct-WorkspaceMenu">
-      <button
-        type="button"
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger
         className="sct-WorkspaceMenu-trigger"
-        aria-haspopup="menu"
-        aria-expanded={open}
         aria-label={`Workspace: ${active ? active.name : "No workspace"}`}
-        onClick={() => (open ? closeMenu() : setOpen(true))}
       >
         <span className="sct-WorkspaceMenu-triggerLabel">
           {active ? active.name : "No workspace"}
@@ -134,120 +140,116 @@ export function WorkspaceMenu(): React.ReactElement {
         <span aria-hidden className="sct-WorkspaceMenu-caret">
           ▾
         </span>
-      </button>
+      </DropdownMenuTrigger>
 
-      {open && (
-        <div className="sct-WorkspaceMenu-popover" role="menu" aria-label="Workspaces">
-          {draft.mode === "idle" ? (
-            <>
+      <DropdownMenuContent
+        aria-label="Workspaces"
+        className="sct-WorkspaceMenu-popover"
+      >
+        {draft.mode === "idle" ? (
+          <>
+            <DropdownMenuRadioGroup
+              value={activeWorkspaceId ?? null}
+              onValueChange={(value) => void handleSelect(value as string)}
+            >
               {workspaces.map((w) => (
-                <button
+                <DropdownMenuRadioItem
                   key={w.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={w.id === activeWorkspaceId}
+                  value={w.id}
                   className="sct-WorkspaceMenu-item"
-                  onClick={() => void handleSelect(w.id)}
                 >
                   {w.name}
-                </button>
+                </DropdownMenuRadioItem>
               ))}
+            </DropdownMenuRadioGroup>
 
-              <div className="sct-WorkspaceMenu-divider" role="separator" />
+            <DropdownMenuSeparator />
 
-              <button
-                type="button"
-                role="menuitem"
-                className="sct-WorkspaceMenu-item"
-                onClick={() => setDraft({ mode: "creating", name: "" })}
-              >
-                New workspace…
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="sct-WorkspaceMenu-item"
-                disabled={!hasActive}
-                onClick={() => void handleSave()}
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="sct-WorkspaceMenu-item"
-                disabled={!hasActive}
-                onClick={() => setDraft({ mode: "renaming", name: active?.name ?? "" })}
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="sct-WorkspaceMenu-item"
-                disabled={!hasActive}
-                onClick={() => {
-                  close();
-                  closeMenu();
-                }}
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="sct-WorkspaceMenu-item"
-                disabled={!hasActive}
-                onClick={() => void handleDelete()}
-              >
-                Delete
-              </button>
-            </>
-          ) : (
-            <div className="sct-WorkspaceMenu-form">
-              <span className="sct-WorkspaceMenu-formLabel">
-                {draft.mode === "creating" ? "New workspace name" : "Rename workspace"}
-              </span>
-              <input
-                className="sct-WorkspaceMenu-input"
-                aria-label="Workspace name"
-                placeholder={
-                  draft.mode === "creating" ? "e.g. Drone survey" : undefined
+            <DropdownMenuItem
+              closeOnClick={false}
+              className="sct-WorkspaceMenu-item"
+              onClick={() => setDraft({ mode: "creating", name: "" })}
+            >
+              New workspace…
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              closeOnClick={false}
+              disabled={!hasActive}
+              className="sct-WorkspaceMenu-item"
+              onClick={() => void handleSave()}
+            >
+              Save
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              closeOnClick={false}
+              disabled={!hasActive}
+              className="sct-WorkspaceMenu-item"
+              onClick={() => setDraft({ mode: "renaming", name: active?.name ?? "" })}
+            >
+              Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              closeOnClick={false}
+              disabled={!hasActive}
+              className="sct-WorkspaceMenu-item"
+              onClick={() => {
+                close();
+                closeMenu();
+              }}
+            >
+              Close
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              closeOnClick={false}
+              disabled={!hasActive}
+              className="sct-WorkspaceMenu-item"
+              onClick={() => void handleDelete()}
+            >
+              Delete
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <div className="sct-WorkspaceMenu-form">
+            <span className="sct-WorkspaceMenu-formLabel">
+              {draft.mode === "creating" ? "New workspace name" : "Rename workspace"}
+            </span>
+            <input
+              className="sct-WorkspaceMenu-input"
+              aria-label="Workspace name"
+              placeholder={draft.mode === "creating" ? "e.g. Drone survey" : undefined}
+              autoFocus
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void submitDraft();
+                } else if (e.key === "Escape") {
+                  setDraft({ mode: "idle" });
                 }
-                autoFocus
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void submitDraft();
-                  } else if (e.key === "Escape") {
-                    setDraft({ mode: "idle" });
-                  }
-                }}
-              />
-              <div className="sct-WorkspaceMenu-formActions">
-                <Button size="sm" onClick={() => void submitDraft()}>
-                  {draft.mode === "creating" ? "Create workspace" : "Save name"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setDraft({ mode: "idle" })}
-                >
-                  Cancel
-                </Button>
-              </div>
+              }}
+            />
+            <div className="sct-WorkspaceMenu-formActions">
+              <Button size="sm" onClick={() => void submitDraft()}>
+                {draft.mode === "creating" ? "Create workspace" : "Save name"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setDraft({ mode: "idle" })}
+              >
+                Cancel
+              </Button>
             </div>
-          )}
+          </div>
+        )}
 
-          {error && (
-            <div className="sct-WorkspaceMenu-error" role="alert">
-              {error}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+        {error && (
+          <div className="sct-WorkspaceMenu-error" role="alert">
+            {error}
+          </div>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

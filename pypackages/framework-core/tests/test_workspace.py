@@ -135,7 +135,7 @@ def client(tmp_path: Path) -> TestClient:
 
 def test_post_creates_workspace(client: TestClient) -> None:
     response = client.post(
-        "/workspaces",
+        "/api/workspaces",
         json={"name": "My Workspace", "goal": "Test goal"},
     )
     assert response.status_code == 201
@@ -146,33 +146,33 @@ def test_post_creates_workspace(client: TestClient) -> None:
 
 
 def test_get_list_returns_summaries_sorted_desc(client: TestClient) -> None:
-    first = client.post("/workspaces", json={"name": "First"}).json()
-    client.post("/workspaces", json={"name": "Second"}).json()
-    client.put(f"/workspaces/{first['id']}", json=first)
+    first = client.post("/api/workspaces", json={"name": "First"}).json()
+    client.post("/api/workspaces", json={"name": "Second"}).json()
+    client.put(f"/api/workspaces/{first['id']}", json=first)
 
-    response = client.get("/workspaces")
+    response = client.get("/api/workspaces")
     assert response.status_code == 200
     names = [w["name"] for w in response.json()]
     assert names == ["First", "Second"]
 
 
 def test_get_by_id_returns_created(client: TestClient) -> None:
-    created = client.post("/workspaces", json={"name": "My Workspace"}).json()
-    response = client.get(f"/workspaces/{created['id']}")
+    created = client.post("/api/workspaces", json={"name": "My Workspace"}).json()
+    response = client.get(f"/api/workspaces/{created['id']}")
     assert response.status_code == 200
     assert response.json() == created
 
 
 def test_get_unknown_id_returns_404(client: TestClient) -> None:
-    response = client.get("/workspaces/does-not-exist")
+    response = client.get("/api/workspaces/does-not-exist")
     assert response.status_code == 404
 
 
 def test_put_updates_and_refreshes_updated_at(client: TestClient) -> None:
-    created = client.post("/workspaces", json={"name": "Old Name"}).json()
+    created = client.post("/api/workspaces", json={"name": "Old Name"}).json()
     payload = {**created, "id": "ignored-mismatch", "name": "New Name"}
 
-    response = client.put(f"/workspaces/{created['id']}", json=payload)
+    response = client.put(f"/api/workspaces/{created['id']}", json=payload)
 
     assert response.status_code == 200
     body = response.json()
@@ -182,25 +182,25 @@ def test_put_updates_and_refreshes_updated_at(client: TestClient) -> None:
 
 
 def test_put_unknown_id_returns_404(client: TestClient) -> None:
-    created = client.post("/workspaces", json={"name": "X"}).json()
-    response = client.put("/workspaces/does-not-exist", json=created)
+    created = client.post("/api/workspaces", json={"name": "X"}).json()
+    response = client.put("/api/workspaces/does-not-exist", json=created)
     assert response.status_code == 404
 
 
 def test_delete_removes_and_subsequent_get_404s(client: TestClient) -> None:
-    created = client.post("/workspaces", json={"name": "To Delete"}).json()
-    delete_response = client.delete(f"/workspaces/{created['id']}")
+    created = client.post("/api/workspaces", json={"name": "To Delete"}).json()
+    delete_response = client.delete(f"/api/workspaces/{created['id']}")
     assert delete_response.status_code == 204
-    assert client.get(f"/workspaces/{created['id']}").status_code == 404
+    assert client.get(f"/api/workspaces/{created['id']}").status_code == 404
 
 
 def test_delete_unknown_id_returns_404(client: TestClient) -> None:
-    response = client.delete("/workspaces/does-not-exist")
+    response = client.delete("/api/workspaces/does-not-exist")
     assert response.status_code == 404
 
 
 def test_malformed_body_returns_422(client: TestClient) -> None:
-    response = client.post("/workspaces", json={"goal": "missing name"})
+    response = client.post("/api/workspaces", json={"goal": "missing name"})
     assert response.status_code == 422
 
 
