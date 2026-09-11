@@ -38,14 +38,12 @@ export default defineConfig({
     },
     proxy: {
       // The drone example backend runs on port 8002 (Reachy uses 8001) — see
-      // examples/drone/backend/main.py for the run command.
-      "/ws": {
+      // examples/drone/backend/main.py for the run command. All backend
+      // routes (ws/ai/workspaces) are scoped under /api, so one proxy rule
+      // covers them.
+      "/api": {
         target: "http://127.0.0.1:8002",
         ws: true,
-        changeOrigin: true,
-      },
-      "/ai": {
-        target: "http://127.0.0.1:8002",
         changeOrigin: true,
       },
     },

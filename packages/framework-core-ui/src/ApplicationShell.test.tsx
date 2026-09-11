@@ -329,7 +329,7 @@ describe("ApplicationShell", () => {
     const registry = new WidgetRegistry();
     await render(
       <WidgetRegistryContext.Provider value={registry}>
-        <ApplicationShell ai={{ apiUrl: "/ai/layout" }} />
+        <ApplicationShell ai={{ apiUrl: "/api/ai/layout" }} />
       </WidgetRegistryContext.Provider>,
     );
 
@@ -349,7 +349,7 @@ describe("ApplicationShell", () => {
     const registry = new WidgetRegistry();
     await render(
       <WidgetRegistryContext.Provider value={registry}>
-        <ApplicationShell ai={{ apiUrl: "/ai/layout" }} />
+        <ApplicationShell ai={{ apiUrl: "/api/ai/layout" }} />
       </WidgetRegistryContext.Provider>,
     );
 

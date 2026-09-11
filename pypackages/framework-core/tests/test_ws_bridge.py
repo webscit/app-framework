@@ -32,7 +32,7 @@ def test_websocket_subscribe_replays_last_message() -> None:
     with TestClient(app) as client:
         # Publish the seed message through the WebSocket itself so it lands in
         # the same event loop that the app is running on.
-        with client.websocket_connect("/ws") as seed_ws:
+        with client.websocket_connect("/api/ws") as seed_ws:
             seed_ws.send_json(
                 {
                     "action": "publish",
@@ -42,7 +42,7 @@ def test_websocket_subscribe_replays_last_message() -> None:
             )
 
         # A fresh connection subscribes and should receive the replayed message.
-        with client.websocket_connect("/ws") as ws:
+        with client.websocket_connect("/api/ws") as ws:
             ws.send_json({"action": "subscribe", "channel": "sensor/temperature"})
             received = ws.receive_json()
 
@@ -59,13 +59,13 @@ def test_websocket_subscribe_and_receive_live_message() -> None:
     app = create_app()
 
     with TestClient(app) as client:
-        with client.websocket_connect("/ws") as subscriber:
+        with client.websocket_connect("/api/ws") as subscriber:
             subscriber.send_json(
                 {"action": "subscribe", "channel": "sensor/temperature"}
             )
 
             # Publish from a second connection on the same app.
-            with client.websocket_connect("/ws") as publisher:
+            with client.websocket_connect("/api/ws") as publisher:
                 publisher.send_json(
                     {
                         "action": "publish",
@@ -85,11 +85,11 @@ def test_websocket_unsubscribe_stops_delivery() -> None:
     app = create_app()
 
     with TestClient(app) as client:
-        with client.websocket_connect("/ws") as ws:
+        with client.websocket_connect("/api/ws") as ws:
             ws.send_json({"action": "subscribe", "channel": "sensor/temperature"})
             ws.send_json({"action": "unsubscribe", "channel": "sensor/temperature"})
 
-            with client.websocket_connect("/ws") as publisher:
+            with client.websocket_connect("/api/ws") as publisher:
                 publisher.send_json(
                     {
                         "action": "publish",
@@ -113,7 +113,7 @@ def test_websocket_invalid_action_returns_error() -> None:
     app = create_app()
 
     with TestClient(app) as client:
-        with client.websocket_connect("/ws") as ws:
+        with client.websocket_connect("/api/ws") as ws:
             ws.send_json({"action": "unknown", "channel": "sensor/temperature"})
             received = ws.receive_json()
 
@@ -124,7 +124,7 @@ def test_websocket_missing_channel_returns_error() -> None:
     app = create_app()
 
     with TestClient(app) as client:
-        with client.websocket_connect("/ws") as ws:
+        with client.websocket_connect("/api/ws") as ws:
             ws.send_json({"action": "subscribe"})
             received = ws.receive_json()
 

@@ -118,11 +118,11 @@ const initialLayout: ShellLayout = {
  */
 function App() {
   return (
-    <AppRoot registry={registry} webSocketPath="/ws">
+    <AppRoot registry={registry} webSocketPath="/api/ws">
       <ApplicationShell
         initialLayout={initialLayout}
         manifestUrl="/sct-manifest.json"
-        ai={{ apiUrl: "/ai/layout" }}
+        ai={{ apiUrl: "/api/ai/layout" }}
       />
     </AppRoot>
   );

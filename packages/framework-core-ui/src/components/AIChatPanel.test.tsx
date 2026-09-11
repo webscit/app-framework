@@ -102,7 +102,7 @@ function defaultProps(overrides?: Partial<Parameters<typeof AIChatPanel>[0]>) {
     currentLayout: BASE_LAYOUT,
     onApplyLayout: vi.fn(),
     registry: makeRegistry(),
-    apiUrl: "/ai/layout",
+    apiUrl: "/api/ai/layout",
     ...overrides,
   };
 }
@@ -346,7 +346,7 @@ describe("AIChatPanel", () => {
 
     expect(fetch).toHaveBeenCalledOnce();
     const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("/ai/layout");
+    expect(url).toBe("/api/ai/layout");
 
     const body = JSON.parse(init.body as string) as {
       prompt: string;

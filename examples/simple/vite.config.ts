@@ -37,13 +37,11 @@ export default defineConfig({
       allow: [resolve(__dirname, "../../")],
     },
     proxy: {
-      "/ws": {
+      // All backend routes (ws/ai/workspaces) are scoped under /api, so one
+      // proxy rule covers them.
+      "/api": {
         target: "http://127.0.0.1:8000",
         ws: true,
-        changeOrigin: true,
-      },
-      "/ai": {
-        target: "http://127.0.0.1:8000",
         changeOrigin: true,
       },
     },

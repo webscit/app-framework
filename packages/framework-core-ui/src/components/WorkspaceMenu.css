@@ -1,0 +1,108 @@
+.sct-WorkspaceMenu {
+  position: relative;
+  display: inline-flex;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 13px;
+}
+
+/* ─── Trigger ─────────────────────────────────────────────────────────────── */
+
+.sct-WorkspaceMenu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--card);
+  color: var(--foreground);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.sct-WorkspaceMenu-trigger:hover {
+  background-color: var(--muted);
+}
+
+.sct-WorkspaceMenu-triggerLabel {
+  font-weight: 500;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sct-WorkspaceMenu-caret {
+  width: 14px;
+  height: 14px;
+  color: var(--muted-foreground);
+}
+
+/* ─── Popover ─────────────────────────────────────────────────────────────── */
+/*
+ * The popover shell and menu items themselves come from the shared
+ * DropdownMenu primitives (see components/ui/dropdown-menu.tsx); only the
+ * width is customized here.
+ */
+
+.sct-WorkspaceMenu-popover {
+  min-width: 224px;
+}
+
+/* ─── Inline name form (create / rename) ────────────────────────────────────── */
+
+.sct-WorkspaceMenu-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 6px 6px;
+}
+
+.sct-WorkspaceMenu-formLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.sct-WorkspaceMenu-input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-size: 13px;
+  outline: none;
+}
+
+.sct-WorkspaceMenu-input:focus-visible {
+  border-color: var(--ring, var(--primary));
+  box-shadow: 0 0 0 3px
+    color-mix(in oklch, var(--ring, var(--primary)) 25%, transparent);
+}
+
+.sct-WorkspaceMenu-formActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.sct-WorkspaceMenu-formActions > button {
+  padding-inline: 12px;
+}
+
+/* ─── Inline error ────────────────────────────────────────────────────────── */
+
+.sct-WorkspaceMenu-error {
+  margin: 4px 2px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background-color: color-mix(in oklch, var(--destructive) 12%, transparent);
+  color: var(--destructive);
+  font-size: 12px;
+}

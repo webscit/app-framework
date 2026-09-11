@@ -1,0 +1,378 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createDefaultShellLayout, SHELL_LAYOUT_STORAGE_VERSION } from "../shellTypes";
+import * as workspaceClient from "../workspaceClient";
+import type { Workspace, WorkspaceSummary } from "../workspaceClient";
+import { useShellLayoutStore } from "./shellStore";
+import {
+  ACTIVE_WORKSPACE_STORAGE_KEY,
+  clearStoredActiveWorkspaceId,
+  readStoredActiveWorkspaceId,
+  useWorkspaceStore,
+} from "./workspaceStore";
+
+vi.mock("../workspaceClient", async () => {
+  const actual =
+    await vi.importActual<typeof import("../workspaceClient")>("../workspaceClient");
+  return {
+    ...actual,
+    listWorkspaces: vi.fn(),
+    createWorkspace: vi.fn(),
+    getWorkspace: vi.fn(),
+    updateWorkspace: vi.fn(),
+    deleteWorkspace: vi.fn(),
+  };
+});
+
+const SUMMARY: WorkspaceSummary = {
+  id: "w1",
+  name: "Drone survey",
+  created_at: "2026-08-26T00:00:00Z",
+  updated_at: "2026-08-26T00:00:00Z",
+};
+
+const WORKSPACE: Workspace = {
+  ...SUMMARY,
+  goal: null,
+  layout_snapshot: null,
+  metadata: {},
+};
+
+function resetShellLayout(): void {
+  const layout = createDefaultShellLayout();
+  useShellLayoutStore.setState({
+    profiles: [{ id: "p1", name: "Default", layout }],
+    activeProfileId: "p1",
+    workingLayout: structuredClone(layout),
+    defaultLayout: structuredClone(layout),
+  });
+}
+
+beforeEach(() => {
+  localStorage.clear();
+  resetShellLayout();
+  useWorkspaceStore.setState({
+    workspaces: [],
+    activeWorkspaceId: null,
+    activeWorkspace: null,
+    status: "idle",
+    error: null,
+  });
+  vi.mocked(workspaceClient.listWorkspaces).mockReset();
+  vi.mocked(workspaceClient.createWorkspace).mockReset();
+  vi.mocked(workspaceClient.getWorkspace).mockReset();
+  vi.mocked(workspaceClient.updateWorkspace).mockReset();
+  vi.mocked(workspaceClient.deleteWorkspace).mockReset();
+});
+
+describe("useWorkspaceStore", () => {
+  it("refreshList populates workspaces from the API", async () => {
+    vi.mocked(workspaceClient.listWorkspaces).mockResolvedValue([SUMMARY]);
+
+    await useWorkspaceStore.getState().refreshList();
+
+    expect(useWorkspaceStore.getState().workspaces).toEqual([SUMMARY]);
+    expect(useWorkspaceStore.getState().status).toBe("idle");
+  });
+
+  it("createWorkspace adds the workspace and makes it active", async () => {
+    vi.mocked(workspaceClient.createWorkspace).mockResolvedValue(WORKSPACE);
+
+    await useWorkspaceStore.getState().createWorkspace("Drone survey");
+
+    const state = useWorkspaceStore.getState();
+    expect(state.activeWorkspaceId).toBe("w1");
+    expect(state.workspaces).toEqual([SUMMARY]);
+    expect(readStoredActiveWorkspaceId()).toBe("w1");
+  });
+
+  it("openWorkspace applies layout_snapshot to the shell layout store", async () => {
+    const layout = createDefaultShellLayout();
+    layout.regions.header.visible = false;
+    vi.mocked(workspaceClient.getWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      layout_snapshot: layout,
+      metadata: { shellLayoutVersion: SHELL_LAYOUT_STORAGE_VERSION },
+    });
+
+    await useWorkspaceStore.getState().openWorkspace("w1");
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("w1");
+    expect(useShellLayoutStore.getState().workingLayout.regions.header.visible).toBe(
+      false,
+    );
+  });
+
+  it("openWorkspace leaves the shell layout untouched when layout_snapshot is null", async () => {
+    vi.mocked(workspaceClient.getWorkspace).mockResolvedValue(WORKSPACE);
+    const before = useShellLayoutStore.getState().workingLayout;
+
+    await useWorkspaceStore.getState().openWorkspace("w1");
+
+    expect(useShellLayoutStore.getState().workingLayout).toEqual(before);
+  });
+
+  it("save sends the current shell layout in the update request", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+    useShellLayoutStore.getState().setLayout((prev) => {
+      prev.regions.header.visible = false;
+      return prev;
+    });
+    const layout = useShellLayoutStore.getState().workingLayout;
+    vi.mocked(workspaceClient.updateWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      layout_snapshot: layout,
+    });
+
+    await useWorkspaceStore.getState().save();
+
+    expect(workspaceClient.updateWorkspace).toHaveBeenCalledWith(
+      "w1",
+      expect.objectContaining({ layout_snapshot: layout }),
+    );
+  });
+
+  it("close clears the active workspace and resets the shell layout", () => {
+    localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, "w1");
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+    useShellLayoutStore.getState().setLayout((prev) => {
+      prev.regions.header.visible = false;
+      return prev;
+    });
+
+    useWorkspaceStore.getState().close();
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBeNull();
+    expect(readStoredActiveWorkspaceId()).toBeNull();
+    expect(useShellLayoutStore.getState().workingLayout.regions.header.visible).toBe(
+      true,
+    );
+  });
+
+  it("deleteWorkspace on the active workspace clears it and resets the shell layout", async () => {
+    useWorkspaceStore.setState({
+      workspaces: [SUMMARY],
+      activeWorkspaceId: "w1",
+      activeWorkspace: WORKSPACE,
+    });
+    useShellLayoutStore.getState().setLayout((prev) => {
+      prev.regions.header.visible = false;
+      return prev;
+    });
+    vi.mocked(workspaceClient.deleteWorkspace).mockResolvedValue(undefined);
+
+    await useWorkspaceStore.getState().deleteWorkspace("w1");
+
+    const state = useWorkspaceStore.getState();
+    expect(state.workspaces).toEqual([]);
+    expect(state.activeWorkspaceId).toBeNull();
+    expect(useShellLayoutStore.getState().workingLayout.regions.header.visible).toBe(
+      true,
+    );
+  });
+
+  it("deleteWorkspace on an inactive workspace leaves the active one untouched", async () => {
+    useWorkspaceStore.setState({
+      workspaces: [SUMMARY, { ...SUMMARY, id: "w2", name: "Other" }],
+      activeWorkspaceId: "w1",
+      activeWorkspace: WORKSPACE,
+    });
+    vi.mocked(workspaceClient.deleteWorkspace).mockResolvedValue(undefined);
+
+    await useWorkspaceStore.getState().deleteWorkspace("w2");
+
+    const state = useWorkspaceStore.getState();
+    expect(state.workspaces).toEqual([SUMMARY]);
+    expect(state.activeWorkspaceId).toBe("w1");
+  });
+
+  it("rename updates the active workspace's name", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+    vi.mocked(workspaceClient.updateWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      name: "Renamed",
+    });
+
+    await useWorkspaceStore.getState().rename("Renamed");
+
+    expect(useWorkspaceStore.getState().activeWorkspace?.name).toBe("Renamed");
+    expect(workspaceClient.updateWorkspace).toHaveBeenCalledWith(
+      "w1",
+      expect.objectContaining({ name: "Renamed" }),
+    );
+  });
+
+  it("rename is a no-op when no workspace is active", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: null, activeWorkspace: null });
+
+    await useWorkspaceStore.getState().rename("New name");
+
+    expect(workspaceClient.updateWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("rename is a no-op when given a blank name", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+
+    await useWorkspaceStore.getState().rename("   ");
+
+    expect(workspaceClient.updateWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("save is a no-op when no workspace is active", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: null, activeWorkspace: null });
+
+    await useWorkspaceStore.getState().save();
+
+    expect(workspaceClient.updateWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("clearStoredActiveWorkspaceId clears the stored key", () => {
+    localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, "w1");
+
+    clearStoredActiveWorkspaceId();
+
+    expect(readStoredActiveWorkspaceId()).toBeNull();
+  });
+
+  it("a failed action sets status to error and leaves prior state intact", async () => {
+    useWorkspaceStore.setState({ workspaces: [SUMMARY] });
+    vi.mocked(workspaceClient.listWorkspaces).mockRejectedValue(
+      new workspaceClient.WorkspaceApiError(500, "server exploded"),
+    );
+
+    await useWorkspaceStore.getState().refreshList();
+
+    const state = useWorkspaceStore.getState();
+    expect(state.status).toBe("error");
+    expect(state.error).toBe("server exploded");
+    expect(state.workspaces).toEqual([SUMMARY]);
+  });
+
+  it("a success action clears a previously-set error", async () => {
+    useWorkspaceStore.setState({ status: "error", error: "stale" });
+    vi.mocked(workspaceClient.listWorkspaces).mockResolvedValue([SUMMARY]);
+
+    await useWorkspaceStore.getState().refreshList();
+
+    expect(useWorkspaceStore.getState().error).toBeNull();
+  });
+
+  it("close resets status and error", () => {
+    useWorkspaceStore.setState({ status: "error", error: "stale" });
+
+    useWorkspaceStore.getState().close();
+
+    expect(useWorkspaceStore.getState().status).toBe("idle");
+    expect(useWorkspaceStore.getState().error).toBeNull();
+  });
+
+  it("refreshList returns false on failure and true on success", async () => {
+    vi.mocked(workspaceClient.listWorkspaces).mockRejectedValue(
+      new Error("network down"),
+    );
+    await expect(useWorkspaceStore.getState().refreshList()).resolves.toBe(false);
+
+    vi.mocked(workspaceClient.listWorkspaces).mockResolvedValue([SUMMARY]);
+    await expect(useWorkspaceStore.getState().refreshList()).resolves.toBe(true);
+  });
+
+  it("save stamps the current SHELL_LAYOUT_STORAGE_VERSION into the record it sends", async () => {
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+    vi.mocked(workspaceClient.updateWorkspace).mockResolvedValue(WORKSPACE);
+
+    await useWorkspaceStore.getState().save();
+
+    expect(workspaceClient.updateWorkspace).toHaveBeenCalledWith(
+      "w1",
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          ["shellLayoutVersion"]: SHELL_LAYOUT_STORAGE_VERSION,
+        }),
+      }),
+    );
+  });
+
+  it("openWorkspace skips applying a layout_snapshot with a mismatched version stamp", async () => {
+    const layout = createDefaultShellLayout();
+    layout.regions.header.visible = false;
+    const before = useShellLayoutStore.getState().workingLayout;
+    vi.mocked(workspaceClient.getWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      layout_snapshot: layout,
+      metadata: { ["shellLayoutVersion"]: SHELL_LAYOUT_STORAGE_VERSION - 1 },
+    });
+
+    await useWorkspaceStore.getState().openWorkspace("w1");
+
+    expect(useShellLayoutStore.getState().workingLayout).toEqual(before);
+    expect(useWorkspaceStore.getState().status).not.toBe("error");
+  });
+
+  it("openWorkspace skips applying a layout_snapshot with no version stamp at all", async () => {
+    const layout = createDefaultShellLayout();
+    layout.regions.header.visible = false;
+    const before = useShellLayoutStore.getState().workingLayout;
+    vi.mocked(workspaceClient.getWorkspace).mockResolvedValue({
+      ...WORKSPACE,
+      layout_snapshot: layout,
+      metadata: {},
+    });
+
+    await useWorkspaceStore.getState().openWorkspace("w1");
+
+    expect(useShellLayoutStore.getState().workingLayout).toEqual(before);
+    expect(useWorkspaceStore.getState().status).not.toBe("error");
+  });
+
+  it("openWorkspace discards a stale response once a newer call has resolved", async () => {
+    let resolveStale: (workspace: Workspace) => void = () => {};
+    const stale = new Promise<Workspace>((resolve) => {
+      resolveStale = resolve;
+    });
+    vi.mocked(workspaceClient.getWorkspace).mockImplementationOnce(() => stale);
+    vi.mocked(workspaceClient.getWorkspace).mockImplementationOnce(() =>
+      Promise.resolve({ ...WORKSPACE, id: "w2", name: "Second" }),
+    );
+
+    // Simulates an auto-open (e.g. restoring the last-used workspace on
+    // mount) racing a manual selection the user makes before it resolves.
+    const staleCall = useWorkspaceStore.getState().openWorkspace("w1");
+    const freshCall = useWorkspaceStore.getState().openWorkspace("w2");
+    await freshCall;
+    resolveStale({ ...WORKSPACE, id: "w1" });
+    await staleCall;
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("w2");
+  });
+
+  it("close resets to the app's hardcoded default layout and re-points activeProfileId at the first profile", () => {
+    const profileLayout = createDefaultShellLayout();
+    profileLayout.regions.header.visible = false;
+    const defaultLayout = createDefaultShellLayout();
+    defaultLayout.regions.header.visible = true;
+    useShellLayoutStore.setState({
+      profiles: [
+        { id: "p1", name: "Default", layout: structuredClone(defaultLayout) },
+        { id: "p2", name: "Custom", layout: structuredClone(profileLayout) },
+      ],
+      activeProfileId: "p2",
+      workingLayout: structuredClone(profileLayout),
+      defaultLayout: structuredClone(defaultLayout),
+    });
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", activeWorkspace: WORKSPACE });
+    // Simulate the workspace's own layout_snapshot having been applied on open.
+    useShellLayoutStore.getState().setLayout((prev) => {
+      prev.regions.bottom.visible = false;
+      return prev;
+    });
+
+    useWorkspaceStore.getState().close();
+
+    expect(useShellLayoutStore.getState().workingLayout).toEqual(defaultLayout);
+    expect(useShellLayoutStore.getState().activeProfileId).toBe("p1");
+    // The "Custom" profile's own saved snapshot is untouched.
+    expect(
+      useShellLayoutStore.getState().profiles.find((p) => p.id === "p2")!.layout,
+    ).toEqual(profileLayout);
+  });
+});

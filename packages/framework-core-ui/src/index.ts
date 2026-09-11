@@ -75,6 +75,14 @@ export {
   type ShellLayoutStore,
 } from "./stores/shellStore";
 export { LayoutProfilesMenu } from "./components/LayoutProfilesMenu";
+export { WorkspaceMenu } from "./components/WorkspaceMenu";
+export { useWorkspaceStore, type WorkspaceStore } from "./stores/workspaceStore";
+export {
+  buildWorkspaceApiUrl,
+  WorkspaceApiError,
+  type Workspace,
+  type WorkspaceSummary,
+} from "./workspaceClient";
 export { useProfileState } from "./useProfileState";
 export {
   registerProfileState,

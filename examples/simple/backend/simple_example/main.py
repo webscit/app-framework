@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sci_framework_core import create_app
 from sci_framework_core.ai_layout import mount_ai_routes
+from sci_framework_core.workspace import mount_workspace_routes
 
 from .consumers import register_consumers
 from .producers import (
@@ -41,3 +42,4 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = create_app(lifespan=lifespan)
 mount_ai_routes(app)
+mount_workspace_routes(app, app_name="simple")

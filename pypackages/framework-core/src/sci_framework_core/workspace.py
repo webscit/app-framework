@@ -1,7 +1,7 @@
 """Server-side workspace persistence — one JSON file per workspace on local disk.
 
 Entry point for consumers: ``mount_workspace_routes(app, app_name)`` — call once
-after ``create_app()`` to attach the ``/workspaces`` CRUD endpoints to a FastAPI
+after ``create_app()`` to attach the ``/api/workspaces`` CRUD endpoints to a FastAPI
 application.
 """
 
@@ -12,8 +12,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import APIRouter, FastAPI, HTTPException, status
 from pydantic import BaseModel
+
+from .constants import API_PREFIX
 
 # ─── Data model ───────────────────────────────────────────────────────────────
 
@@ -239,6 +241,10 @@ def mount_workspace_routes(
         app = create_app(lifespan=lifespan)
         mount_workspace_routes(app, app_name="drone")
 
+    Defines the ``/workspaces`` CRUD routes on a fresh
+    :class:`~fastapi.APIRouter` and includes it on ``app`` under
+    :data:`API_PREFIX`, so the endpoints end up at ``/api/workspaces``.
+
     Args:
         app: FastAPI application instance to attach routes to.
         app_name: Application identifier used to derive the default storage
@@ -249,8 +255,9 @@ def mount_workspace_routes(
             derived from ``app_name``. Primarily for tests.
     """
     store = WorkspaceStore(workspace_dir or default_workspace_dir(app_name))
+    router = APIRouter()
 
-    @app.post(
+    @router.post(
         "/workspaces",
         response_model=Workspace,
         status_code=status.HTTP_201_CREATED,
@@ -267,7 +274,7 @@ def mount_workspace_routes(
         """
         return store.create(name=request.name, goal=request.goal)
 
-    @app.get("/workspaces", response_model=list[WorkspaceSummary])
+    @router.get("/workspaces", response_model=list[WorkspaceSummary])
     async def list_workspaces() -> list[WorkspaceSummary]:
         """List all workspaces as lightweight summaries.
 
@@ -276,7 +283,7 @@ def mount_workspace_routes(
         """
         return store.list_summaries()
 
-    @app.get("/workspaces/{workspace_id}", response_model=Workspace)
+    @router.get("/workspaces/{workspace_id}", response_model=Workspace)
     async def get_workspace(workspace_id: str) -> Workspace:
         """Fetch one workspace by id.
 
@@ -296,7 +303,7 @@ def mount_workspace_routes(
                 status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
             ) from exc
 
-    @app.put("/workspaces/{workspace_id}", response_model=Workspace)
+    @router.put("/workspaces/{workspace_id}", response_model=Workspace)
     async def update_workspace(workspace_id: str, workspace: Workspace) -> Workspace:
         """Save changes to an existing workspace.
 
@@ -318,7 +325,7 @@ def mount_workspace_routes(
                 status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
             ) from exc
 
-    @app.delete("/workspaces/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @router.delete("/workspaces/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_workspace(workspace_id: str) -> None:
         """Delete a workspace.
 
@@ -334,3 +341,5 @@ def mount_workspace_routes(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
             ) from exc
+
+    app.include_router(router, prefix=API_PREFIX)

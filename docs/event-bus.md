@@ -307,7 +307,7 @@ import { EventBusProvider } from "@app-framework/core-ui";
 
 function App() {
   return (
-    <EventBusProvider path="/ws">
+    <EventBusProvider path="/api/ws">
       <Dashboard />
     </EventBusProvider>
   );

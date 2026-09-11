@@ -85,7 +85,7 @@ export interface AIChatPanelProps {
   registry: WidgetRegistry;
   /**
    * Base URL for the layout generation endpoint.
-   * Defaults to `"/ai/layout"`.
+   * Defaults to `"/api/ai/layout"`.
    */
   apiUrl?: string;
   /**
@@ -265,7 +265,7 @@ function MessageBubble({
  * shell layout generation.
  *
  * The panel serialises the widget registry and the approved conversation history
- * and POSTs them to `POST /ai/layout`. When the AI proposes a layout, a
+ * and POSTs them to `POST /api/ai/layout`. When the AI proposes a layout, a
  * {@link LayoutDiffViewer} is rendered inline inside the assistant bubble so the
  * user can Approve or Reject the change. Only approved turns are included in
  * subsequent requests so rejected proposals do not pollute the AI's context.
@@ -290,7 +290,7 @@ export function AIChatPanel({
   currentLayout,
   onApplyLayout,
   registry,
-  apiUrl = "/ai/layout",
+  apiUrl = "/api/ai/layout",
   getSnapshot,
   onApproveParams,
   getCaptureTarget,

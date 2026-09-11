@@ -163,7 +163,7 @@ export interface ShellClassNames {
  * provider, the same as the text context in {@link AISnapshot}.
  */
 export interface ShellAIConfig {
-  /** Layout-generation endpoint. Defaults to `"/ai/layout"`. */
+  /** Layout-generation endpoint. Defaults to `"/api/ai/layout"`. */
   apiUrl?: string;
   /**
    * Called before every request to attach an application-specific
@@ -624,7 +624,7 @@ function ManifestGate({
  * <ApplicationShell
  *   initialLayout={layout}
  *   manifestUrl="/sct-manifest.json"
- *   ai={{ apiUrl: "/ai/layout" }}
+ *   ai={{ apiUrl: "/api/ai/layout" }}
  * />
  * ```
  */
